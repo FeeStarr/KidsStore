@@ -4,9 +4,8 @@
     //     (detected by absence of _editing_variant_id in old() data).
     //   • Edit modal ($variant set): only when _this_ variant's edit form failed validation
     //     (detected by _editing_variant_id matching this variant's ID).
-    // This ensures no cross-modal contamination: Add ≠ Edit, and Edit A ≠ Edit B.
     if ($variant === null) {
-        $useOld = is_null(old('_editing_variant_id'));  // null = came from Add form (or fresh)
+        $useOld = is_null(old('_editing_variant_id'));
     } else {
         $useOld = (old('_editing_variant_id') == $variant->id);
     }
@@ -14,67 +13,37 @@
     if ($useOld && old('option_keys')) {
         $rawKeys = array_values(array_filter((array) old('option_keys'), fn($k) => trim($k) !== ''));
         $rawVals = array_values((array) old('option_values', []));
-        // Pad values to same length, then zip.
         while (count($rawVals) < count($rawKeys)) $rawVals[] = '';
         $allOpts = array_combine($rawKeys, array_slice($rawVals, 0, count($rawKeys)));
     } else {
         $allOpts = (array) ($variant?->options ?? []);
     }
 
-    // Pre-compute all field values using $useOld to pick old() vs DB.
-    $fSku          = $useOld ? old('sku',          $variant?->sku           ?? '') : ($variant->sku ?? '');
-    $fName         = $useOld ? old('name',         $variant?->name          ?? '') : ($variant->name ?? '');
-    $fSellingPrice = $useOld ? old('selling_price',$variant?->selling_price ?? '') : ($variant->selling_price ?? '');
-    $fDiscount     = $useOld ? old('discount',     $variant?->discount      ?? 0)  : ($variant->discount ?? 0);
-    $fImageId      = $useOld ? old('image_id',     $variant?->image_id)             : $variant->image_id;
+    $fSku          = $useOld ? old('sku',          $variant?->sku           ?? '') : ($variant?->sku ?? '');
+    $fName         = $useOld ? old('name',         $variant?->name          ?? '') : ($variant?->name ?? '');
+    $fColorId      = $useOld ? old('color_id',     $variant?->color_id      ?? '') : ($variant?->color_id ?? '');
+    $fSizeId       = $useOld ? old('size_id',      $variant?->size_id       ?? '') : ($variant?->size_id ?? '');
+    $fColorText    = $useOld ? old('color_text',   $variant?->colorRef?->name ?? '') : ($variant?->colorRef?->name ?? '');
+    $fSizeText     = $useOld ? old('size_text',    $variant?->sizeRef?->name  ?? '') : ($variant?->sizeRef?->name ?? '');
+    $fAgeRangeId   = $useOld ? old('age_range_id', $variant?->age_range_id  ?? '') : ($variant?->age_range_id ?? '');
+    $fSellingPrice = $useOld ? old('selling_price',$variant?->selling_price ?? '') : ($variant?->selling_price ?? '');
+    $fDiscount     = $useOld ? old('discount',     $variant?->discount      ?? 0)  : ($variant?->discount ?? 0);
+    $fImageId      = $useOld ? old('image_id',     $variant?->image_id)             : ($variant?->image_id ?? null);
     $fIsActive     = $useOld
         ? (old('is_active') !== null ? (bool) old('is_active') : (bool) ($variant?->is_active ?? true))
-        : (bool) ($variant->is_active ?? true);
+        : (bool) ($variant?->is_active ?? true);
     $assignedIds   = $useOld
         ? old('image_ids', $variant?->images?->pluck('id')->all() ?? [])
         : ($variant?->images?->pluck('id')->all() ?? []);
 
-    // Case-insensitive lookup for Color and Size so variants saved with any casing work.
-    $knownStyleKey = 'Color';
-    $knownSizeKey  = 'Size';
+    $colorOptions = $colors ?? collect();
+    $sizeOptions  = $sizes ?? collect();
+    $ageOptions   = $ageRanges ?? collect();
 
-    $currentColor = '';
-    $currentSize  = '';
-    $extraOpts    = [];
+    // Extra options — exclude reserved keys
+    $extraOpts = [];
     foreach ($allOpts as $k => $v) {
-        $lk = strtolower((string) $k);
-        if ($lk === 'color' || $lk === 'colour')  { $currentColor = (string) $v; }
-        elseif ($lk === 'size')                    { $currentSize  = (string) $v; }
-        else                                       { $extraOpts[$k] = $v; }
-    }
-
-    $sizeOptions = [
-        ''        => '— None —',
-        'Newborn' => 'Newborn',
-        '0-3M'    => '0-3M',
-        '3-6M'    => '3-6M',
-        '6-9M'    => '6-9M',
-        '9-12M'   => '9-12M',
-        '12-18M'  => '12-18M',
-        '18-24M'  => '18-24M',
-        '2T'      => '2T',
-        '3T'      => '3T',
-        '4T'      => '4T',
-        '5T'      => '5T',
-        '4'       => '4',
-        '5'       => '5',
-        '6'       => '6',
-        '6X'      => '6X',
-        '7'       => '7',
-        '8'       => '8',
-        '10'      => '10',
-        '12'      => '12',
-        '14'      => '14',
-        '16'      => '16',
-    ];
-    // If the variant has a saved size that isn't in the predefined list, add it so it stays selected.
-    if ($currentSize !== '' && ! array_key_exists($currentSize, $sizeOptions)) {
-        $sizeOptions[$currentSize] = $currentSize . ' (custom)';
+        $extraOpts[$k] = $v;
     }
 @endphp
 <div class="row g-3">
@@ -117,48 +86,40 @@
         <label class="form-label fw-semibold">Variant Attributes</label>
         <div class="border rounded p-3 bg-light">
             <div class="row g-3">
-                {{-- Color / Style --}}
-                <div class="col-md-6">
-                    <label class="form-label">
-                        <i class="bi bi-palette2 me-1"></i>Color / Style
-                        <small class="text-muted">(e.g. Red, Blue, Striped — groups thumbnails on product page)</small>
-                    </label>
-                    {{-- Hidden option_keys/values pair for Color --}}
-                    <input type="hidden" name="option_keys[]" value="{{ $knownStyleKey }}">
-                    <input type="text" name="option_values[]" class="form-control"
-                           placeholder="e.g. Red, Blue, Polka-dot …"
-                           value="{{ $currentColor }}"
-                           id="colorInput_{{ $variant?->id ?? 'new' }}">                    <div class="d-flex flex-wrap gap-1 mt-2">
-                        @foreach(['Red','Blue','Green','Yellow','Pink','Purple','White','Black','Orange','Grey','Navy','Brown','Multicolor'] as $c)
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill color-preset"
-                                    data-target="colorInput_{{ $variant?->id ?? 'new' }}"
-                                    data-val="{{ $c }}">{{ $c }}</button>
+                {{-- Color --}}
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-palette2 me-1"></i>Color</label>
+                    <select name="color_id" class="form-select">
+                        <option value="">— Select Color —</option>
+                        @foreach($colorOptions as $opt)
+                            <option value="{{ $opt->id }}" @selected((string) $fColorId === (string) $opt->id)>{{ $opt->name }}</option>
                         @endforeach
-                    </div>
+                    </select>
+                    <input name="color_text" class="form-control form-control-sm mt-1" placeholder="Other colour (free text)" value="{{ $fColorText }}">
+                </div>
+
+                {{-- Age Range --}}
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-people me-1"></i>Age Range</label>
+                    <select name="age_range_id" class="form-select">
+                        <option value="">— Select Age Range —</option>
+                        @foreach($ageOptions as $age)
+                            <option value="{{ $age->id }}" @selected((string) $fAgeRangeId === (string) $age->id)>{{ $age->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 {{-- Size --}}
-                <div class="col-md-6">
-                    <label class="form-label">
-                        <i class="bi bi-rulers me-1"></i>Size
-                        <small class="text-muted">(shown as selectable pills on product page)</small>
-                    </label>
-                    {{-- Hidden option_keys/values pair for Size --}}
-                    <input type="hidden" name="option_keys[]" value="{{ $knownSizeKey }}">
-                    @php $sizeId = 'sizeSelect_' . ($variant?->id ?? 'new'); @endphp
-                    <select name="option_values[]" class="form-select" id="{{ $sizeId }}"
-                            onchange="document.getElementById('customSize_{{ $variant?->id ?? 'new' }}').style.display = this.value === '__custom__' ? '' : 'none';">
-                        @foreach($sizeOptions as $val => $label)
-                            <option value="{{ $val }}" @selected($currentSize === $val)>
-                                {{ $label }}
-                            </option>
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-rulers me-1"></i>Size</label>
+                    <select name="size_id" class="form-select">
+                        <option value="">— Select Size —</option>
+                        @foreach($sizeOptions as $opt)
+                            <option value="{{ $opt->id }}" @selected((string) $fSizeId === (string) $opt->id)>{{ $opt->name }}</option>
                         @endforeach
-                        <option value="__custom__">Other (type below)…</option>
                     </select>
-                    <input type="text" id="customSize_{{ $variant?->id ?? 'new' }}"
-                           class="form-control mt-1" placeholder="Enter custom size"
-                           style="display:none"
-                           oninput="document.getElementById('{{ $sizeId }}').value = this.value || '__custom__'">
+                    <input name="size_text" class="form-control form-control-sm mt-1" placeholder="Other size (free text)" value="{{ $fSizeText }}">
+                    <div class="form-text">e.g. S, M, L, XL or 28, 30, 32</div>
                 </div>
             </div>
 
@@ -232,14 +193,6 @@
 @push('scripts')
 <script>
 (function () {
-    // Color preset buttons — click to fill the color input.
-    document.querySelectorAll('.color-preset').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const inp = document.getElementById(btn.dataset.target);
-            if (inp) inp.value = btn.dataset.val;
-        });
-    });
-
     // "Add custom option" — inserts a new row into the extra-options table.
     document.querySelectorAll('.opt-add').forEach(addBtn => {
         addBtn.addEventListener('click', () => {
@@ -263,6 +216,33 @@
             e.target.closest('tr').remove();
         }
     });
+
+        // Sync selects with free-text inputs: typing clears select, choosing select clears text
+        document.querySelectorAll('select[name="color_id"]').forEach(sel => {
+            sel.addEventListener('change', () => {
+                const txt = sel.closest('.row')?.querySelector('input[name="color_text"]');
+                if (txt) txt.value = '';
+            });
+        });
+        document.querySelectorAll('input[name="color_text"]').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const sel = inp.closest('.row')?.querySelector('select[name="color_id"]');
+                if (sel && inp.value.trim() !== '') sel.value = '';
+            });
+        });
+
+        document.querySelectorAll('select[name="size_id"]').forEach(sel => {
+            sel.addEventListener('change', () => {
+                const txt = sel.closest('.row')?.querySelector('input[name="size_text"]');
+                if (txt) txt.value = '';
+            });
+        });
+        document.querySelectorAll('input[name="size_text"]').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const sel = inp.closest('.row')?.querySelector('select[name="size_id"]');
+                if (sel && inp.value.trim() !== '') sel.value = '';
+            });
+        });
 })();
 </script>
 @endpush

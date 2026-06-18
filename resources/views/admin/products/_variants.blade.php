@@ -1,5 +1,5 @@
 @php
-    $product->loadMissing('variants.inventory', 'variants.image', 'variants.images', 'images');
+    $product->loadMissing('variants.inventory', 'variants.image', 'variants.images', 'variants.ageRange', 'variants.sizeRef', 'variants.colorRef', 'images');
     $images = $product->images;
 @endphp
 
@@ -18,6 +18,9 @@
                         <th style="width:52px"></th>
                         <th>SKU</th>
                         <th>Name</th>
+                        <th>Color</th>
+                        <th>Size</th>
+                        <th>Age Group</th>
                         <th>Options</th>
                         <th class="text-end">Price (₦)</th>
                         <th class="text-end">Disc %</th>
@@ -44,6 +47,26 @@
                         </td>
                         <td><code>{{ $v->sku }}</code></td>
                         <td>{{ $v->name ?: '—' }}</td>
+                        @php
+                            $vColor = $v->colorRef?->name ?: $v->color;
+                            $vSize = $v->sizeRef?->name ?: ($v->size ?: '—');
+                            $vAge = $v->ageRange?->name ?: (!empty($v->age_group) ? implode(', ', (array) $v->age_group) : null);
+                        @endphp
+                        <td>
+                            @if($vColor)
+                                <span class="badge text-bg-info">{{ $vColor }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>{{ $vSize }}</td>
+                        <td>
+                            @if($vAge)
+                                {{ $vAge }}
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td>
                             @php $opts = $v->options ?? []; @endphp
                             @if(empty($opts))
@@ -55,8 +78,13 @@
                             @endif
                         </td>
                         <td class="text-end">{{ number_format((float) $v->selling_price, 2) }}</td>
-                        <td class="text-end">{{ rtrim(rtrim(number_format((float) $v->discount, 2), '0'), '.') }}</td>
-                        <td class="text-end">{{ $v->inventory->quantity ?? 0 }}</td>
+                        <td class="text-end">
+                            {{ rtrim(rtrim(number_format((float) $v->discount, 2), '0'), '.') }}
+                            @if((float) $product->discount > 0)
+                                <small class="text-muted d-block">+ {{ rtrim(rtrim(number_format((float) $product->discount, 2), '0'), '.') }} product</small>
+                            @endif
+                        </td>
+                        <td class="text-end">{{ $v->inventory->current_quantity ?? 0 }}</td>
                         <td>
                             @if($v->is_active)
                                 <span class="badge text-bg-success">Active</span>
@@ -81,7 +109,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="text-center text-muted py-3">No variants yet.</td></tr>
+                    <tr><td colspan="11" class="text-center text-muted py-3">No variants yet.</td></tr>
                 @endforelse
                 </tbody>
             </table>

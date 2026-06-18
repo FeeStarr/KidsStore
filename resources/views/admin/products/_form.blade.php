@@ -96,32 +96,23 @@
                     </script>
                     @endpush
                     <div class="row g-3 mt-1">
-                        <div class="col-md-5">
-                            <label class="form-label d-block">Age Group <small class="text-muted">(select one or more)</small></label>
-                            @php
-                                $ageOptions = ['1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10', '10-11', '11-12', '12-13', '13-14', '14-15', '15-16'];
-                                $selectedAges = (array) old('age_group', $product->age_group ?? []);
-                            @endphp
-                            <div class="d-flex flex-wrap gap-3">
-                                @foreach($ageOptions as $age)
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="age_group[]"
-                                               value="{{ $age }}" id="age_{{ $loop->index }}"
-                                               @checked(in_array($age, $selectedAges, true))>
-                                        <label class="form-check-label" for="age_{{ $loop->index }}">{{ $age }}</label>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                        <div class="col-md-3"><label class="form-label">Gender</label>
+                        <div class="col-md-4"><label class="form-label">Gender</label>
                             <select name="gender" class="form-select">
                                 @foreach(['' => '-','boy'=>'Boy','girl'=>'Girl','unisex'=>'Unisex'] as $k=>$v)
                                     <option value="{{ $k }}" @selected(old('gender', $product->gender ?? '') === $k)>{{ $v }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-4"><label class="form-label">Brand</label>
-                            <input name="brand" class="form-control" value="{{ old('brand', $product->brand ?? '') }}"></div>
+                        <div class="col-md-4"><label class="form-label">Brand (Catalog)</label>
+                            <select name="brand_id" class="form-select">
+                                <option value="">—</option>
+                                @foreach(($brands ?? collect()) as $b)
+                                    <option value="{{ $b->id }}" @selected((string) old('brand_id', $product->brand_id ?? '') === (string) $b->id)>{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4"><label class="form-label">Brand Label</label>
+                            <input name="brand" class="form-control" value="{{ old('brand', $product->brand ?? '') }}" placeholder="Optional display text"></div>
                     </div>
                     <div class="mt-3"><label class="form-label">Description</label>
                         <textarea name="description" rows="4" class="form-control">{{ old('description', $product->description ?? '') }}</textarea></div>
@@ -172,13 +163,16 @@
                         <input type="number" step="0.01" name="selling_price" class="form-control"
                                value="{{ old('selling_price', $product->selling_price ?? '') }}"
                                placeholder="Leave blank — auto-set when first purchase is received"></div>
-                    <div class="mb-3"><label class="form-label">Discount (%)</label>
+                    <div class="mb-3"><label class="form-label">Discount (%) <small class="text-muted">(applies to all variants for this product)</small></label>
                         <input type="number" step="0.01" min="0" max="100" name="discount" class="form-control"
                                value="{{ old('discount', $product->discount ?? 0) }}"></div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1"
-                               @checked(old('is_active', $product->is_active ?? true))>
-                        <label class="form-check-label" for="is_active">Active</label>
+                    <div class="mb-3"><label class="form-label">Status</label>
+                        <select name="status" id="productStatus" class="form-select">
+                            @foreach(['active' => 'Active', 'inactive' => 'Inactive', 'draft' => 'Draft'] as $key => $label)
+                                <option value="{{ $key }}" @selected(old('status', $product->status ?? (($product->is_active ?? true) ? 'active' : 'inactive')) === $key)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="is_active" id="productIsActive" value="{{ old('status', $product->status ?? (($product->is_active ?? true) ? 'active' : 'inactive')) === 'active' ? 1 : 0 }}">
                     </div>
                 </div>
             </div>
@@ -192,3 +186,16 @@
 @if($isEdit)
     @include('admin.products._variants', ['product' => $product])
 @endif
+
+@push('scripts')
+<script>
+(function () {
+    const status = document.getElementById('productStatus');
+    const active = document.getElementById('productIsActive');
+    if (!status || !active) return;
+    const sync = () => { active.value = status.value === 'active' ? '1' : '0'; };
+    status.addEventListener('change', sync);
+    sync();
+})();
+</script>
+@endpush

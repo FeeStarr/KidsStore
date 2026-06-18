@@ -46,6 +46,9 @@
         </form>
 
         <div class="text-center mt-4">
+            <div class="mb-3">
+                <a href="{{ route('admin.password.request') }}" class="text-muted small">Forgot password?</a>
+            </div>
             <a href="{{ route('shop.home') }}" class="text-muted small">Back to Store</a>
         </div>
     </div>

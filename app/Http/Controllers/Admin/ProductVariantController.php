@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductVariantRequest;
 use App\Models\Inventory;
+use App\Models\AgeRange;
+use App\Models\Color;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Size;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -15,19 +18,37 @@ class ProductVariantController extends Controller
     public function store(ProductVariantRequest $request, Product $product): RedirectResponse
     {
         DB::transaction(function () use ($request, $product) {
-            $data = $this->prepareData($request, $product);
+            $data    = $this->prepareData($request, $product);
             $variant = $product->variants()->create($data);
-            // Auto-create inventory row for the new variant.
+
             Inventory::create([
                 'product_id'         => $product->id,
                 'product_variant_id' => $variant->id,
                 'quantity'           => 0,
                 'reorder_level'      => 5,
             ]);
+
             $this->syncGallery($variant, $request->input('image_ids', []));
         });
 
         return back()->with('success', 'Variant added.');
+    }
+
+    private function ensureUniqueSku(?string $sku): string
+    {
+        $sku = trim((string) ($sku ?? ''));
+        if ($sku === '') {
+            $sku = strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
+        }
+
+        $base = $sku;
+        $i    = 0;
+        while (ProductVariant::where('sku', $sku)->exists()) {
+            $i++;
+            $sku = $base . '-' . $i;
+        }
+
+        return $sku;
     }
 
     public function update(ProductVariantRequest $request, ProductVariant $variant): RedirectResponse
@@ -54,8 +75,17 @@ class ProductVariantController extends Controller
         return back()->with('success', 'Variant deleted.');
     }
 
+    public function show(ProductVariant $variant): RedirectResponse
+    {
+        // Redirect to the parent product's edit page — variants are managed from there.
+        return redirect()->route('admin.products.edit', $variant->product);
+    }
+
     /**
-     * Build clean payload from request (parses options keys/values).
+     * Build clean payload from the request.
+     * FKs (color_id, size_id, age_range_id) are the canonical source of truth.
+     * If only the FK is supplied the name is resolved for any legacy display fields;
+     * if a free-text name arrives without a FK we auto-create the lookup record.
      */
     private function prepareData(ProductVariantRequest $request, Product $product): array
     {
@@ -66,10 +96,24 @@ class ProductVariantController extends Controller
             $data['selling_price'] = $product->selling_price;
         }
 
+        // Resolve color FK from free-text fallback if needed.
+        if (empty($data['color_id']) && ! empty($data['color_name'] ?? null)) {
+            $data['color_id'] = Color::query()
+                ->firstOrCreate(['name' => trim($data['color_name'])], ['is_active' => true])
+                ->id;
+        }
+
+        // Resolve size FK from free-text fallback if needed.
+        if (empty($data['size_id']) && ! empty($data['size_name'] ?? null)) {
+            $data['size_id'] = Size::query()
+                ->firstOrCreate(['name' => trim($data['size_name'])], ['is_active' => true])
+                ->id;
+        }
+
         // Options come from form as parallel arrays of keys + values; convert to map.
         $options = [];
-        $keys   = $request->input('option_keys', []);
-        $values = $request->input('option_values', []);
+        $keys    = $request->input('option_keys', []);
+        $values  = $request->input('option_values', []);
         foreach ($keys as $i => $k) {
             $k = trim((string) $k);
             $v = trim((string) ($values[$i] ?? ''));
@@ -80,7 +124,7 @@ class ProductVariantController extends Controller
         $data['options'] = $options ?: null;
 
         // image_ids handled separately via syncGallery().
-        unset($data['image_ids']);
+        unset($data['image_ids'], $data['color_name'], $data['size_name']);
 
         return $data;
     }

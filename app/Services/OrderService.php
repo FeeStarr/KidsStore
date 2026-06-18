@@ -6,8 +6,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Notifications\NotificationRecipients;
+use App\Notifications\OrderPlacedNotification;
+use App\Notifications\OrderStatusNotification;
 use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
 /**
@@ -35,13 +39,18 @@ class OrderService
     {
         return DB::transaction(function () use ($data) {
             $order = Order::create([
-                'reference'     => $data['reference'] ?? $this->generateReference(),
-                'customer_id'   => $data['customer_id'] ?? null,
-                'order_date'    => $data['order_date'],
-                'status'        => $data['status'] ?? 'order placed',
-                'discount'      => (float) ($data['discount'] ?? 0),
-                'shipping_fee'  => (float) ($data['shipping_fee'] ?? 0),
-                'note'          => $data['note'] ?? null,
+                'reference'              => $data['reference'] ?? $this->generateReference(),
+                'customer_id'            => $data['customer_id'] ?? null,
+                'order_date'             => $data['order_date'],
+                'status'                 => $data['status'] ?? 'ordered',
+                'delivery_method'        => $data['delivery_method'] ?? 'delivery',
+                'pickup_station_id'      => $data['pickup_station_id'] ?? null,
+                'delivery_address'       => $data['delivery_address'] ?? null,
+                'discount'               => (float) ($data['discount'] ?? 0),
+                'shipping_fee'           => (float) ($data['shipping_fee'] ?? 0),
+                'note'                   => $data['note'] ?? null,
+                'expected_delivery_date' => $data['expected_delivery_date']
+                    ?? now()->parse($data['order_date'])->addDays(7)->toDateString(),
             ]);
 
             foreach ($data['items'] as $row) {
@@ -50,13 +59,18 @@ class OrderService
 
             $this->recalculateTotals($order);
 
-            // Decrease inventory for confirmed/processing/shipped/ready/delivered orders.
-            if (in_array($order->status, ['confirmed', 'processing', 'shipped', 'ready for pick up', 'delivered'], true)) {
+            // Decrease inventory for confirmed/processing/out for delivery/ready/delivered orders.
+            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->applyInventoryDecrease($order);
             }
 
             return $order->fresh('items.product');
         });
+
+        // Send notifications outside the transaction (non-critical)
+        $this->notifyOrderPlaced($order);
+
+        return $order;
     }
 
     /**
@@ -69,54 +83,72 @@ class OrderService
                 throw new RuntimeException('Cannot confirm a cancelled order.');
             }
 
-            if (in_array($order->status, ['confirmed', 'processing', 'shipped', 'ready for pick up', 'delivered'], true)) {
+            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 return $order;
             }
 
+            $prev = $order->status;
             $this->applyInventoryDecrease($order);
             $order->update(['status' => 'confirmed']);
+
+            $this->notifyStatusChange($order->fresh(), $prev);
 
             return $order->fresh();
         });
     }
 
+    public function markPendingConfirmation(Order $order): Order
+    {
+        if (! in_array($order->status, ['ordered'], true)) {
+            throw new RuntimeException('Order cannot be moved to pending confirmation from its current status.');
+        }
+        $prev = $order->status;
+        $order->update(['status' => 'pending confirmation']);
+        $this->notifyStatusChange($order->fresh(), $prev);
+        return $order->fresh();
+    }
+
     public function markProcessing(Order $order): Order
     {
-        if ($order->status === 'order placed') {
+        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
             $this->confirm($order);
         }
+        $prev = $order->status;
         $order->update(['status' => 'processing']);
-
+        $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
 
     public function markShipped(Order $order): Order
     {
-        if ($order->status === 'order placed') {
+        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
             $this->confirm($order);
         }
-        $order->update(['status' => 'shipped']);
-
+        $prev = $order->status;
+        $order->update(['status' => 'out for delivery']);
+        $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
 
     public function markReadyForPickup(Order $order): Order
     {
-        if ($order->status === 'order placed') {
+        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
             $this->confirm($order);
         }
+        $prev = $order->status;
         $order->update(['status' => 'ready for pick up']);
-
+        $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
 
     public function markDelivered(Order $order): Order
     {
-        if ($order->status === 'order placed') {
+        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
             $this->confirm($order);
         }
+        $prev = $order->status;
         $order->update(['status' => 'delivered']);
-
+        $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
 
@@ -125,23 +157,30 @@ class OrderService
      */
     public function cancel(Order $order): Order
     {
-        return DB::transaction(function () use ($order) {
-            if (in_array($order->status, ['confirmed', 'processing', 'shipped', 'ready for pick up', 'delivered'], true)) {
+        $result = DB::transaction(function () use ($order) {
+            $prev = $order->status;
+
+            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
             }
-
             $order->update(['status' => 'cancelled']);
 
-            return $order->fresh();
+            return [$order->fresh(), $prev];
         });
+
+        $this->notifyStatusChange($result[0], $result[1]);
+
+        return $result[0];
     }
 
     public function recordPayment(Order $order, float $amount): Order
     {
         return DB::transaction(function () use ($order, $amount) {
-            $order->amount_paid = (float) $order->amount_paid + $amount;
-            $order->payment_status = $this->resolvePaymentStatus($order);
-            $order->save();
+            $paid = round(((float) $order->amount_paid) + $amount, 2);
+            $order->update([
+                'amount_paid' => $paid,
+                'payment_status' => $this->resolvePaymentStatus($order->forceFill(['amount_paid' => $paid])),
+            ]);
 
             return $order;
         });
@@ -169,6 +208,8 @@ class OrderService
         return $order->items()->create([
             'product_id'         => $product->id,
             'product_variant_id' => $variant->id,
+            'selected_age_group' => $variant->ageRange?->name ?? ($row['selected_age_group'] ?? null),
+            'selected_size'      => $variant->sizeRef?->name ?? ($row['selected_size'] ?? null),
             'quantity'           => $quantity,
             'unit_price'         => $unitPrice,
             'landed_unit_cost'   => $landedUnitCost,
@@ -227,6 +268,7 @@ class OrderService
         $order->update([
             'subtotal'    => $subtotal,
             'grand_total' => max(0, $grand),
+            'total_amount' => max(0, $grand),
         ]);
     }
 
@@ -237,6 +279,7 @@ class OrderService
             if (! $variant) {
                 continue;
             }
+
             $this->inventory->decreaseFromOrder(
                 $variant,
                 $item->quantity,
@@ -260,5 +303,45 @@ class OrderService
         }
 
         return 'partial';
+    }
+
+    // ── Notification helpers ──────────────────────────────────────────────────
+
+    private function notifyOrderPlaced(Order $order): void
+    {
+        try {
+            $order->load('customer', 'items.product', 'pickupStation');
+
+            // Notify the customer
+            if ($order->customer) {
+                $order->customer->notify(new OrderPlacedNotification($order));
+            }
+
+            // Notify customer support staff
+            foreach (NotificationRecipients::internalStaff() as $staff) {
+                $staff->notify(new OrderPlacedNotification($order));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('OrderPlaced notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
+        }
+    }
+
+    private function notifyStatusChange(Order $order, string $previousStatus): void
+    {
+        // Only notify customer on meaningful status changes
+        $notifyStatuses = ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled'];
+        if (! in_array($order->status, $notifyStatuses, true)) {
+            return;
+        }
+
+        try {
+            $order->load('customer', 'pickupStation');
+
+            if ($order->customer) {
+                $order->customer->notify(new OrderStatusNotification($order, $previousStatus));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('OrderStatus notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
+        }
     }
 }

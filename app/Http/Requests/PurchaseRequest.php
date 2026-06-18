@@ -14,12 +14,18 @@ class PurchaseRequest extends FormRequest
 
     public function rules(): array
     {
+        $purchaseId = $this->route('purchase')?->id;
+
         return [
-            'reference'      => ['nullable', 'string', 'max:64', Rule::unique('purchases', 'reference')],
+            'purchase_number' => ['nullable', 'string', 'max:64',
+                Rule::unique('purchases', 'purchase_number')->ignore($purchaseId)],
+            'reference'      => ['nullable', 'string', 'max:64',
+                Rule::unique('purchases', 'reference')->ignore($purchaseId)],
             'supplier_id'    => ['nullable', 'exists:suppliers,id'],
             'purchase_date'  => ['required', 'date'],
             'status'         => ['nullable', Rule::in(['pending', 'received', 'cancelled'])],
             'note'           => ['nullable', 'string'],
+            'pickup_fee_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
 
             'items'                       => ['required', 'array', 'min:1'],
             'items.*.product_id'          => ['required', 'exists:products,id'],

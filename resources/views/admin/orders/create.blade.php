@@ -16,7 +16,7 @@
         </div>
         <div class="col-md-3"><label class="form-label">Status</label>
             <select name="status" class="form-select">
-                <option value="order placed">Order Placed</option>
+                <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed (decrement stock)</option>
             </select>
         </div>

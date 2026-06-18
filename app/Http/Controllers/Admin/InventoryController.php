@@ -8,6 +8,7 @@ use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Throwable;
 
@@ -17,10 +18,10 @@ class InventoryController extends Controller
 
     public function index(Request $request): View
     {
-        $query = Inventory::with(['product', 'variant.product']);
+        $query = Inventory::with(['product', 'variant.product', 'variant.ageRange', 'variant.sizeRef', 'variant.colorRef']);
 
         if ($request->boolean('low_stock')) {
-            $query->whereColumn('quantity', '<=', 'reorder_level');
+            $query->whereRaw('COALESCE(quantity_on_hand, quantity) <= reorder_level');
         }
 
         $inventories = $query->get();

@@ -26,7 +26,7 @@ class AccountController extends Controller
     {
         abort_unless((int) $order->customer_id === (int) Auth::id(), 404);
 
-        $order->load(['items.product.primaryImage', 'items.variant', 'payments']);
+        $order->load(['items.product.primaryImage', 'items.variant', 'payments', 'pickupStation', 'paymentTransactions', 'refundRequests']);
 
         return view('shop.account.order-show', compact('order'));
     }

@@ -62,6 +62,8 @@ class User extends Authenticatable
         'staff_type',
         'vendor_id',
         'is_active',
+        'two_factor_enabled',
+        'two_factor_backup_code',
         'two_factor_code',
         'two_factor_expires_at',
     ];
@@ -74,6 +76,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_backup_code',
     ];
 
     /**
@@ -84,9 +87,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'email_verified_at'     => 'datetime',
             'two_factor_expires_at' => 'datetime',
-            'password' => 'hashed',
+            'two_factor_enabled'    => 'boolean',
+            'password'              => 'hashed',
         ];
     }
 
@@ -291,6 +295,46 @@ class User extends Authenticatable
             'two_factor_code' => null,
             'two_factor_expires_at' => null,
         ]);
+    }
+
+    /**
+     * Generate a one-time backup code, store it hashed, and return the plaintext.
+     * The plaintext is shown once by the admin — never stored or logged.
+     */
+    public function generateBackupCode(): string
+    {
+        // 10-character alphanumeric code e.g. "A3K9-XP2WM"
+        $plain = strtoupper(substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(8))), 0, 4))
+               . '-'
+               . strtoupper(substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(8))), 0, 5));
+
+        $this->update(['two_factor_backup_code' => \Illuminate\Support\Facades\Hash::make($plain)]);
+
+        return $plain;
+    }
+
+    /**
+     * Verify a backup code. If valid, consume it (single-use).
+     */
+    public function useBackupCode(string $plain): bool
+    {
+        if (! $this->two_factor_backup_code) {
+            return false;
+        }
+
+        if (! \Illuminate\Support\Facades\Hash::check($plain, $this->two_factor_backup_code)) {
+            return false;
+        }
+
+        // Consume — clear so it cannot be used again
+        $this->update(['two_factor_backup_code' => null]);
+
+        return true;
+    }
+
+    public function hasBackupCode(): bool
+    {
+        return ! empty($this->two_factor_backup_code);
     }
 
     /**

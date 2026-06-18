@@ -1,6 +1,5 @@
 @php
-    $img = $product->primaryImage?->url;
-    $hasDiscount = (float) $product->discount > 0;
+    $img = $product->catalog_image;
     $stock = (int) $product->stock_quantity;
     $multiVariant = $product->relationLoaded('variants')
         ? $product->variants->count() > 1
@@ -8,6 +7,22 @@
     $defaultVariant = $product->relationLoaded('defaultVariant')
         ? $product->defaultVariant
         : $product->variants()->oldest('id')->first();
+
+    $singleDiscount = min(100, max(0, (float) ($product->discount ?? 0) + (float) ($defaultVariant->discount ?? 0)));
+    $hasDiscount = $singleDiscount > 0;
+
+    $activeVariants = $product->relationLoaded('variants')
+        ? $product->variants->where('is_active', true)
+        : collect();
+    $maxVariantDiscount = $activeVariants->isNotEmpty()
+        ? (float) $activeVariants->max('discount')
+        : 0;
+    $displayDiscount = $multiVariant
+        ? min(100, max(0, (float) ($product->discount ?? 0) + $maxVariantDiscount))
+        : $singleDiscount;
+
+    $avgRating = (float) ($product->reviews_avg_rating ?? 0);
+    $reviewsCount = (int) ($product->reviews_count ?? 0);
 @endphp
 <div class="card product-card h-100 shadow-sm border-0 {{ $stock <= 0 ? 'opacity-50' : '' }}">
     <a href="{{ route('shop.products.show', $product) }}" class="text-decoration-none text-dark">
@@ -24,16 +39,26 @@
         <div class="card-body pt-0">
             <div class="small text-muted">{{ $product->category?->name }}</div>
             <h6 class="mb-1">{{ $product->name }}</h6>
+            @if($reviewsCount > 0 && $avgRating > 0)
+                <div class="small text-muted mb-1">&#9733; {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
+            @endif
             <div>
                 @if($multiVariant)
                     <small class="text-muted">from</small>
                     <strong>&#8358;{{ number_format($product->price_from, 2) }}</strong>
+                    @if($displayDiscount > 0)
+                        <span class="badge bg-danger-subtle text-danger ms-1">up to -{{ rtrim(rtrim(number_format($displayDiscount, 2), '0'), '.') }}%</span>
+                    @endif
                 @elseif($hasDiscount)
-                    <span class="price-old">&#8358;{{ number_format($product->selling_price, 2) }}</span>
-                    <strong class="text-danger ms-1">&#8358;{{ number_format($product->net_price, 2) }}</strong>
-                    <span class="badge bg-danger-subtle text-danger ms-1">-{{ rtrim(rtrim(number_format($product->discount,2), '0'), '.') }}%</span>
+                    @php
+                        $basePrice = (float) ($defaultVariant?->selling_price ?? $product->selling_price);
+                        $netPrice = $basePrice * (1 - ($singleDiscount / 100));
+                    @endphp
+                    <span class="price-old">&#8358;{{ number_format($basePrice, 2) }}</span>
+                    <strong class="text-danger ms-1">&#8358;{{ number_format($netPrice, 2) }}</strong>
+                    <span class="badge bg-danger-subtle text-danger ms-1">-{{ rtrim(rtrim(number_format($singleDiscount,2), '0'), '.') }}%</span>
                 @else
-                    <strong>&#8358;{{ number_format($product->selling_price, 2) }}</strong>
+                    <strong>&#8358;{{ number_format((float) ($defaultVariant?->selling_price ?? $product->selling_price), 2) }}</strong>
                 @endif
             </div>
         </div>

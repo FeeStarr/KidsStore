@@ -59,7 +59,7 @@ class InventoryService implements InventoryServiceInterface
             $inventory->quantity -= $quantity;
             $inventory->save();
 
-            return $this->recordMovement($variant, 'order', -$quantity, $referenceType, $referenceId, $note);
+            return $this->recordMovement($variant, 'sale', -$quantity, $referenceType, $referenceId, $note);
         });
     }
 

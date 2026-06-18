@@ -9,7 +9,7 @@
 <table id="purchases-table" class="table align-middle w-100">
     <thead>
     <tr>
-        <th>Reference</th>
+        <th>Purchase Number</th>
         <th>Date</th>
         <th>Supplier</th>
         <th>Status</th>
@@ -20,11 +20,11 @@
     <tbody>
     @foreach($purchases as $p)
         <tr>
-            <td>{{ $p->reference }}</td>
+            <td>{{ $p->display_number }}</td>
             <td>{{ $p->purchase_date->format('Y-m-d') }}</td>
             <td>{{ $p->supplier?->name ?? '-' }}</td>
             <td>{{ $p->status }}</td>
-            <td class="text-end">{{ number_format($p->grand_total, 2) }}</td>
+            <td class="text-end">{{ number_format($p->total_cost, 2) }}</td>
             <td class="text-end text-nowrap">
                 <a href="{{ route('admin.purchases.show', $p) }}" class="btn btn-sm btn-outline-secondary">View</a>
             </td>

@@ -27,7 +27,12 @@ class PurchaseController extends Controller
     public function create(): View
     {
         $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
-        $products  = Product::with(['variants' => fn ($q) => $q->where('is_active', true)->orderBy('id')])
+        $products  = Product::with([
+                'variants' => fn ($q) => $q->where('is_active', true)->orderBy('id'),
+                'variants.colorRef',
+                'variants.sizeRef',
+                'variants.ageRange',
+            ])
             ->where('is_active', true)->orderBy('name')->get();
 
         return view('admin.purchases.create', compact('suppliers', 'products'));
@@ -46,6 +51,47 @@ class PurchaseController extends Controller
         $purchase->load('items.product', 'items.variant', 'supplier');
 
         return view('admin.purchases.show', compact('purchase'));
+    }
+
+    public function edit(Purchase $purchase): View|\Illuminate\Http\RedirectResponse
+    {
+        if ($purchase->status !== 'pending') {
+            return redirect()->route('admin.purchases.show', $purchase)
+                ->with('error', 'Only pending purchases can be edited.');
+        }
+
+        $purchase->load('items.variant.colorRef', 'items.variant.sizeRef', 'items.variant.ageRange');
+
+        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        $products  = Product::with([
+                'variants' => fn ($q) => $q->where('is_active', true)->orderBy('id'),
+                'variants.colorRef',
+                'variants.sizeRef',
+                'variants.ageRange',
+            ])
+            ->where('is_active', true)->orderBy('name')->get();
+
+        return view('admin.purchases.edit', compact('purchase', 'suppliers', 'products'));
+    }
+
+    public function update(PurchaseRequest $request, Purchase $purchase): \Illuminate\Http\RedirectResponse
+    {
+        $this->purchases->update($purchase, $request->validated());
+
+        return redirect()->route('admin.purchases.show', $purchase)
+            ->with('success', 'Purchase updated.');
+    }
+
+    public function destroy(Purchase $purchase): RedirectResponse
+    {
+        if ($purchase->status !== 'pending') {
+            return back()->with('error', 'Only pending purchases can be deleted.');
+        }
+
+        $this->purchases->delete($purchase);
+
+        return redirect()->route('admin.purchases.index')
+            ->with('success', 'Purchase deleted successfully.');
     }
 
     public function receive(Purchase $purchase): RedirectResponse

@@ -118,9 +118,9 @@ return new class extends Migration
         });
 
         // 4. Drop the unique constraint on inventories.product_id so we can have
-        //    one inventory row PER VARIANT (not per product). MySQL requires the
-        //    foreign key to be temporarily dropped to release the unique index.
-        // Use raw SQL to safely drop constraints and rebuild them.
+        //    one inventory row PER VARIANT (not per product). Must drop FK first!
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
         try {
             // Drop FK on product_id if exists
             DB::statement('ALTER TABLE inventories DROP FOREIGN KEY inventories_product_id_foreign');
@@ -128,7 +128,9 @@ return new class extends Migration
 
         try {
             // Drop unique index on product_id if exists
-            DB::statement('ALTER TABLE inventories DROP INDEX inventories_product_id_unique');
+            if (Schema::hasTable('inventories')) {
+                DB::statement('ALTER TABLE inventories DROP INDEX inventories_product_id_unique');
+            }
         } catch (\Throwable $_) {}
 
         try {
@@ -145,6 +147,8 @@ return new class extends Migration
         try {
             DB::statement('ALTER TABLE inventories ADD INDEX inventories_product_id_index (product_id)');
         } catch (\Throwable $_) {}
+        
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 
     public function down(): void
