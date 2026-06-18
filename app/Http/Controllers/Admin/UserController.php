@@ -15,7 +15,7 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::orderBy('created_at', 'desc')->paginate(20);
+        $users = User::with('roles')->orderBy('created_at', 'desc')->get();
 
         return view('admin.users.index', compact('users'));
     }
@@ -126,6 +126,29 @@ class UserController extends Controller
         $user->save();
 
         return redirect()->back()->with('success', 'User status updated');
+    }
+
+    public function toggle2FA(User $user): RedirectResponse
+    {
+        $user->two_factor_enabled = ! $user->two_factor_enabled;
+        // If disabling, clear any active 2FA code too
+        if (! $user->two_factor_enabled) {
+            $user->two_factor_code       = null;
+            $user->two_factor_expires_at = null;
+        }
+        $user->save();
+
+        $state = $user->two_factor_enabled ? 'enabled' : 'disabled';
+        return redirect()->back()->with('success', "Two-factor authentication {$state} for {$user->name}.");
+    }
+
+    public function generate2FABackup(User $user): RedirectResponse
+    {
+        $plain = $user->generateBackupCode();
+
+        // Flash the plaintext once — it is NEVER stored in plaintext anywhere
+        return redirect()->back()->with('backup_code', $plain)
+            ->with('backup_code_user', $user->name);
     }
 
     public function updateProfile(Request $request, User $user): RedirectResponse

@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role:admin' => \App\Http\Middleware\EnsureAdminRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
+
+        // OPay webhook is an unauthenticated server-to-server POST — exempt from CSRF
+        $middleware->validateCsrfTokens(except: [
+            'opay/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -31,6 +31,12 @@
                 @if($optsLabel)
                     <div class="small text-muted">{{ $optsLabel }}</div>
                 @endif
+                @if(!empty($line->age_group))
+                    <div class="small text-muted">Age Range: {{ $line->age_group }}</div>
+                @endif
+                @if(!empty($line->selected_size))
+                    <div class="small text-muted">Size: {{ $line->selected_size }}</div>
+                @endif
                 <div class="small text-muted">SKU: {{ $variant->sku }}</div>
             </td>
             <td class="text-end">
@@ -44,6 +50,7 @@
             <td>
                 <form action="{{ route('shop.cart.update', $variant) }}" method="post" class="qty-form d-inline-flex align-items-center" data-cart-form>
                     @csrf @method('PATCH')
+                    <input type="hidden" name="line_key" value="{{ $line->line_key }}">
                     <button type="button" class="btn btn-sm btn-outline-secondary qty-dec">&minus;</button>
                     <input type="number" name="quantity" value="{{ $line->quantity }}" min="0"
                            class="form-control form-control-sm text-center mx-1 qty-input"
@@ -56,6 +63,7 @@
             <td>
                 <form action="{{ route('shop.cart.remove', $variant) }}" method="post">
                     @csrf @method('DELETE')
+                    <input type="hidden" name="line_key" value="{{ $line->line_key }}">
                     <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                 </form>
             </td>

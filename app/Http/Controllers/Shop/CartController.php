@@ -25,11 +25,26 @@ class CartController extends Controller
 
     public function add(Request $request, ProductVariant $variant): RedirectResponse|JsonResponse
     {
-        $request->validate(['quantity' => ['nullable', 'integer', 'min:1', 'max:999']]);
+        $request->validate([
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
+        ]);
 
         abort_unless($variant->is_active && $variant->product->is_active, 404);
 
-        $this->cart->add($variant->id, (int) ($request->input('quantity', 1)));
+        $requestedQty = (int) ($request->input('quantity', 1));
+
+        $variantInCart = $this->cart->getQty($variant->id);
+        $variantStock  = (int) ($variant->inventory?->quantity ?? 0);
+
+        if (($variantInCart + $requestedQty) > $variantStock) {
+            $msg = "Only {$variantStock} available in stock for this option.";
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
+
+        $this->cart->add($variant->id, $requestedQty);
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -37,7 +52,7 @@ class CartController extends Controller
                 'message'       => 'Added to cart.',
                 'cart_count'    => $this->cart->count(),
                 'variant_qty'   => $this->cart->getQty($variant->id),
-                'variant_stock' => (int) ($variant->inventory->quantity ?? 0),
+                'variant_stock' => $variantStock,
             ]);
         }
 
@@ -46,22 +61,46 @@ class CartController extends Controller
 
     public function update(Request $request, ProductVariant $variant): RedirectResponse
     {
-        $data = $request->validate(['quantity' => ['required', 'integer', 'min:0', 'max:999']]);
-        $this->cart->update($variant->id, (int) $data['quantity']);
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:0', 'max:999'],
+            'selected_age_group' => ['nullable', 'string', 'max:32'],
+            'selected_size' => ['nullable', 'string', 'max:64'],
+            'line_key' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        if (! empty($data['line_key'])) {
+            $this->cart->updateByLineKey((string) $data['line_key'], (int) $data['quantity']);
+        } else {
+            $selectedAgeGroup = trim((string) ($data['selected_age_group'] ?? '')) ?: null;
+            $selectedSize = trim((string) ($data['selected_size'] ?? '')) ?: null;
+            $this->cart->update($variant->id, (int) $data['quantity'], $selectedAgeGroup, $selectedSize);
+        }
 
         return back();
     }
 
     public function remove(Request $request, ProductVariant $variant): RedirectResponse|JsonResponse
     {
-        $this->cart->remove($variant->id);
+        $validated = $request->validate([
+            'selected_age_group' => ['nullable', 'string', 'max:32'],
+            'selected_size' => ['nullable', 'string', 'max:64'],
+            'line_key' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        if (! empty($validated['line_key'])) {
+            $this->cart->removeByLineKey((string) $validated['line_key']);
+        } else {
+            $selectedAgeGroup = trim((string) ($validated['selected_age_group'] ?? '')) ?: null;
+            $selectedSize = trim((string) ($validated['selected_size'] ?? '')) ?: null;
+            $this->cart->remove($variant->id, $selectedAgeGroup, $selectedSize);
+        }
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success'       => true,
                 'message'       => 'Removed from cart.',
                 'cart_count'    => $this->cart->count(),
-                'variant_qty'   => 0,
+                'variant_qty'   => $this->cart->getQty($variant->id),
                 'variant_stock' => (int) ($variant->inventory->quantity ?? 0),
             ]);
         }

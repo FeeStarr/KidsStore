@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\PickupStation;
 use App\Services\CartService;
 use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
@@ -21,10 +22,13 @@ class CheckoutController extends Controller
             return redirect()->route('shop.cart.index')->with('error', 'Your cart is empty.');
         }
 
+        $pickupStations = PickupStation::where('is_active', true)->orderBy('name')->get();
+
         return view('shop.checkout.show', [
-            'items'    => $this->cart->items(),
-            'subtotal' => $this->cart->subtotal(),
-            'customer' => Auth::user(),
+            'items'          => $this->cart->items(),
+            'subtotal'       => $this->cart->subtotal(),
+            'customer'       => Auth::user(),
+            'pickupStations' => $pickupStations,
         ]);
     }
 
@@ -35,15 +39,16 @@ class CheckoutController extends Controller
         }
 
         $data = $request->validate([
-            'phone'        => ['required', 'string', 'max:30'],
-            'address'      => ['required', 'string', 'max:500'],
-            'note'         => ['nullable', 'string', 'max:500'],
-            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
+            'delivery_method'   => ['required', 'in:delivery,pickup'],
+            'phone'             => ['required', 'string', 'max:30'],
+            'address'           => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
+            'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
+            'note'              => ['nullable', 'string', 'max:500'],
+            'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $customer = Auth::user();
-        // Update customer profile address/phone with the latest values.
-        $customer->fill(['phone' => $data['phone'], 'address' => $data['address']])->save();
+        $customer->fill(['phone' => $data['phone']])->save();
 
         $items = $this->cart->items()->map(fn ($l) => [
             'product_id'         => $l->product->id,
@@ -54,17 +59,20 @@ class CheckoutController extends Controller
         ])->all();
 
         $order = $this->orders->create([
-            'customer_id'  => $customer->id,
-            'order_date'   => now()->toDateString(),
-            'status'       => 'order placed',
-            'shipping_fee' => (float) ($data['shipping_fee'] ?? 0),
-            'note'         => $data['note'] ?? null,
-            'items'        => $items,
+            'customer_id'       => $customer->id,
+            'order_date'        => now()->toDateString(),
+            'status'            => 'ordered',
+            'delivery_method'   => $data['delivery_method'],
+            'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
+            'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
+            'shipping_fee'      => (float) ($data['shipping_fee'] ?? 0),
+            'note'              => trim($data['note'] ?? '') ?: null,
+            'items'             => $items,
         ]);
 
         $this->cart->clear();
 
         return redirect()->route('shop.account.orders.show', $order)
-            ->with('success', 'Order placed! Reference: '.$order->reference);
+            ->with('success', 'Order placed! Order Number: '.$order->reference);
     }
 }

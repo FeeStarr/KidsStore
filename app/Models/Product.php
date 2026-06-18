@@ -13,7 +13,7 @@ class Product extends Model
     use HasFactory;
 
     protected $fillable = [
-        'category_id', 'sku', 'name', 'slug', 'description',
+        'category_id', 'brand_id', 'sku', 'name', 'slug', 'description', 'image', 'status',
         'age_group', 'gender', 'brand',
         'selling_price', 'discount', 'is_active',
     ];
@@ -25,9 +25,18 @@ class Product extends Model
         'age_group' => 'array',
     ];
 
+    protected $appends = [
+        'catalog_image',
+    ];
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function brandRef(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class, 'brand_id');
     }
 
     public function images(): HasMany
@@ -115,9 +124,10 @@ class Product extends Model
      */
     public function getPriceFromAttribute(): float
     {
+        $productDiscount = (float) ($this->discount ?? 0);
         $min = $this->variants()->where('is_active', true)
             ->get()
-            ->map(fn ($v) => (float) $v->selling_price * (1 - (float) $v->discount / 100))
+            ->map(fn ($v) => (float) $v->selling_price * (1 - min(100, max(0, $productDiscount + (float) $v->discount)) / 100))
             ->filter(fn ($p) => $p > 0)
             ->min();
         return (float) ($min ?? 0);
@@ -125,10 +135,49 @@ class Product extends Model
 
     public function getPriceToAttribute(): float
     {
+        $productDiscount = (float) ($this->discount ?? 0);
         $max = $this->variants()->where('is_active', true)
             ->get()
-            ->map(fn ($v) => (float) $v->selling_price * (1 - (float) $v->discount / 100))
+            ->map(fn ($v) => (float) $v->selling_price * (1 - min(100, max(0, $productDiscount + (float) $v->discount)) / 100))
             ->max();
         return (float) ($max ?? 0);
+    }
+
+    /**
+     * Get all distinct colors available across active variants.
+     */
+    public function getAvailableColorsAttribute(): array
+    {
+        return $this->variants()
+            ->where('is_active', true)
+            ->whereNotNull('color')
+            ->distinct()
+            ->pluck('color')
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get all distinct sizes available across active variants via the size FK.
+     */
+    public function getAvailableSizesAttribute(): array
+    {
+        return $this->variants()
+            ->where('is_active', true)
+            ->whereNotNull('size_id')
+            ->with('sizeRef')
+            ->get()
+            ->pluck('sizeRef.name')
+            ->filter(fn ($s) => $s !== null && $s !== '')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    public function getCatalogImageAttribute(): ?string
+    {
+        return $this->image ?: $this->primaryImage?->url;
     }
 }

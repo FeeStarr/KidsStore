@@ -15,7 +15,7 @@
         <th>Product</th>
         <th>Variant</th>
         <th>SKU</th>
-        <th class="text-end">Quantity</th>
+        <th class="text-end">Quantity on Hand</th>
         <th class="text-end">Reorder Level</th>
         <th>Status</th>
         <th data-dt-no-export class="text-end">Actions</th>
@@ -26,9 +26,20 @@
         @php $v = $inv->variant; @endphp
         <tr>
             <td>{{ $v?->product?->name ?? $inv->product?->name }}</td>
-            <td>{{ $v?->options_label ?: ($v?->name ?: '—') }}</td>
+            <td>
+                @if($v)
+                    {{ $v->options_label ?: ($v->name ?: '—') }}
+                    <div class="small text-muted">
+                        {{ $v->colorRef?->name ?: ($v->color ?: 'No Color') }} /
+                        {{ $v->sizeRef?->name ?: ($v->size ?: 'No Size') }} /
+                        {{ $v->ageRange?->name ?: ((is_array($v->age_group ?? null) && !empty($v->age_group)) ? ($v->age_group[0] ?? 'No Age') : 'No Age') }}
+                    </div>
+                @else
+                    —
+                @endif
+            </td>
             <td>{{ $v?->sku ?? $inv->product?->sku }}</td>
-            <td class="text-end">{{ $inv->quantity }}</td>
+            <td class="text-end">{{ $inv->current_quantity }}</td>
             <td class="text-end">{{ $inv->reorder_level }}</td>
             <td>
                 @if($inv->isLowStock())
@@ -58,7 +69,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
-                                <p class="text-muted small mb-3">Current quantity: <strong>{{ $inv->quantity }}</strong></p>
+                                <p class="text-muted small mb-3">Current quantity on hand: <strong>{{ $inv->current_quantity }}</strong></p>
                                 <div class="row g-3">
                                     <div class="col-md-5">
                                         <label class="form-label">Direction</label>

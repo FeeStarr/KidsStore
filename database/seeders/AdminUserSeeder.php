@@ -10,9 +10,18 @@ class AdminUserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * WARNING: This seeder creates default admin accounts with weak passwords.
+     * It should ONLY be used in development. Do not run this in production.
+     * Create strong, unique admin accounts manually in production environments.
      */
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command->warn('Skipping AdminUserSeeder - default accounts are not allowed in production.');
+            return;
+        }
+
         User::firstOrCreate(
             ['email' => 'admin@kidsstore.com'],
             [

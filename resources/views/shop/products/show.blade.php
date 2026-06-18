@@ -2,25 +2,9 @@
 @section('content')
 
 @php
-    // Variants — only active ones are user-selectable.
-    $product->loadMissing('variants.inventory', 'variants.image', 'variants.images', 'images');
+    $product->loadMissing('brandRef', 'variants.inventory', 'variants.image', 'variants.images', 'variants.ageRange', 'variants.sizeRef', 'variants.colorRef', 'images');
     $variants = $product->variants->filter(fn ($v) => $v->is_active)->values();
     $defaultVariant = $variants->first() ?? $product->variants->first();
-
-    // Option keys that represent sizes — these become pills, not thumbnails.
-    $sizeOptionKeys = ['size'];
-
-    // Build union of SIZE-type option keys → distinct values (these become selectable pills).
-    $optionKeys = [];
-    foreach ($variants as $v) {
-        foreach ((array) $v->options as $k => $val) {
-            if (in_array(strtolower((string) $k), $sizeOptionKeys)) {
-                $optionKeys[$k][$val] = true;
-            }
-        }
-    }
-    $optionKeys = array_map(fn ($vals) => array_keys($vals), $optionKeys);
-    $hasOptions = ! empty($optionKeys);
 
     // Current cart quantities per variant (keyed by variant id).
     $cartQtys = [];
@@ -32,7 +16,7 @@
         }
     } catch (\Throwable $e) {}
 
-    // Variant data for JS resolver
+    // Variant data for JS resolver — each row IS the full (color + age + size) combo
     $variantsData = $variants->map(function ($v) use ($product, $cartQtys) {
         $imgs = $v->images->isNotEmpty()
             ? $v->images->map(fn ($i) => $i->url)->all()
@@ -40,11 +24,19 @@
         return [
             'id'            => $v->id,
             'sku'           => $v->sku,
+            'color'         => $v->colorRef?->name,
+            'color_id'      => $v->color_id,
+            'size'          => $v->sizeRef?->name,
+            'size_id'       => $v->size_id,
+            'age'           => $v->ageRange?->name,
+            'age_range_id'  => $v->age_range_id,
             'options'       => (object) ((array) $v->options),
             'selling_price' => (float) $v->selling_price,
             'net_price'     => (float) $v->net_price,
-            'discount'      => (float) $v->discount,
-            'stock'         => (int) ($v->inventory->quantity ?? 0),
+            'discount'      => (float) $v->effective_discount,
+            'variant_discount' => (float) $v->discount,
+            'product_discount' => (float) ($v->product?->discount ?? 0),
+            'stock'         => (int) ($v->inventory?->quantity ?? 0),
             'in_cart'       => (int) ($cartQtys[$v->id] ?? 0),
             'image_url'     => $v->image?->url,
             'images'        => $imgs,
@@ -52,43 +44,21 @@
         ];
     })->values();
 
-    // Group variants by their NON-size options (e.g. Color, Pattern) PLUS their image URL.
-    // This ensures variants with different images always get separate thumbnails, even when
-    // a product has no colour/style options (e.g. size-only products with per-size images).
-    $thumbVariants = $variants->groupBy(function ($v) use ($sizeOptionKeys, $product) {
-        $styleOpts = collect((array) $v->options)
-            ->filter(fn ($val, $key) => ! in_array(strtolower((string) $key), $sizeOptionKeys))
-            ->sortKeys()
-            ->all();
-        // Resolve this variant's representative image (same 3-level priority as $thumbMeta below)
-        $imgUrl = $v->image?->url
-               ?? $v->images->first()?->url
-               ?? $product->images->first()?->url
-               ?? '';
-        return json_encode($styleOpts) . '|' . $imgUrl;
-    })->map->values();
+    // Group thumbnails by color — one thumbnail button per unique color.
+    $thumbVariants = $variants->groupBy(fn ($v) => $v->colorRef?->name ?? 'Default');
 
-    // Pre-compute image URL + label for each thumbnail group (avoids @php inside @foreach).
-    $thumbMeta = [];
-    foreach ($thumbVariants as $groupKey => $groupVars) {
+    // Pre-compute the representative image per color group for thumbnail buttons.
+    $thumbImgs = [];
+    foreach ($thumbVariants as $colorName => $colorVars) {
         $tImg = null;
-        foreach ($groupVars as $gv) {
-            // 1. Explicit primary image (image_id)
+        foreach ($colorVars as $gv) {
             if ($gv->image) { $tImg = $gv->image->url; break; }
-            // 2. First gallery image assigned to this variant
             if ($gv->images->isNotEmpty()) { $tImg = $gv->images->first()->url; break; }
         }
-        // 3. Fall back to the product's first image
-        $tImg = $tImg ?? ($product->images->first()?->url ?? '');
-        $tLabel = collect((array) $groupVars->first()->options)
-            ->filter(fn ($val, $key) => ! in_array(strtolower((string) $key), $sizeOptionKeys))
-            ->values()
-            ->implode(' / ');
-        if ($tLabel === '') $tLabel = $groupVars->first()->options_label;
-        $thumbMeta[$groupKey] = ['img' => $tImg, 'label' => $tLabel];
+        $thumbImgs[$colorName] = $tImg ?? ($product->images->first()?->url ?? '');
     }
 
-    $hasDiscount = (float) ($defaultVariant?->discount ?? 0) > 0;
+    $hasDiscount = (float) ($defaultVariant?->effective_discount ?? 0) > 0;
     $stock       = (int) ($defaultVariant?->inventory?->quantity ?? 0);
     $inCart      = (int) ($cartQtys[$defaultVariant?->id ?? 0] ?? 0);
     $remaining   = max($stock - $inCart, 0);
@@ -103,6 +73,9 @@
             ->whereHas('items', fn ($q) => $q->where('product_id', $product->id))
             ->exists()
         : false;
+    $productBrand = $product->brandRef?->name ?: $product->brand;
+    $defaultAge  = $defaultVariant?->ageRange?->name ?? '';
+    $defaultSize = $defaultVariant?->sizeRef?->name ?? '';
 @endphp
 
 <nav aria-label="breadcrumb" class="small mb-3">
@@ -141,7 +114,7 @@
         <h2 class="mb-1">{{ $product->name }}</h2>
         <div class="text-muted small mb-2">
             <span data-pdp="sku">SKU: {{ $defaultVariant?->sku ?? $product->sku }}</span>
-            @if($product->brand) | Brand: {{ $product->brand }} @endif
+            @if($productBrand) | Brand: {{ $productBrand }} @endif
         </div>
 
         <div class="mb-2">
@@ -166,43 +139,42 @@
         <p>{{ $product->description }}</p>
 
         <div class="mb-3 small">
-            @if(!empty($product->age_group)) <span class="badge text-bg-light" data-pdp="age">Age: {{ implode(', ', (array) $product->age_group) }}</span> @endif
+            @if(!empty($defaultAge)) <span class="badge text-bg-light" data-pdp="age">Age: {{ $defaultAge }}</span> @endif
             @if($product->gender)    <span class="badge text-bg-light">{{ ucfirst($product->gender) }}</span> @endif
         </div>
 
+        <div class="alert alert-light border py-2 px-3 mb-3 small" data-pdp="selected-summary">
+            <strong>Selected:</strong>
+            <span data-pdp="selected-summary-value">{{ $defaultVariant?->sku ?? '—' }}</span>
+        </div>
+
+        <div class="row g-2 mb-3 small text-muted">
+            <div class="col-12 col-sm-4"><i class="bi bi-shield-check me-1"></i>Secure Checkout</div>
+            <div class="col-12 col-sm-4"><i class="bi bi-truck me-1"></i>Fast Nationwide Delivery</div>
+            <div class="col-12 col-sm-4"><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</div>
+        </div>
+
         @if($variants->count() > 1)
+            {{-- Color thumbnails --}}
             <div id="variantPicker" class="d-flex flex-wrap gap-2 mb-2">
-                @foreach($thumbVariants as $groupKey => $thumbVars)
+                @foreach($thumbVariants as $colorName => $colorVars)
                     <button type="button"
                             class="btn p-0 border border-2 rounded {{ $loop->first ? 'border-primary' : 'border-light' }}"
                             style="width:64px;height:64px;overflow:hidden"
-                            data-variant-ids="{{ $thumbVars->pluck('id')->implode(',') }}"
-                            title="{{ $thumbMeta[$groupKey]['label'] }}">
-                        @if($thumbMeta[$groupKey]['img'])
-                            <img src="{{ $thumbMeta[$groupKey]['img'] }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $thumbMeta[$groupKey]['label'] }}">
+                            data-color="{{ $colorName }}"
+                            title="{{ $colorName }}">
+                        @if($thumbImgs[$colorName])
+                            <img src="{{ $thumbImgs[$colorName] }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $colorName }}">
                         @else
-                            <span class="d-flex align-items-center justify-content-center w-100 h-100 bg-light text-muted" style="font-size:.65rem;line-height:1.1">{{ $thumbMeta[$groupKey]['label'] }}</span>
+                            <span class="d-flex align-items-center justify-content-center w-100 h-100 bg-light text-muted" style="font-size:.65rem;line-height:1.1">{{ $colorName }}</span>
                         @endif
                     </button>
                 @endforeach
             </div>
 
-            @if($hasOptions)
-            <div id="optionPicker" class="mb-3" style="display:none">
-                @foreach($optionKeys as $key => $vals)
-                <div class="mb-2">
-                    <span class="small text-muted">{{ $key }}:</span>
-                    <div class="d-flex flex-wrap gap-1 mt-1" data-opt-group="{{ $key }}">
-                        @foreach($vals as $val)
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary rounded-pill"
-                                data-opt-key="{{ $key }}" data-opt-val="{{ $val }}">{{ $val }}</button>
-                        @endforeach
-                    </div>
-                </div>
-                @endforeach
-            </div>
-            @endif
+            {{-- Age + Size pickers (rendered by JS) --}}
+            <div id="agePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
+            <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
         @endif
 
         <form id="addToCartForm" action="{{ $defaultVariant ? route('shop.cart.add', $defaultVariant) : '#' }}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
@@ -214,7 +186,6 @@
                     data-pdp="add" @disabled($remaining <= 0)>
                 <i class="bi bi-bag-plus"></i> Add to cart
             </button>
-            {{-- Show "Remove from cart" whenever something is already in the cart --}}
             <button type="button" data-pdp="remove"
                     class="btn btn-outline-danger {{ $inCart <= 0 ? 'd-none' : '' }}">
                 <i class="bi bi-cart-dash"></i> Remove from cart
@@ -240,42 +211,113 @@
 (function () {
     const variantsData    = @json($variantsData);
     const cartUrlTemplate = @json(route('shop.cart.add', ['variant' => '__V__']));
-    const sizeOptionKeys  = @json($sizeOptionKeys);
     const fmt = n => '₦' + Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
 
-    // Expose so the AJAX cart block can keep in_cart counts in sync.
     window.pdpVariantsData = variantsData;
 
-    // IDs belonging to the currently selected thumbnail group.
-    let groupIds = [];
+    // Current selection state
+    let selectedColor = variantsData[0]?.color ?? null;
+    let selectedAge   = null;
+    let selectedSize  = null;
 
-    // Show only SIZE-type pills whose values exist in the current group; hide the rest.
-    function filterPills(ids) {
-        const avail = {};
-        ids.forEach(id => {
-            const vd = variantsData.find(v => v.id === id);
-            if (!vd || !vd.options) return;
-            Object.entries(vd.options).forEach(([k, val]) => {
-                if (!sizeOptionKeys.includes(k.toLowerCase())) return; // only size dimensions as pills
-                (avail[k] = avail[k] || new Set()).add(String(val));
-            });
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function variantsForColor(color) {
+        return variantsData.filter(v => (v.color ?? null) === color);
+    }
+    function variantsForColorAge(color, age) {
+        return variantsForColor(color).filter(v => (v.age ?? null) === age);
+    }
+    function findVariant(color, age, size) {
+        return variantsData.find(v =>
+            (v.color ?? null) === color &&
+            (v.age   ?? null) === age &&
+            (v.size  ?? null) === size
+        ) ?? null;
+    }
+    function uniqueAges(variants)  { return [...new Set(variants.map(v => v.age).filter(Boolean))]; }
+    function uniqueSizes(variants) { return [...new Set(variants.map(v => v.size).filter(Boolean))]; }
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const form         = document.getElementById('addToCartForm');
+    const agePickerEl  = document.getElementById('agePicker');
+    const sizePickerEl = document.getElementById('sizePicker');
+
+    // ── Render pickers ───────────────────────────────────────────────────────
+    function renderPills(container, items, active, onClick) {
+        if (!container) return;
+        container.innerHTML = '';
+        if (!items.length) { container.style.display = 'none'; return; }
+        container.style.display = '';
+
+        // Label above the pills
+        const wrap = document.createElement('div');
+        wrap.className = 'w-100 mb-1';
+        const lbl = document.createElement('small');
+        lbl.className = 'text-muted';
+        lbl.textContent = container === agePickerEl ? 'Age range:' : 'Size:';
+        wrap.appendChild(lbl);
+        container.appendChild(wrap);
+
+        items.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm rounded-pill ' + (item === active ? 'btn-secondary text-white' : 'btn-outline-secondary');
+            btn.textContent = item;
+            btn.addEventListener('click', () => onClick(item));
+            container.appendChild(btn);
         });
-        document.querySelectorAll('#optionPicker [data-opt-val]').forEach(btn => {
-            const show = !!(avail[btn.dataset.optKey] && avail[btn.dataset.optKey].has(String(btn.dataset.optVal)));
-            btn.classList.toggle('d-none', !show);
-        });
-        const picker = document.getElementById('optionPicker');
-        if (picker) picker.style.display = Object.keys(avail).length ? '' : 'none';
     }
 
-    function selectVariant(v) {
-        const form       = document.getElementById('addToCartForm');
+    function renderAgePicker() {
+        const colorVars = variantsForColor(selectedColor);
+        const ages      = uniqueAges(colorVars);
+        if (!selectedAge || !ages.includes(selectedAge)) {
+            selectedAge = ages[0] ?? null;
+        }
+        renderPills(agePickerEl, ages, selectedAge, age => {
+            selectedAge = age;
+            selectedSize = null;
+            renderSizePicker();
+            resolveAndSelect();
+        });
+    }
+
+    function renderSizePicker() {
+        const filtered = selectedAge
+            ? variantsForColorAge(selectedColor, selectedAge)
+            : variantsForColor(selectedColor);
+        const sizes = uniqueSizes(filtered);
+        if (!selectedSize || !sizes.includes(selectedSize)) {
+            selectedSize = sizes[0] ?? null;
+        }
+        renderPills(sizePickerEl, sizes, selectedSize, size => {
+            selectedSize = size;
+            resolveAndSelect();
+        });
+    }
+
+    function resolveAndSelect() {
+        // Re-render pickers to highlight active selections
+        renderAgePicker();
+        renderSizePicker();
+
+        const v = findVariant(selectedColor, selectedAge, selectedSize)
+            ?? variantsForColorAge(selectedColor, selectedAge)?.[0]
+            ?? variantsForColor(selectedColor)?.[0]
+            ?? variantsData[0];
+        if (v) applyVariant(v);
+    }
+
+    // ── Apply a resolved variant to the page ─────────────────────────────────
+    function applyVariant(v) {
+        if (!form) return;
+        form.action = cartUrlTemplate.replace('__V__', v.id);
+
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
         const priceBadge = document.querySelector('[data-pdp="price-badge"]');
         const skuEl      = document.querySelector('[data-pdp="sku"]');
 
-        form.action = cartUrlTemplate.replace('__V__', v.id);
         if (skuEl) skuEl.textContent = 'SKU: ' + v.sku;
 
         if (v.discount > 0) {
@@ -288,7 +330,7 @@
             if (priceNet)   { priceNet.textContent = fmt(v.selling_price); priceNet.classList.remove('text-danger', 'ms-2'); }
         }
 
-        // Swap carousel to this variant's images.
+        // Carousel
         const carouselInner = document.querySelector('#prod-carousel .carousel-inner');
         if (carouselInner && Array.isArray(v.images) && v.images.length) {
             carouselInner.innerHTML = v.images.map((url, i) =>
@@ -298,67 +340,48 @@
             ).join('');
         }
 
+        // Summary bar
+        const summaryEl = document.querySelector('[data-pdp="selected-summary-value"]');
+        if (summaryEl) {
+            const parts = [v.sku];
+            if (v.color) parts.push(v.color);
+            if (v.age)   parts.push(v.age);
+            if (v.size)  parts.push(v.size);
+            summaryEl.textContent = parts.join(' • ');
+        }
+
+        // Age badge
+        const ageEl = document.querySelector('[data-pdp="age"]');
+        if (ageEl) {
+            if (v.age) { ageEl.textContent = 'Age: ' + v.age; ageEl.classList.remove('d-none'); }
+        }
+
+        // Stock / qty UI
         if (typeof window.pdpApplyStockState === 'function') {
             window.pdpApplyStockState(v.in_cart || 0, v.stock);
         }
 
-        // Update age/size badge.
-        const ageEl = document.querySelector('[data-pdp="age"]');
-        if (ageEl && v.options_label && v.options_label !== 'Default') {
-            ageEl.textContent = 'Age: ' + v.options_label;
-            ageEl.classList.remove('d-none');
-        }
-
-        // Highlight the matching thumbnail (uses data-variant-ids).
-        document.querySelectorAll('#variantPicker [data-variant-ids]').forEach(b => {
-            const ids = b.dataset.variantIds.split(',').map(Number);
-            b.classList.toggle('border-primary', ids.includes(v.id));
-            b.classList.toggle('border-light',   !ids.includes(v.id));
-        });
-
-        // Highlight the matching pills (visible ones only).
-        const opts = v.options || {};
-        document.querySelectorAll('#optionPicker [data-opt-val]:not(.d-none)').forEach(b => {
-            const active = opts[b.dataset.optKey] !== undefined &&
-                           String(opts[b.dataset.optKey]) === String(b.dataset.optVal);
-            b.classList.toggle('btn-secondary',      active);
-            b.classList.toggle('text-white',         active);
-            b.classList.toggle('btn-outline-secondary', !active);
+        // Highlight colour thumbnail
+        document.querySelectorAll('#variantPicker [data-color]').forEach(b => {
+            const isActive = b.dataset.color === (v.color ?? null);
+            b.classList.toggle('border-primary', isActive);
+            b.classList.toggle('border-light',   !isActive);
         });
     }
 
-    // Thumbnail click → filter pills to this group, then select first variant in group.
-    document.querySelectorAll('#variantPicker [data-variant-ids]').forEach(btn => {
+    // ── Thumbnail click ──────────────────────────────────────────────────────
+    document.querySelectorAll('#variantPicker [data-color]').forEach(btn => {
         btn.addEventListener('click', () => {
-            groupIds = btn.dataset.variantIds.split(',').map(Number);
-            filterPills(groupIds);
-            const first = variantsData.find(v => v.id === groupIds[0]);
-            if (first) selectVariant(first);
+            selectedColor = btn.dataset.color;
+            selectedAge   = null;
+            selectedSize  = null;
+            resolveAndSelect();
         });
     });
 
-    // Option pill click → find the variant within the current group that matches.
-    document.querySelectorAll('#optionPicker [data-opt-val]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (btn.classList.contains('d-none')) return;
-            // Collect currently active pills + this new selection.
-            const sel = {};
-            document.querySelectorAll('#optionPicker [data-opt-val].btn-secondary:not(.d-none)').forEach(b => {
-                sel[b.dataset.optKey] = b.dataset.optVal;
-            });
-            sel[btn.dataset.optKey] = btn.dataset.optVal;
-            const v = variantsData.find(vd =>
-                groupIds.includes(vd.id) &&
-                vd.options &&
-                Object.entries(sel).every(([k, val]) => String(vd.options[k]) === String(val))
-            );
-            if (v) selectVariant(v);
-        });
-    });
-
-    // Defer initialisation so the AJAX block's pdpApplyStockState is defined first.
-    setTimeout(function () {
-        const firstBtn = document.querySelector('#variantPicker [data-variant-ids]');
+    // ── Boot ─────────────────────────────────────────────────────────────────
+    setTimeout(() => {
+        const firstBtn = document.querySelector('#variantPicker [data-color]');
         if (firstBtn) firstBtn.click();
     }, 0);
 })();
@@ -570,7 +593,9 @@
                 if (variantId) cartQtys[variantId] = json.variant_qty;
                 if (window.pdpVariantsData) {
                     const vd = window.pdpVariantsData.find(v => v.id === variantId);
-                    if (vd) vd.in_cart = json.variant_qty;
+                    if (vd) {
+                        vd.in_cart = json.variant_qty;
+                    }
                 }
                 applyStockState(json.variant_qty, json.variant_stock);
                 showToast('✓ ' + json.message, true);

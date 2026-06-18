@@ -6,6 +6,27 @@
     $staffTypes = \App\Models\User::staffTypes();
 @endphp
 
+@if(session('backup_code'))
+<div class="alert alert-warning border-2 border-warning shadow-sm mb-3" role="alert">
+    <h5 class="alert-heading"><i class="bi bi-key-fill me-2"></i>Backup Code for {{ session('backup_code_user') }}</h5>
+    <p class="mb-2">Give this code to the user. <strong>It will only be shown once and cannot be retrieved again.</strong></p>
+    <div class="d-flex align-items-center gap-3">
+        <span class="fs-3 fw-bold font-monospace letter-spacing-2 bg-white border rounded px-3 py-1">
+            {{ session('backup_code') }}
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="navigator.clipboard.writeText('{{ session('backup_code') }}');this.innerHTML='<i class=\'bi bi-check\' ></i> Copied'">
+            <i class="bi bi-clipboard me-1"></i>Copy
+        </button>
+    </div>
+    <hr class="my-2">
+    <small class="text-muted">
+        The user can enter this code instead of their emailed 2FA code if they can't access their email.
+        It is <strong>single-use</strong> — it expires after one successful login.
+    </small>
+</div>
+@endif
+
 <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
         <h3 class="mb-0"><i class="bi bi-person"></i> User Details</h3>
@@ -19,6 +40,23 @@
                 {{ $user->is_active ? 'Deactivate' : 'Activate' }}
             </button>
         </form>
+        <form method="post" action="{{ route('admin.users.toggle-2fa', $user) }}">
+            @csrf
+            <button class="btn btn-sm {{ $user->two_factor_enabled ? 'btn-outline-warning' : 'btn-outline-primary' }}"
+                    title="{{ $user->two_factor_enabled ? 'Click to disable 2FA' : 'Click to enable 2FA' }}">
+                <i class="bi bi-shield{{ $user->two_factor_enabled ? '-fill' : '' }} me-1"></i>
+                2FA {{ $user->two_factor_enabled ? 'ON' : 'OFF' }}
+            </button>
+        </form>
+        @if($user->two_factor_enabled)
+        <form method="post" action="{{ route('admin.users.generate-backup-code', $user) }}"
+              onsubmit="return confirm('Generate a new backup code for {{ addslashes($user->name) }}? Any existing backup code will be invalidated.')">
+            @csrf
+            <button class="btn btn-sm btn-outline-info" title="Generate a one-time backup/recovery code">
+                <i class="bi bi-key me-1"></i>{{ $user->hasBackupCode() ? 'Regenerate' : 'Generate' }} Backup Code
+            </button>
+        </form>
+        @endif
     </div>
 </div>
 
@@ -49,6 +87,24 @@
                             <span class="badge bg-success">Active</span>
                         @else
                             <span class="badge bg-secondary">Inactive</span>
+                        @endif
+                    </dd>
+
+                    <dt class="col-sm-4">Two-Factor Auth</dt>
+                    <dd class="col-sm-8">
+                        @if($user->two_factor_enabled)
+                            <span class="badge bg-primary"><i class="bi bi-shield-fill me-1"></i>Enabled</span>
+                        @else
+                            <span class="badge bg-secondary"><i class="bi bi-shield me-1"></i>Disabled</span>
+                        @endif
+                    </dd>
+
+                    <dt class="col-sm-4">Backup Code</dt>
+                    <dd class="col-sm-8">
+                        @if($user->hasBackupCode())
+                            <span class="badge bg-success"><i class="bi bi-key me-1"></i>Active (stored hashed)</span>
+                        @else
+                            <span class="badge bg-light text-muted border">None</span>
                         @endif
                     </dd>
 

@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
+use App\Models\AgeRange;
+use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Color;
 use App\Models\Product;
+use App\Models\Size;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,14 +40,17 @@ class ProductController extends Controller
     public function create(): View
     {
         $categories = Category::orderBy('name')->get();
+        $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.products.create', compact('categories'));
+        return view('admin.products.create', compact('categories', 'brands'));
     }
 
     public function store(ProductRequest $request): RedirectResponse
     {
+        $data = $this->mergeVariantFilesIntoData($request);
+
         $this->products->create(
-            $request->validated(),
+            $data,
             $request->file('images', [])
         );
 
@@ -59,17 +66,30 @@ class ProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product->load('images');
+        $product->load(
+            'images',
+            'variants.inventory',
+            'variants.images',
+            'variants.ageRange',
+            'variants.sizeRef',
+            'variants.colorRef'
+        );
         $categories = Category::orderBy('name')->get();
+        $brands = Brand::where('is_active', true)->orderBy('name')->get();
+        $ageRanges = AgeRange::where('is_active', true)->orderBy('name')->get();
+        $sizes = Size::where('is_active', true)->orderBy('name')->get();
+        $colors = Color::where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.products.edit', compact('product', 'categories'));
+        return view('admin.products.edit', compact('product', 'categories', 'brands', 'ageRanges', 'sizes', 'colors'));
     }
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
+        $data = $this->mergeVariantFilesIntoData($request);
+
         $this->products->update(
             $product,
-            $request->validated(),
+            $data,
             $request->file('images', []),
             $request->input('delete_images', [])
         );
@@ -89,5 +109,40 @@ class ProductController extends Controller
         $this->products->setPrimaryImage($product, $imageId);
 
         return back()->with('success', 'Primary image updated.');
+    }
+
+    private function mergeVariantFilesIntoData(ProductRequest $request): array
+    {
+        $validated = $request->validated();
+
+        $variantFiles = $request->file('variants', []);
+
+        if (empty($variantFiles) || ! is_array($variantFiles)) {
+            return $validated;
+        }
+
+        foreach ($variantFiles as $vi => $vf) {
+            if (! isset($validated['variants'][$vi])) {
+                continue;
+            }
+
+            if (! is_array($vf)) {
+                continue;
+            }
+
+            if (isset($vf['images']) && is_array($vf['images'])) {
+                $validated['variants'][$vi]['images'] = $vf['images'];
+            }
+
+            if (isset($vf['sizes']) && is_array($vf['sizes'])) {
+                foreach ($vf['sizes'] as $si => $sv) {
+                    if (isset($sv['images']) && is_array($sv['images'])) {
+                        $validated['variants'][$vi]['sizes'][$si]['images'] = $sv['images'];
+                    }
+                }
+            }
+        }
+
+        return $validated;
     }
 }

@@ -13,8 +13,15 @@ class ShopController extends Controller
     {
         $hideOutOfStock = config('shop.out_of_stock_visibility') === 'hide';
 
-        $query = Product::with(['primaryImage', 'variants.inventory', 'defaultVariant', 'category'])
-            ->where('is_active', true)
+        $query = Product::with(['primaryImage', 'brandRef', 'variants.inventory', 'defaultVariant', 'category'])
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating')
+            ->where(function ($q) {
+                $q->where('status', 'active')
+                  ->orWhere(function ($legacy) {
+                      $legacy->whereNull('status')->where('is_active', true);
+                  });
+            })
             ->where(function ($q) {
                 $q->where('selling_price', '>', 0)
                   ->orWhereHas('variants', fn ($v) => $v->where('is_active', true)->where('selling_price', '>', 0));
@@ -35,7 +42,8 @@ class ShopController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('brand', 'like', "%{$search}%");
+                  ->orWhere('brand', 'like', "%{$search}%")
+                  ->orWhereHas('brandRef', fn ($b) => $b->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -57,23 +65,35 @@ class ShopController extends Controller
     {
         $hideOutOfStock = config('shop.out_of_stock_visibility') === 'hide';
 
-        abort_unless($product->is_active, 404);
+        $isActive = $product->status ? $product->status === 'active' : (bool) $product->is_active;
+        abort_unless($isActive, 404);
         if ($hideOutOfStock && $product->stock_quantity <= 0) {
             abort(404);
         }
 
         $product->load([
             'images',
+            'brandRef',
             'category',
             'inventory',
             'reviews.customer',
             'variants.inventory',
             'variants.image',
             'variants.images',
+            'variants.ageRange',
+            'variants.sizeRef',
+            'variants.colorRef',
         ]);
 
-        $related = Product::with(['primaryImage', 'variants.inventory', 'defaultVariant'])
-            ->where('is_active', true)
+        $related = Product::with(['primaryImage', 'brandRef', 'variants.inventory', 'defaultVariant'])
+            ->withCount('reviews')
+            ->withAvg('reviews', 'rating')
+            ->where(function ($q) {
+                $q->where('status', 'active')
+                  ->orWhere(function ($legacy) {
+                      $legacy->whereNull('status')->where('is_active', true);
+                  });
+            })
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->when($hideOutOfStock, fn ($q) => $q->whereHas('variants.inventory', fn ($i) => $i->where('quantity', '>', 0)))

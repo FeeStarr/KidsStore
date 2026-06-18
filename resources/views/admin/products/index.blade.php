@@ -14,6 +14,7 @@
         <th>SKU</th>
         <th>Name</th>
         <th>Category</th>
+        <th>Status</th>
         <th class="text-end">Price (NGN)</th>
         <th class="text-end">Discount %</th>
         <th class="text-end">Stock</th>
@@ -33,6 +34,7 @@
             <td>{{ $p->sku }}</td>
             <td>{{ $p->name }}</td>
             <td>{{ $p->category?->name ?? '-' }}</td>
+            <td><span class="badge text-bg-light">{{ $p->status ?? (($p->is_active ?? false) ? 'active' : 'inactive') }}</span></td>
             <td class="text-end">{{ number_format($p->selling_price, 2) }}</td>
             <td class="text-end">{{ number_format($p->discount, 2) }}</td>
             <td class="text-end">{{ $p->stock_quantity }}</td>

@@ -1,9 +1,12 @@
-@extends('layouts.admin', ['title' => 'Purchase '.$purchase->reference])
+@extends('layouts.admin', ['title' => 'Purchase '.$purchase->display_number])
 @section('content')
 <div class="d-flex justify-content-between mb-3">
-    <h3>Purchase {{ $purchase->reference }}</h3>
+    <h3>Purchase {{ $purchase->display_number }}</h3>
     <div>
         @if($purchase->status === 'pending')
+            <a href="{{ route('admin.purchases.edit', $purchase) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
             <form action="{{ route('admin.purchases.receive', $purchase) }}" method="post" class="d-inline">
                 @csrf <button class="btn btn-success"><i class="bi bi-check2"></i> Mark Received</button>
             </form>
@@ -21,6 +24,7 @@
 <div class="row g-3 mb-3">
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
+            <dt class="col-4">Purchase Number</dt><dd class="col-8">{{ $purchase->display_number }}</dd>
             <dt class="col-4">Supplier</dt><dd class="col-8">{{ $purchase->supplier?->name ?? 'â€”' }}</dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $purchase->purchase_date->format('Y-m-d') }}</dd>
             <dt class="col-4">Status</dt><dd class="col-8"><span class="badge text-bg-light">{{ $purchase->status }}</span></dd>
@@ -34,7 +38,7 @@
             <dt class="col-6">Total Packaging</dt><dd class="col-6 text-end">₦{{ number_format($purchase->total_packaging_cost, 2) }}</dd>
             <dt class="col-6">Total Other</dt><dd class="col-6 text-end">₦{{ number_format($purchase->total_other_costs, 2) }}</dd>
             <dt class="col-6">Total Discount</dt><dd class="col-6 text-end">-₦{{ number_format($purchase->total_discount, 2) }}</dd>
-            <dt class="col-6 fw-bold">Grand Total</dt><dd class="col-6 text-end fw-bold">₦{{ number_format($purchase->grand_total, 2) }}</dd>
+            <dt class="col-6 fw-bold">Total Cost</dt><dd class="col-6 text-end fw-bold">₦{{ number_format($purchase->total_cost, 2) }}</dd>
         </dl>
     </div></div></div>
 </div>

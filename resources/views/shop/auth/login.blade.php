@@ -17,7 +17,12 @@
                 <button class="btn btn-primary w-100">Log in</button>
             </form>
             <div class="text-center mt-3 small">
-                Don't have an account? <a href="{{ route('shop.register') }}">Sign up</a>
+                <div class="mb-2">
+                    <a href="{{ route('shop.password.request') }}" class="text-decoration-none">Forgot password?</a>
+                </div>
+                <div>
+                    Don't have an account? <a href="{{ route('shop.register') }}">Sign up</a>
+                </div>
             </div>
         </div></div>
     </div>

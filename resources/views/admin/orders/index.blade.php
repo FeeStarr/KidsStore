@@ -26,7 +26,7 @@
             <td>{{ $o->customer?->name ?? '-' }}</td>
             <td><span class="badge text-bg-light">{{ $o->getStatusLabel() }}</span></td>
             <td><span class="badge text-bg-light">{{ ucfirst($o->payment_status) }}</span></td>
-            <td class="text-end">{{ number_format($o->grand_total, 2) }}</td>
+            <td class="text-end">{{ number_format($o->total_amount, 2) }}</td>
             <td class="text-end text-nowrap">
                 <a href="{{ route('admin.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a>
             </td>

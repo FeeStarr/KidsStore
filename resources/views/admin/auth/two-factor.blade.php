@@ -28,16 +28,20 @@
             <div class="mb-3">
                 <label for="code" class="form-label">Verification Code</label>
                 <input type="text" name="code" id="code"
-                       class="form-control @error('code') is-invalid @enderror"
+                       class="form-control form-control-lg text-center font-monospace @error('code') is-invalid @enderror"
                        value="{{ old('code') }}"
-                       required autofocus maxlength="6" minlength="6">
+                       inputmode="text" placeholder="000000 or backup code"
+                       required autofocus maxlength="20">
                 @error('code')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
+                <div class="form-text text-muted small mt-1">
+                    <i class="bi bi-key me-1"></i>Can't access your email? Enter your backup code (e.g. <code>ABCD-12345</code>).
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary w-100 btn-lg">
-                Verify Code
+                Verify
             </button>
         </form>
 

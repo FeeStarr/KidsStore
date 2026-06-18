@@ -10,9 +10,45 @@
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100"><div class="card-body">
             <h6>Status</h6>
-            <p class="mb-1"><span class="badge text-bg-light">{{ $order->getStatusLabel() }}</span> &middot;
-                <span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span></p>
+            <p class="mb-1">
+                <span class="badge text-bg-light">{{ $order->getStatusLabel() }}</span>
+                &middot;
+                <span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span>
+            </p>
             <small class="text-muted">Placed on {{ $order->order_date->format('M d, Y') }}</small>
+
+            @if(! in_array($order->status, ['delivered', 'cancelled']))
+                <div class="mt-2 p-2 bg-light rounded small">
+                    <i class="bi bi-calendar-check me-1 text-primary"></i>
+                    <strong>Estimated delivery:</strong>
+                    {{ $order->delivery_window }}
+                </div>
+            @endif
+
+            <div class="mt-2 small text-muted">
+                <i class="bi bi-{{ $order->isForPickup() ? 'geo-alt' : 'house-door' }} me-1"></i>
+                {{ $order->getDeliveryMethodLabel() }}
+                @if($order->isForPickup() && $order->pickupStation)
+                    — {{ $order->pickupStation->name }}
+                @elseif($order->isForDelivery() && $order->delivery_address)
+                    — {{ Str::limit($order->delivery_address, 60) }}
+                @endif
+            </div>
+
+            @if($order->isForDelivery() && $order->courier_name)
+                <div class="mt-2 p-2 bg-light rounded small">
+                    <i class="bi bi-truck me-1 text-primary"></i>
+                    <strong>{{ $order->courier_name }}</strong>
+                    @if($order->tracking_number)
+                        &nbsp;·&nbsp; Tracking: <span class="font-monospace fw-semibold">{{ $order->tracking_number }}</span>
+                        @if($order->tracking_url)
+                            <a href="{{ $order->tracking_url }}" target="_blank" class="ms-2 btn btn-sm btn-outline-primary py-0 px-2">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Track Package
+                            </a>
+                        @endif
+                    @endif
+                </div>
+            @endif
         </div></div>
     </div>
     <div class="col-md-6">
@@ -22,12 +58,80 @@
                 <dt class="col-6">Subtotal</dt><dd class="col-6 text-end">&#8358;{{ number_format($order->subtotal, 2) }}</dd>
                 <dt class="col-6">Discount</dt><dd class="col-6 text-end">{{ number_format($order->discount, 2) }}%</dd>
                 <dt class="col-6">Shipping</dt><dd class="col-6 text-end">&#8358;{{ number_format($order->shipping_fee, 2) }}</dd>
-                <dt class="col-6 fw-bold">Total</dt><dd class="col-6 text-end fw-bold">&#8358;{{ number_format($order->grand_total, 2) }}</dd>
+                <dt class="col-6 fw-bold">Total</dt><dd class="col-6 text-end fw-bold">&#8358;{{ number_format($order->total_amount ?: $order->grand_total, 2) }}</dd>
                 <dt class="col-6">Paid</dt><dd class="col-6 text-end">&#8358;{{ number_format($order->amount_paid, 2) }}</dd>
             </dl>
         </div></div>
     </div>
 </div>
+
+@php
+    $canPay      = $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled']);
+    $pendingTxn  = $order->paymentTransactions->firstWhere('status', 'pending');
+    $successTxn  = $order->paymentTransactions->firstWhere('status', 'success');
+    $grandTotal  = (float) ($order->grand_total ?: $order->total_amount);
+    $balance     = round($grandTotal - (float) $order->amount_paid, 2);
+@endphp
+
+@if($canPay && $balance > 0)
+<div class="card border-0 shadow-sm mb-3" id="pay-panel">
+    <div class="card-body">
+        <h6 class="mb-3"><i class="bi bi-credit-card me-2 text-primary"></i>Pay via Bank Transfer</h6>
+
+        @if($pendingTxn && ! $pendingTxn->isExpired())
+            {{-- Active virtual account --}}
+            <div id="virtual-account-block" data-txn-id="{{ $pendingTxn->id }}"
+                    data-query-url="{{ route('shop.opay.query', $order) }}"
+                 data-seconds="{{ $pendingTxn->secondsRemaining() }}">
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Transfer exactly <strong>₦{{ number_format($pendingTxn->amount, 2) }}</strong> to the account below.
+                    This account expires in <strong id="countdown">…</strong>.
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <div class="bg-light rounded p-3 text-center">
+                            <div class="small text-muted mb-1">Bank</div>
+                            <div class="fw-bold fs-5">{{ $pendingTxn->virtual_bank_name }}</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="bg-light rounded p-3 text-center">
+                            <div class="small text-muted mb-1">Account Number</div>
+                            <div class="fw-bold fs-3 font-monospace">{{ $pendingTxn->virtual_account_number }}</div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-1"
+                                    onclick="navigator.clipboard.writeText('{{ $pendingTxn->virtual_account_number }}');this.textContent='Copied!'">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button id="check-payment-btn" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise me-1"></i>I've paid — check now
+                    </button>
+                    <span id="check-status" class="small text-muted align-self-center"></span>
+                </div>
+            </div>
+        @else
+            {{-- No active transaction — show Pay Now button --}}
+            <p class="text-muted small mb-3">
+                Click the button below to generate a dedicated bank account number.
+                Transfer the exact amount — payment is verified automatically.
+            </p>
+            <div class="d-flex align-items-center gap-3">
+                <span class="fw-bold fs-5">₦{{ number_format($balance, 2) }}</span>
+                <button id="pay-now-btn"
+                        data-initiate-url="{{ route('shop.opay.initiate', $order) }}"
+                        class="btn btn-primary">
+                    <i class="bi bi-bank me-1"></i>Pay Now
+                </button>
+                <span id="pay-error" class="text-danger small"></span>
+            </div>
+        @endif
+    </div>
+</div>
+@endif
 
 <div class="card border-0 shadow-sm">
 <table class="table mb-0 align-middle">
@@ -49,6 +153,12 @@
                 @if($it->variant && $it->variant->options_label)
                     <div class="small text-muted">{{ $it->variant->options_label }}</div>
                 @endif
+                @if($it->selected_size)
+                    <div class="small text-muted">Size: {{ $it->selected_size }}</div>
+                @endif
+                @if($it->selected_age_group)
+                    <div class="small text-muted">Age: {{ $it->selected_age_group }}</div>
+                @endif
             </td>
             <td>{{ $it->quantity }}</td>
             <td class="text-end">&#8358;{{ number_format($it->unit_price, 2) }}</td>
@@ -58,5 +168,269 @@
     </tbody>
 </table>
 </div>
+
+@php
+    $canRefund       = $order->status === 'delivered'
+                       && $order->updated_at->diffInDays(now()) <= \App\Models\RefundRequest::REFUND_WINDOW_DAYS;
+    $existingRequests = $order->refundRequests ?? collect();
+    $pendingRefund    = $existingRequests->whereIn('status', ['pending','approved'])->first();
+@endphp
+
+@if($canRefund)
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-arrow-counterclockwise me-1"></i>Refund Request</span>
+        @if(! $pendingRefund)
+            <button class="btn btn-sm btn-outline-warning" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#refund-form">
+                Request a Refund
+            </button>
+        @endif
+    </div>
+
+    @if($existingRequests->isNotEmpty())
+    <div class="card-body border-bottom">
+        <div class="small text-muted mb-2">Your refund requests for this order:</div>
+        @foreach($existingRequests as $rr)
+            @php
+                $rbadge = match($rr->status) {
+                    'pending'  => 'bg-warning text-dark',
+                    'approved' => 'bg-primary',
+                    'refunded' => 'bg-success',
+                    'rejected' => 'bg-danger',
+                    'failed'   => 'bg-dark',
+                    default    => 'bg-secondary',
+                };
+            @endphp
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                <div>
+                    <span class="small fw-semibold">{{ $rr->getScopeLabel() }}</span>
+                    <span class="small text-muted ms-2">— {{ $rr->reason_label }}</span>
+                </div>
+                <div class="text-end">
+                    <span class="badge {{ $rbadge }}">{{ ucfirst($rr->status) }}</span>
+                    <div class="small fw-bold">₦{{ number_format($rr->amount, 2) }}</div>
+                </div>
+            </div>
+            @if($rr->admin_note)
+                <div class="small text-muted mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ $rr->admin_note }}</div>
+            @endif
+        @endforeach
+    </div>
+    @endif
+
+    @if(! $pendingRefund)
+    <div class="collapse" id="refund-form">
+        <div class="card-body">
+            <form method="post" action="{{ route('shop.refund.store', $order) }}"
+                  enctype="multipart/form-data">
+                @csrf
+
+                {{-- Scope --}}
+                <div class="mb-3">
+                    <label class="form-label">What would you like to refund? *</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="scope"
+                               id="scope_full" value="full" checked>
+                        <label class="form-check-label" for="scope_full">
+                            Full order — ₦{{ number_format($order->amount_paid, 2) }}
+                        </label>
+                    </div>
+                    @foreach($order->items as $it)
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="scope"
+                                   id="scope_item_{{ $it->id }}" value="item"
+                                   data-item-id="{{ $it->id }}"
+                                   class="scope-item-radio">
+                            <label class="form-check-label" for="scope_item_{{ $it->id }}">
+                                {{ $it->product?->name }}
+                                @if($it->variant?->options_label) — {{ $it->variant->options_label }}@endif
+                                (×{{ $it->quantity }}) — ₦{{ number_format($it->line_total, 2) }}
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Hidden item fields, shown when item radio selected --}}
+                <div id="item-fields" style="display:none" class="mb-3 ms-4 row g-2">
+                    <input type="hidden" name="order_item_id" id="selected-item-id">
+                    <div class="col-auto">
+                        <label class="form-label form-label-sm">Quantity to refund</label>
+                        <input type="number" name="quantity" min="1" value="1"
+                               class="form-control form-control-sm" style="width:80px">
+                    </div>
+                </div>
+
+                {{-- Reason --}}
+                <div class="mb-3">
+                    <label class="form-label">Reason *</label>
+                    <select name="reason" class="form-select" required>
+                        <option value="">— Select reason —</option>
+                        @foreach(\App\Models\RefundRequest::REASONS as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Additional details</label>
+                    <textarea name="details" rows="3" class="form-control"
+                              placeholder="Please describe the issue…"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Evidence photo <small class="text-muted">(optional — for damaged/wrong item)</small></label>
+                    <input type="file" name="evidence" class="form-control" accept="image/*">
+                    <div class="form-text">Max 5 MB. JPG/PNG/WEBP.</div>
+                </div>
+
+                <div class="alert alert-light border small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Refunds are reviewed within 2–3 business days. Approved refunds are credited to your original payment method within 5–7 working days.
+                </div>
+
+                <button class="btn btn-warning">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Submit Refund Request
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
+</div>
+@endif
+
+@push('scripts')
+<script>
+(function () {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    // ── Pay Now button ─────────────────────────────────────────────────────
+    const payBtn   = document.getElementById('pay-now-btn');
+    const payError = document.getElementById('pay-error');
+
+    if (payBtn) {
+        payBtn.addEventListener('click', async () => {
+            payBtn.disabled = true;
+            payBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating…';
+            if (payError) payError.textContent = '';
+
+            try {
+                const res  = await fetch(payBtn.dataset.initiateUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                });
+                const json = await res.json();
+
+                if (json.success) {
+                    // Reload the page to show the virtual account block
+                    window.location.reload();
+                } else {
+                    if (payError) payError.textContent = json.message || 'Could not initiate payment.';
+                    payBtn.disabled = false;
+                    payBtn.innerHTML = '<i class="bi bi-bank me-1"></i>Pay Now';
+                }
+            } catch (e) {
+                if (payError) payError.textContent = 'Network error. Please try again.';
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<i class="bi bi-bank me-1"></i>Pay Now';
+            }
+        });
+    }
+
+    // ── Active virtual account countdown + polling ─────────────────────────
+    const vaBlock   = document.getElementById('virtual-account-block');
+    const checkBtn  = document.getElementById('check-payment-btn');
+    const checkStatus = document.getElementById('check-status');
+    const countdown = document.getElementById('countdown');
+
+    if (vaBlock) {
+        let seconds  = parseInt(vaBlock.dataset.seconds || 0, 10);
+        const queryUrl = vaBlock.dataset.queryUrl;
+
+        // Countdown timer
+        function tick() {
+            if (!countdown) return;
+            if (seconds <= 0) {
+                countdown.textContent = 'expired';
+                if (checkBtn) checkBtn.disabled = true;
+                return;
+            }
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            countdown.textContent = m + ':' + String(s).padStart(2, '0');
+            seconds--;
+            setTimeout(tick, 1000);
+        }
+        tick();
+
+        // Manual / auto check
+        async function checkPayment() {
+            if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking…'; }
+            if (checkStatus) checkStatus.textContent = '';
+
+            try {
+                const res  = await fetch(queryUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                });
+                const json = await res.json();
+
+                if (json.paid || json.payment_status === 'paid') {
+                    if (checkStatus) checkStatus.textContent = '';
+                    // Flash success and reload
+                    document.getElementById('pay-panel')?.replaceWith(
+                        Object.assign(document.createElement('div'), {
+                            className: 'alert alert-success',
+                            textContent: '✓ Payment confirmed! Your order is updated.',
+                        })
+                    );
+                    setTimeout(() => window.location.reload(), 2000);
+                    return;
+                }
+
+                if (checkStatus) {
+                    checkStatus.textContent = json.throttled
+                        ? 'Please wait a moment before checking again.'
+                        : 'Payment not yet received. Transfer then try again.';
+                }
+            } catch (e) {
+                if (checkStatus) checkStatus.textContent = 'Network error.';
+            }
+
+            if (checkBtn) {
+                checkBtn.disabled = false;
+                checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>I\'ve paid — check now';
+            }
+        }
+
+        if (checkBtn) checkBtn.addEventListener('click', checkPayment);
+
+        // Auto-poll every 30 s while the page is open
+        setInterval(() => { if (seconds > 0) checkPayment(); }, 30000);
+    }
+
+    // ── Refund form: toggle item fields on scope selection ────────────────────
+    document.querySelectorAll('input[type="radio"][name="scope"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const itemFields  = document.getElementById('item-fields');
+            const itemIdInput = document.getElementById('selected-item-id');
+            if (!itemFields) return;
+            if (radio.value === 'item') {
+                itemFields.style.display = '';
+                if (itemIdInput && radio.dataset.itemId) {
+                    itemIdInput.value = radio.dataset.itemId;
+                    const match = radio.closest('.form-check')?.querySelector('label')?.textContent?.match(/×(\d+)/);
+                    const qtyInput = document.querySelector('[name="quantity"]');
+                    if (match && qtyInput) qtyInput.max = match[1];
+                }
+            } else {
+                itemFields.style.display = 'none';
+                if (itemIdInput) itemIdInput.value = '';
+            }
+        });
+    });
+})();
+</script>
+@endpush
 
 @endsection

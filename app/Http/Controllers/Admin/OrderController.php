@@ -12,6 +12,7 @@ use App\Services\OrderService;
 use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
@@ -49,7 +50,7 @@ class OrderController extends Controller
 
     public function show(Order $order): View
     {
-        $order->load('items.product', 'items.variant', 'payments', 'customer');
+        $order->load('items.product', 'items.variant', 'payments', 'customer', 'pickupStation', 'paymentTransactions');
 
         return view('admin.orders.show', compact('order'));
     }
@@ -59,6 +60,13 @@ class OrderController extends Controller
         $this->orders->confirm($order);
 
         return back()->with('success', 'Order confirmed. Inventory updated.');
+    }
+
+    public function pendingConfirmation(Order $order): RedirectResponse
+    {
+        $this->orders->markPendingConfirmation($order);
+
+        return back()->with('success', 'Order marked as pending confirmation.');
     }
 
     public function processing(Order $order): RedirectResponse
@@ -101,5 +109,33 @@ class OrderController extends Controller
         $this->payments->record($order, $request->validated());
 
         return back()->with('success', 'Payment recorded.');
+    }
+
+    public function updateDeliveryDate(Request $request, Order $order): RedirectResponse
+    {
+        $request->validate([
+            'expected_delivery_date' => ['required', 'date', 'after_or_equal:' . $order->order_date->toDateString()],
+        ]);
+
+        $order->update(['expected_delivery_date' => $request->expected_delivery_date]);
+
+        return back()->with('success', 'Expected delivery date updated.');
+    }
+
+    public function updateCourier(Request $request, Order $order): RedirectResponse
+    {
+        $request->validate([
+            'courier_name'    => ['required', 'string', 'max:120'],
+            'tracking_number' => ['nullable', 'string', 'max:120'],
+            'tracking_url'    => ['nullable', 'url', 'max:500'],
+        ]);
+
+        $order->update([
+            'courier_name'    => $request->courier_name,
+            'tracking_number' => $request->tracking_number ?: null,
+            'tracking_url'    => $request->tracking_url ?: null,
+        ]);
+
+        return back()->with('success', 'Courier information saved.');
     }
 }

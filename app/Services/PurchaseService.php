@@ -39,12 +39,15 @@ class PurchaseService
     public function create(array $data): Purchase
     {
         return DB::transaction(function () use ($data) {
+            $purchaseNumber = $data['purchase_number'] ?? $data['reference'] ?? $this->generateReference();
             $purchase = Purchase::create([
-                'reference' => $data['reference'] ?? $this->generateReference(),
-                'supplier_id' => $data['supplier_id'] ?? null,
-                'purchase_date' => $data['purchase_date'],
-                'status' => $data['status'] ?? 'pending',
-                'note' => $data['note'] ?? null,
+                'purchase_number' => $purchaseNumber,
+                'reference'       => $purchaseNumber,
+                'supplier_id'     => $data['supplier_id'] ?? null,
+                'purchase_date'   => $data['purchase_date'],
+                'status'          => $data['status'] ?? 'pending',
+                'note'            => $data['note'] ?? null,
+                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? 0),
             ]);
 
             foreach ($data['items'] as $row) {
@@ -95,6 +98,53 @@ class PurchaseService
             $purchase->update(['status' => 'cancelled']);
 
             return $purchase->fresh();
+        });
+    }
+
+    /**
+     * Replace all items on a pending purchase and recalculate totals.
+     * Only allowed while status = 'pending' (inventory not yet touched).
+     */
+    public function update(Purchase $purchase, array $data): Purchase
+    {
+        if ($purchase->status !== 'pending') {
+            throw new \RuntimeException('Only pending purchases can be edited.');
+        }
+
+        return DB::transaction(function () use ($purchase, $data) {
+            $purchase->update([
+                'purchase_number' => $data['purchase_number'] ?? $purchase->purchase_number,
+                'reference'       => $data['purchase_number'] ?? $purchase->reference,
+                'supplier_id'     => $data['supplier_id'] ?? null,
+                'purchase_date'   => $data['purchase_date'],
+                'note'            => $data['note'] ?? null,
+                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? 0),
+            ]);
+
+            // Replace all items
+            $purchase->items()->delete();
+
+            foreach ($data['items'] as $row) {
+                $this->createItem($purchase, $row);
+            }
+
+            $this->recalculateTotals($purchase);
+
+            return $purchase->fresh('items.product');
+        });
+    }
+
+    public function delete(Purchase $purchase): void
+    {
+        if ($purchase->status !== 'pending') {
+            throw new \RuntimeException('Only pending purchases can be deleted.');
+        }
+
+        DB::transaction(function () use ($purchase) {
+            // Delete all items first
+            $purchase->items()->delete();
+            // Delete the purchase
+            $purchase->delete();
         });
     }
 
@@ -163,6 +213,7 @@ class PurchaseService
             'total_packaging_cost' => 0,
             'total_other_costs'    => 0,
             'total_discount'       => 0,
+            'total_cost'           => 0,
             'grand_total'          => 0,
         ];
 
@@ -179,6 +230,8 @@ class PurchaseService
             $totals['grand_total']          += (float) $item->line_total;
         }
 
+        $totals['total_cost'] = $totals['grand_total'];
+
         $purchase->update($totals);
     }
 
@@ -194,7 +247,7 @@ class PurchaseService
                 $item->quantity,
                 Purchase::class,
                 $purchase->id,
-                "Purchase #{$purchase->reference}"
+                "Purchase #{$purchase->display_number}"
             );
 
             // Update the variant's selling price from this purchase line.
