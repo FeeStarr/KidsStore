@@ -45,8 +45,11 @@
                     <a href="{{ route('admin.categories.index') }}" class="{{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
                     <a href="{{ route('admin.inventory.index') }}" class="{{ str_starts_with($r ?? '', 'admin.inventory') ? 'active':'' }}"><i class="bi bi-archive"></i> Inventory</a>
                     <a href="{{ route('admin.purchases.index') }}" class="{{ str_starts_with($r ?? '', 'admin.purchases') ? 'active':'' }}"><i class="bi bi-truck"></i> Purchases</a>
+                    <a href="{{ route('admin.suppliers.index') }}" class="{{ str_starts_with($r ?? '', 'admin.suppliers') ? 'active':'' }}"><i class="bi bi-building"></i> Suppliers</a>
+                    <a href="{{ route('admin.payment-methods.index') }}" class="{{ str_starts_with($r ?? '', 'admin.payment-methods') ? 'active':'' }}"><i class="bi bi-wallet2"></i> Payment Methods</a>
                     <a href="{{ route('admin.orders.index') }}" class="{{ str_starts_with($r ?? '', 'admin.orders') ? 'active':'' }}"><i class="bi bi-bag-check"></i> Orders</a>
                     <a href="{{ route('admin.pickup-stations.index') }}" class="{{ str_starts_with($r ?? '', 'admin.pickup-stations') ? 'active':'' }}"><i class="bi bi-geo-alt"></i> Pickup Stations</a>
+                    <a href="{{ route('admin.pickup-payouts.index') }}" class="{{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
                     <a href="{{ route('admin.refunds.index') }}" class="{{ str_starts_with($r ?? '', 'admin.refunds') ? 'active':'' }}">
                         <i class="bi bi-arrow-counterclockwise"></i> Refunds
                         @php($pendingRefunds = \App\Models\RefundRequest::where('status','pending')->count())

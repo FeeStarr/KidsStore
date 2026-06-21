@@ -112,6 +112,45 @@
                     </small>
                 @endif
             </dd>
+            @if($order->isForPickup() && $order->pickupStation)
+                @php $globalAccounts = \App\Models\BankAccount::active()->orderByDesc('is_default')->get(); @endphp
+                @if($globalAccounts->isNotEmpty())
+                    <dt class="col-4">Pickup Payment</dt>
+                    <dd class="col-8">
+                        @foreach($globalAccounts as $ba)
+                            <div class="mb-2">
+                                @if($ba->bank_name)<div><strong>Bank:</strong> {{ $ba->bank_name }}</div>@endif
+                                @if($ba->bank_account_name)<div><strong>Account name:</strong> {{ $ba->bank_account_name }}</div>@endif
+                                @if($ba->bank_account_number)
+                                    <div>
+                                        <strong>Account no:</strong>
+                                        <span class="font-monospace">{{ $ba->bank_account_number }}</span>
+                                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $ba->bank_account_number }}')">Copy</button>
+                                        @if($ba->is_default)<span class="badge bg-primary ms-2">Default</span>@endif
+                                    </div>
+                                @endif
+                                @if($ba->instructions)<div class="text-muted small">{{ $ba->instructions }}</div>@endif
+                            </div>
+                        @endforeach
+                    </dd>
+                @else
+                    @if($order->pickupStation->bank_account_number || $order->pickupStation->bank_name)
+                        <dt class="col-4">Pickup Payment</dt>
+                        <dd class="col-8">
+                            @if($order->pickupStation->bank_name)<div><strong>Bank:</strong> {{ $order->pickupStation->bank_name }}</div>@endif
+                            @if($order->pickupStation->bank_account_name)<div><strong>Account name:</strong> {{ $order->pickupStation->bank_account_name }}</div>@endif
+                            @if($order->pickupStation->bank_account_number)
+                                <div>
+                                    <strong>Account no:</strong>
+                                    <span class="font-monospace">{{ $order->pickupStation->bank_account_number }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $order->pickupStation->bank_account_number }}')">Copy</button>
+                                </div>
+                            @endif
+                            @if($order->pickupStation->bank_instructions)<div class="text-muted small">{{ $order->pickupStation->bank_instructions }}</div>@endif
+                        </dd>
+                    @endif
+                @endif
+            @endif
             <dt class="col-4">Payment</dt><dd class="col-8"><span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span></dd>
             <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '—' }}</dd>
         </dl>
@@ -229,6 +268,15 @@
     </tbody>
 </table>
 </div>
+
+    @if($order->payment_status !== 'paid')
+        <div class="mt-2">
+            <form method="post" action="{{ route('admin.orders.mark-paid', $order) }}">
+                @csrf
+                <button class="btn btn-sm btn-success">Mark Order As Paid</button>
+            </form>
+        </div>
+    @endif
 
 @if($order->paymentTransactions->isNotEmpty())
 <div class="card mb-3">

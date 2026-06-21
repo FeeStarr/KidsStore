@@ -32,6 +32,11 @@ class PickupStationController extends Controller
             'city'         => ['nullable', 'string', 'max:100'],
             'state'        => ['nullable', 'string', 'max:100'],
             'phone'        => ['nullable', 'string', 'max:30'],
+            'pickup_shipping_fee' => ['nullable','numeric','min:0'],
+            'bank_name'            => ['nullable', 'string', 'max:120'],
+            'bank_account_name'    => ['nullable', 'string', 'max:200'],
+            'bank_account_number'  => ['nullable', 'string', 'max:60'],
+            'bank_instructions'    => ['nullable', 'string', 'max:1000'],
             'instructions' => ['nullable', 'string', 'max:1000'],
             'fee_pct'      => ['nullable', 'numeric', 'min:0', 'max:100'],
             'access_pin'   => ['nullable', 'string', 'min:4', 'max:20'],
@@ -39,13 +44,14 @@ class PickupStationController extends Controller
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
         $data['fee_pct']   = (float) ($data['fee_pct'] ?? 0);
+        $data['pickup_shipping_fee'] = isset($data['pickup_shipping_fee']) ? (float) $data['pickup_shipping_fee'] : null;
         if (! empty($data['access_pin'])) {
             $data['access_pin'] = Hash::make($data['access_pin']);
         } else {
             unset($data['access_pin']);
         }
 
-        PickupStation::create($data);
+        $station = PickupStation::create($data);
 
         return redirect()->route('admin.pickup-stations.index')
             ->with('success', 'Pickup station created.');
@@ -64,6 +70,10 @@ class PickupStationController extends Controller
             'city'         => ['nullable', 'string', 'max:100'],
             'state'        => ['nullable', 'string', 'max:100'],
             'phone'        => ['nullable', 'string', 'max:30'],
+            'bank_name'            => ['nullable', 'string', 'max:120'],
+            'bank_account_name'    => ['nullable', 'string', 'max:200'],
+            'bank_account_number'  => ['nullable', 'string', 'max:60'],
+            'bank_instructions'    => ['nullable', 'string', 'max:1000'],
             'instructions' => ['nullable', 'string', 'max:1000'],
             'fee_pct'      => ['nullable', 'numeric', 'min:0', 'max:100'],
             'access_pin'   => ['nullable', 'string', 'min:4', 'max:20'],
@@ -71,6 +81,7 @@ class PickupStationController extends Controller
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
         $data['fee_pct']   = (float) ($data['fee_pct'] ?? 0);
+        $data['pickup_shipping_fee'] = isset($data['pickup_shipping_fee']) ? (float) $data['pickup_shipping_fee'] : null;
         if (! empty($data['access_pin'])) {
             $data['access_pin'] = Hash::make($data['access_pin']);
         } else {
@@ -78,6 +89,8 @@ class PickupStationController extends Controller
         }
 
         $pickupStation->update($data);
+
+        // Bank accounts are managed globally; no station-specific accounts here.
 
         return redirect()->route('admin.pickup-stations.index')
             ->with('success', 'Pickup station updated.');
@@ -91,6 +104,18 @@ class PickupStationController extends Controller
         $pickupStation->delete();
         return redirect()->route('admin.pickup-stations.index')
             ->with('success', 'Pickup station deleted.');
+    }
+
+    /** Apply same pickup shipping fee across all stations */
+    public function applyShippingFeeAll(Request $request)
+    {
+        $data = $request->validate([
+            'fee' => ['required','numeric','min:0'],
+        ]);
+
+        \App\Models\PickupStation::query()->update(['pickup_shipping_fee' => (float) $data['fee']]);
+
+        return redirect()->route('admin.pickup-stations.index')->with('success', 'Applied pickup shipping fee to all stations.');
     }
 
     /** Admin payout report for a specific station */

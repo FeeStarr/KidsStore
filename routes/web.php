@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\ProfitReportController;
 use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\PickupStationController;
+use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\RefundController as AdminRefundController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VendorApprovalController;
@@ -167,6 +168,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel');
 
         Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid');
         Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
         Route::post('orders/{order}/pending-confirmation', [OrderController::class, 'pendingConfirmation'])->name('orders.pending-confirmation');
         Route::post('orders/{order}/processing', [OrderController::class, 'processing'])->name('orders.processing');
@@ -209,6 +211,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('pickup-stations', PickupStationController::class)
             ->except(['show']);
+        Route::post('pickup-stations/apply-shipping-fee', [PickupStationController::class, 'applyShippingFeeAll'])->name('pickup-stations.apply-shipping-fee');
+        Route::resource('bank-accounts', App\Http\Controllers\Admin\BankAccountController::class)->only(['index','store','update','destroy']);
+        Route::get('pickup-payouts', [App\Http\Controllers\Admin\PickupPayoutController::class, 'index'])->name('pickup-payouts.index');
+        Route::get('pickup-payouts/records', [App\Http\Controllers\Admin\PickupPayoutController::class, 'records'])->name('pickup-payouts.records');
+        Route::get('pickup-payouts/records/export', [App\Http\Controllers\Admin\PickupPayoutController::class, 'export'])->name('pickup-payouts.export');
+        Route::get('pickup-payouts/{pickupStation}', [App\Http\Controllers\Admin\PickupPayoutController::class, 'show'])->name('pickup-payouts.show');
+        Route::post('pickup-payouts/{pickupStation}/mark-paid', [App\Http\Controllers\Admin\PickupPayoutController::class, 'markPaid'])->name('pickup-payouts.mark-paid');
+        Route::post('pickup-payouts/{pickupPayout}/reverse', [App\Http\Controllers\Admin\PickupPayoutController::class, 'reverse'])->name('pickup-payouts.reverse');
+        Route::resource('suppliers', SupplierController::class)->except(['show']);
+        Route::resource('payment-methods', App\Http\Controllers\Admin\PaymentMethodController::class)->only(['index','update']);
         Route::get('pickup-stations/{pickupStation}/payouts', [PickupStationController::class, 'payouts'])
             ->name('pickup-stations.payouts');
 
@@ -229,7 +241,14 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
     Route::post('/login',   [PickupPortalController::class, 'login'])->name('login.post');
     Route::post('/logout',  [PickupPortalController::class, 'logout'])->name('logout');
     Route::get('/dashboard',[PickupPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard/data',[PickupPortalController::class, 'dashboardData'])->name('dashboard.data');
+    Route::get('/payments', [PickupPortalController::class, 'payments'])->name('payments');
+    Route::get('/deliveries', [PickupPortalController::class, 'deliveries'])->name('deliveries');
+    Route::get('/payouts', [PickupPortalController::class, 'payouts'])->name('payouts');
+    Route::get('/payouts/data', [PickupPortalController::class, 'payoutsData'])->name('payouts.data');
+    Route::post('/payouts/mark-paid', [PickupPortalController::class, 'markPaid'])->name('payouts.markPaid');
     Route::post('/orders/{order}/confirm',         [PickupPortalController::class, 'confirmPickup'])->name('confirm');
     Route::post('/orders/{order}/initiate-payment',[PickupPortalController::class, 'initiatePayment'])->name('initiate-payment');
     Route::post('/orders/{order}/query-payment',   [PickupPortalController::class, 'queryPayment'])->name('query-payment');
+    Route::post('/orders/{order}/record-payment',  [PickupPortalController::class, 'recordPayment'])->name('record-payment');
 });

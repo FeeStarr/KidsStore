@@ -11,6 +11,7 @@ class PurchaseItem extends Model
         'purchase_id', 'product_id', 'product_variant_id', 'quantity',
         'cost_price', 'shipping_fee', 'packaging_cost',
         'other_costs', 'selling_price', 'discount', 'line_total',
+        'pickup_fee_pct',
     ];
 
     protected $casts = [
@@ -22,6 +23,7 @@ class PurchaseItem extends Model
         'selling_price' => 'decimal:2',
         'discount' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'pickup_fee_pct' => 'decimal:2',
     ];
 
     public function purchase(): BelongsTo
