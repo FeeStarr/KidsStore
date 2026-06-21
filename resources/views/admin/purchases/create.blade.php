@@ -99,7 +99,7 @@ $productsJson = $products->map(fn($p) => [
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Pickup Station Fee (%)</label>
-                    <input type="number" step="0.01" min="0" max="100" id="alloc-pickup" class="form-control" value="0">
+                    <input type="number" step="0.01" min="0" max="100" id="alloc-pickup" class="form-control" value="{{ old('pickup_fee_pct', isset($avgPickupPct) ? number_format($avgPickupPct, 2, '.', '') : '0') }}">
                 </div>
                 <div class="col-12 d-flex align-items-end gap-2">
                     <button type="button" class="btn btn-warning" id="apply-pricing">
@@ -477,6 +477,8 @@ $productsJson = $products->map(fn($p) => [
             add(`items[${n}][packaging_cost]`,      flt(tr.dataset.pack || 0).toFixed(6));
             add(`items[${n}][other_costs]`,         flt(tr.dataset.othr || 0).toFixed(6));
             add(`items[${n}][discount]`,            '0');
+            // Include pickup fee pct per item so it's stored with each row
+            add(`items[${n}][pickup_fee_pct]`,      flt(document.getElementById('alloc-pickup')?.value).toFixed(2));
         });
 
         this.submit();

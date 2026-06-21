@@ -2,9 +2,16 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">Pickup Stations</h3>
-    <a href="{{ route('admin.pickup-stations.create') }}" class="btn btn-primary btn-sm">
+    <div class="d-flex gap-2">
+        <a href="{{ route('admin.pickup-stations.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg"></i> Add Station
     </a>
+        <form method="post" action="{{ route('admin.pickup-stations.apply-shipping-fee') }}" class="d-flex">
+            @csrf
+            <input type="number" step="0.01" min="0" name="fee" class="form-control form-control-sm" placeholder="Apply fee to all">
+            <button class="btn btn-sm btn-outline-secondary ms-2">Apply</button>
+        </form>
+    </div>
 </div>
 
 @if(session('success'))

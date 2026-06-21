@@ -205,6 +205,23 @@ class OrderService
         $lineTotal      = ($unitPrice - $discountAmount) * $quantity;
         $landedUnitCost = $this->resolveLandedUnitCost($variant->id);
 
+        // Calculate pickup station fee per item (record at order creation)
+        $pickupFee = 0.0;
+        try {
+            if ($order->delivery_method === 'pickup' && $order->pickup_station_id) {
+                $station = $order->pickupStation()->first();
+                if ($station && (float)$station->fee_pct > 0) {
+                    $pickupFee = round($lineTotal * ((float)$station->fee_pct / 100), 2);
+                }
+            }
+        } catch (\Throwable $e) {
+            $pickupFee = 0.0;
+        }
+
+        // Save pickup fee separately in `pickup_station_fee` but DO NOT add it into
+        // the item's `line_total`. The order totals should exclude pickup fees.
+        $finalLineTotal = round($lineTotal, 2);
+
         return $order->items()->create([
             'product_id'         => $product->id,
             'product_variant_id' => $variant->id,
@@ -214,7 +231,9 @@ class OrderService
             'unit_price'         => $unitPrice,
             'landed_unit_cost'   => $landedUnitCost,
             'discount'           => $discount,
-            'line_total'         => $lineTotal,
+            'line_total'         => $finalLineTotal,
+            'pickup_station_fee' => $pickupFee,
+            'pickup_station_fee_paid' => false,
         ]);
     }
 

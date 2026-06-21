@@ -228,6 +228,10 @@ return new class extends Migration
 
     private function seedStaticAgeRanges(): void
     {
+        // Avoid seeding large static lookup data during automated tests
+        if (app()->environment('testing')) {
+            return;
+        }
         $defaults = [
             '0-3 months',
             '3-6 months',

@@ -144,20 +144,15 @@ $allocOther     = (float) $purchase->total_other_costs;
         <textarea name="note" class="form-control" rows="2">{{ old('note', $purchase->note) }}</textarea>
     </div>
     
-    <div class="d-flex gap-2">
-        <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>Save Changes</button>
-        <a href="{{ route('admin.purchases.show', $purchase) }}" class="btn btn-link">Cancel</a>
-        
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>Save Changes</button>
+            <a href="{{ route('admin.purchases.show', $purchase) }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
         @if($purchase->status === 'pending')
-            <form method="post" action="{{ route('admin.purchases.destroy', $purchase) }}" 
-                  style="display: inline;" 
-                  onsubmit="return confirm('Are you sure you want to delete this purchase? This action cannot be undone.');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger ms-auto">
-                    <i class="bi bi-trash me-1"></i>Delete Purchase
-                </button>
-            </form>
+            <button id="delete-purchase" class="btn btn-danger">
+                <i class="bi bi-trash me-1"></i>Delete Purchase
+            </button>
         @endif
     </div>
 </form>
@@ -511,6 +506,7 @@ $allocOther     = (float) $purchase->total_other_costs;
             add(`items[${n}][packaging_cost]`,      flt(tr.dataset.pack || 0).toFixed(6));
             add(`items[${n}][other_costs]`,         flt(tr.dataset.othr || 0).toFixed(6));
             add(`items[${n}][discount]`,            '0');
+            add(`items[${n}][pickup_fee_pct]`,      flt(document.getElementById('alloc-pickup')?.value).toFixed(2));
         });
         this.submit();
     });
@@ -533,6 +529,28 @@ $allocOther     = (float) $purchase->total_other_costs;
     // If no existing items, start with an empty group
     if (!document.querySelector('.group-card')) {
         addGroup();
+    }
+
+    // Delete button handler (AJAX) to avoid accidental nested form submits
+    const delBtn = document.getElementById('delete-purchase');
+    if (delBtn) {
+        delBtn.addEventListener('click', function () {
+            if (!confirm('Are you sure you want to delete this purchase? This action cannot be undone.')) return;
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            fetch("{{ route('admin.purchases.destroy', $purchase) }}", {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                }
+            }).then(r => {
+                if (r.ok) {
+                    window.location.href = "{{ route('admin.purchases.index') }}";
+                } else {
+                    r.text().then(t => Swal.fire({ icon: 'error', title: 'Delete failed', text: t }));
+                }
+            }).catch(e => Swal.fire({ icon: 'error', title: 'Delete failed', text: e }));
+        });
     }
 })();
 </script>

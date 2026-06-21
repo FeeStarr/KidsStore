@@ -103,11 +103,17 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user): RedirectResponse
     {
-        $data = $request->validate([
+        // Accept both `roles` (array) and legacy `role` (single value) from clients/tests
+        $input = $request->all();
+        if ($request->has('role') && ! $request->has('roles')) {
+            $input['roles'] = [$request->input('role')];
+        }
+
+        $data = validator($input, [
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', Rule::in(array_keys(User::roleOptions()))],
             'staff_type' => ['nullable', Rule::in(array_keys(User::staffTypes()))],
-        ]);
+        ])->validate();
 
         $roles = $data['roles'];
         $staffType = in_array(User::ROLE_STAFF, $roles, true) ? ($data['staff_type'] ?? null) : null;
