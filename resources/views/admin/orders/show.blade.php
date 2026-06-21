@@ -1,0 +1,403 @@
+@extends('layouts.admin', ['title' => 'Order '.$order->reference])
+@section('content')
+<div class="d-flex justify-content-between mb-3">
+    <h3>Order {{ $order->reference }}</h3>
+    <div class="d-flex flex-wrap gap-2">
+        @php
+            $s        = $order->status;
+            $isPickup = $order->isForPickup();
+            $early    = in_array($s, ['ordered', 'pending confirmation']);
+        @endphp
+
+        {{-- ordered → pending confirmation --}}
+        @if($s === 'ordered')
+            <form action="{{ route('admin.orders.pending-confirmation', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-outline-secondary">
+                    <i class="bi bi-hourglass-split me-1"></i>Pending Confirmation
+                </button>
+            </form>
+        @endif
+
+        {{-- ordered / pending confirmation → confirmed --}}
+        @if($early)
+            <form action="{{ route('admin.orders.confirm', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-success">
+                    <i class="bi bi-check2-circle me-1"></i>Confirm
+                </button>
+            </form>
+        @endif
+
+        {{-- confirmed → processing --}}
+        @if($s === 'confirmed')
+            <form action="{{ route('admin.orders.processing', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-secondary">
+                    <i class="bi bi-gear me-1"></i>Processing
+                </button>
+            </form>
+        @endif
+
+        {{-- processing + delivery → out for delivery --}}
+        @if($s === 'processing' && ! $isPickup)
+            <form action="{{ route('admin.orders.ship', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-info text-white">
+                    <i class="bi bi-truck me-1"></i>Out for Delivery
+                </button>
+            </form>
+        @endif
+
+        {{-- processing + pickup → ready for pick up --}}
+        @if($s === 'processing' && $isPickup)
+            <form action="{{ route('admin.orders.ready-for-pickup', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-warning">
+                    <i class="bi bi-geo-alt me-1"></i>Ready for Pick Up
+                </button>
+            </form>
+        @endif
+
+        {{-- out for delivery / ready for pick up → delivered --}}
+        @if(in_array($s, ['out for delivery', 'ready for pick up']))
+            <form action="{{ route('admin.orders.deliver', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-primary">
+                    <i class="bi bi-bag-check me-1"></i>Delivered
+                </button>
+            </form>
+        @endif
+
+        {{-- cancel (any non-terminal state) --}}
+        @if(! in_array($s, ['delivered', 'cancelled']))
+            <form action="{{ route('admin.orders.cancel', $order) }}" method="post"
+                  data-confirm="This will cancel the order{{ in_array($s, ['confirmed','processing','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
+                  data-confirm-title="Cancel Order?" data-confirm-yes="Yes, cancel">
+                @csrf
+                <button class="btn btn-outline-danger">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+            </form>
+        @endif
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6"><div class="card"><div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '—' }}</dd>
+            <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d') }}</dd>
+            <dt class="col-4">Status</dt>
+            <dd class="col-8"><span class="badge text-bg-light">{{ $order->getStatusLabel() }}</span></dd>
+            <dt class="col-4">Delivery</dt>
+            <dd class="col-8">
+                {{ $order->getDeliveryMethodLabel() }}
+                @if($order->isForPickup() && $order->pickupStation)
+                    <small class="text-muted d-block">{{ $order->pickupStation->name }} — {{ $order->pickupStation->full_address }}</small>
+                @elseif($order->isForDelivery() && $order->delivery_address)
+                    <small class="text-muted d-block">{{ $order->delivery_address }}</small>
+                @endif
+                @if($order->courier_name)
+                    <small class="d-block mt-1"><i class="bi bi-truck me-1 text-primary"></i><strong>{{ $order->courier_name }}</strong></small>
+                @endif
+                @if($order->tracking_number)
+                    <small class="d-block">
+                        Tracking: <strong>{{ $order->tracking_number }}</strong>
+                        @if($order->tracking_url)
+                            <a href="{{ $order->tracking_url }}" target="_blank" class="ms-1">
+                                <i class="bi bi-box-arrow-up-right"></i> Track
+                            </a>
+                        @endif
+                    </small>
+                @endif
+            </dd>
+            @if($order->isForPickup() && $order->pickupStation)
+                @php $globalAccounts = \App\Models\BankAccount::active()->orderByDesc('is_default')->get(); @endphp
+                @if($globalAccounts->isNotEmpty())
+                    <dt class="col-4">Pickup Payment</dt>
+                    <dd class="col-8">
+                        @foreach($globalAccounts as $ba)
+                            <div class="mb-2">
+                                @if($ba->bank_name)<div><strong>Bank:</strong> {{ $ba->bank_name }}</div>@endif
+                                @if($ba->bank_account_name)<div><strong>Account name:</strong> {{ $ba->bank_account_name }}</div>@endif
+                                @if($ba->bank_account_number)
+                                    <div>
+                                        <strong>Account no:</strong>
+                                        <span class="font-monospace">{{ $ba->bank_account_number }}</span>
+                                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $ba->bank_account_number }}')">Copy</button>
+                                        @if($ba->is_default)<span class="badge bg-primary ms-2">Default</span>@endif
+                                    </div>
+                                @endif
+                                @if($ba->instructions)<div class="text-muted small">{{ $ba->instructions }}</div>@endif
+                            </div>
+                        @endforeach
+                    </dd>
+                @else
+                    @if($order->pickupStation->bank_account_number || $order->pickupStation->bank_name)
+                        <dt class="col-4">Pickup Payment</dt>
+                        <dd class="col-8">
+                            @if($order->pickupStation->bank_name)<div><strong>Bank:</strong> {{ $order->pickupStation->bank_name }}</div>@endif
+                            @if($order->pickupStation->bank_account_name)<div><strong>Account name:</strong> {{ $order->pickupStation->bank_account_name }}</div>@endif
+                            @if($order->pickupStation->bank_account_number)
+                                <div>
+                                    <strong>Account no:</strong>
+                                    <span class="font-monospace">{{ $order->pickupStation->bank_account_number }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $order->pickupStation->bank_account_number }}')">Copy</button>
+                                </div>
+                            @endif
+                            @if($order->pickupStation->bank_instructions)<div class="text-muted small">{{ $order->pickupStation->bank_instructions }}</div>@endif
+                        </dd>
+                    @endif
+                @endif
+            @endif
+            <dt class="col-4">Payment</dt><dd class="col-8"><span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span></dd>
+            <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '—' }}</dd>
+        </dl>
+    </div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-body">
+        <dl class="row mb-2">
+            <dt class="col-6">Subtotal</dt><dd class="col-6 text-end">₦{{ number_format($order->subtotal, 2) }}</dd>
+            <dt class="col-6">Discount</dt><dd class="col-6 text-end">{{ number_format($order->discount, 2) }}%</dd>
+            <dt class="col-6">Shipping</dt><dd class="col-6 text-end">₦{{ number_format($order->shipping_fee, 2) }}</dd>
+            <dt class="col-6 fw-bold">Total Amount</dt><dd class="col-6 text-end fw-bold">₦{{ number_format($order->total_amount, 2) }}</dd>
+            <dt class="col-6">Paid</dt><dd class="col-6 text-end">₦{{ number_format($order->amount_paid, 2) }}</dd>
+            <dt class="col-6 text-danger">Balance</dt><dd class="col-6 text-end text-danger">₦{{ number_format($order->balance, 2) }}</dd>
+        </dl>
+        <hr class="my-2">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div>
+                <div class="small text-muted mb-1"><i class="bi bi-calendar-event me-1"></i>Expected Delivery</div>
+                <div class="fw-semibold">
+                    @if($order->expected_delivery_date)
+                        {{ $order->expected_delivery_date->format('M d, Y') }}
+                        <small class="text-muted">({{ $order->expected_delivery_date->diffForHumans() }})</small>
+                    @else
+                        <span class="text-muted">Not set</span>
+                    @endif
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                    data-bs-target="#delivery-date-form">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+        <div class="collapse mt-2" id="delivery-date-form">
+            <form method="post" action="{{ route('admin.orders.delivery-date.update', $order) }}"
+                  class="d-flex gap-2 align-items-end">
+                @csrf @method('PATCH')
+                <div class="flex-grow-1">
+                    <label class="form-label form-label-sm mb-1">New expected date</label>
+                    <input type="date" name="expected_delivery_date"
+                           class="form-control form-control-sm"
+                           value="{{ $order->expected_delivery_date?->toDateString() ?? now()->addDays(7)->toDateString() }}"
+                           min="{{ $order->order_date->toDateString() }}">
+                </div>
+                <button class="btn btn-sm btn-primary">Save</button>
+            </form>
+        </div>
+    </div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-header">Items</div>
+<table class="table mb-0">
+    <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Discount %</th><th class="text-end">Line Total</th></tr></thead>
+    <tbody>
+    @foreach($order->items as $it)
+        <tr>
+            <td>
+                {{ $it->product->name }}
+                @if($it->variant && $it->variant->options_label)
+                    <small class="text-muted d-block">{{ $it->variant->options_label }}</small>
+                @endif
+                @if($it->selected_size)
+                    <small class="text-muted d-block">Size: {{ $it->selected_size }}</small>
+                @endif
+                @if($it->selected_age_group)
+                    <small class="text-muted d-block">Age: {{ $it->selected_age_group }}</small>
+                @endif
+            </td>
+            <td>{{ $it->quantity }}</td>
+            <td>₦{{ number_format($it->unit_price, 2) }}</td>
+            <td>{{ number_format($it->discount, 2) }}%</td>
+            <td class="text-end">₦{{ number_format($it->line_total, 2) }}</td>
+        </tr>
+    @endforeach
+    </tbody>
+</table>
+</div>
+
+<div class="card mb-3"><div class="card-header d-flex justify-content-between">
+    <span>Payments</span>
+    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#pay-form">Record Payment</button>
+</div>
+<div class="collapse" id="pay-form">
+    <div class="card-body bg-light">
+        <form method="post" action="{{ route('admin.orders.payments.store', $order) }}">
+            @csrf
+            <div class="row g-2">
+                <div class="col-md-3"><input type="date" name="payment_date" value="{{ now()->toDateString() }}" class="form-control" required></div>
+                <div class="col-md-2"><input type="number" step="0.01" name="amount" placeholder="Amount" class="form-control" required></div>
+                <div class="col-md-2">
+                    <select name="method" class="form-select">
+                        @foreach(['cash','card','transfer','mobile','other'] as $m)
+                            <option value="{{ $m }}">{{ ucfirst($m) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3"><input name="transaction_id" placeholder="Transaction ID" class="form-control"></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">Save</button></div>
+            </div>
+        </form>
+    </div>
+</div>
+<table class="table mb-0">
+    <thead><tr><th>Reference</th><th>Date</th><th>Method</th><th>Transaction</th><th class="text-end">Amount</th></tr></thead>
+    <tbody>
+    @forelse($order->payments as $p)
+        <tr>
+            <td>{{ $p->reference }}</td>
+            <td>{{ $p->payment_date->format('Y-m-d') }}</td>
+            <td>{{ $p->method }}</td>
+            <td>{{ $p->transaction_id ?? 'â€”' }}</td>
+            <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
+        </tr>
+    @empty
+        <tr><td colspan="5" class="text-center text-muted p-3">No payments recorded.</td></tr>
+    @endforelse
+    </tbody>
+</table>
+</div>
+
+    @if($order->payment_status !== 'paid')
+        <div class="mt-2">
+            <form method="post" action="{{ route('admin.orders.mark-paid', $order) }}">
+                @csrf
+                <button class="btn btn-sm btn-success">Mark Order As Paid</button>
+            </form>
+        </div>
+    @endif
+
+@if($order->paymentTransactions->isNotEmpty())
+<div class="card mb-3">
+    <div class="card-header"><i class="bi bi-bank me-1"></i>OPay Bank Transfer Transactions</div>
+    <table class="table mb-0 table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Reference</th>
+                <th>Virtual Account</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Expires / Queried</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach($order->paymentTransactions as $txn)
+            <tr>
+                <td class="font-monospace small">{{ $txn->reference }}</td>
+                <td>
+                    @if($txn->virtual_account_number)
+                        <span class="font-monospace fw-bold">{{ $txn->virtual_account_number }}</span>
+                        <small class="text-muted d-block">{{ $txn->virtual_bank_name }}</small>
+                    @else
+                        <span class="text-muted">—</span>
+                    @endif
+                </td>
+                <td>₦{{ number_format($txn->amount, 2) }}</td>
+                <td>
+                    @php
+                        $badge = match($txn->status) {
+                            'success'  => 'bg-success',
+                            'pending'  => 'bg-warning text-dark',
+                            'failed'   => 'bg-danger',
+                            'expired'  => 'bg-secondary',
+                            'cancelled'=> 'bg-secondary',
+                            default    => 'bg-light text-dark',
+                        };
+                    @endphp
+                    <span class="badge {{ $badge }}">{{ ucfirst($txn->status) }}</span>
+                </td>
+                <td class="small text-muted">
+                    @if($txn->expires_at)
+                        Exp: {{ $txn->expires_at->format('M d H:i') }}
+                    @endif
+                    @if($txn->last_queried_at)
+                        <br>Checked: {{ $txn->last_queried_at->diffForHumans() }}
+                    @endif
+                </td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
+@if($order->isForDelivery())
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-truck me-1"></i>Courier / Delivery Info</span>
+        <button class="btn btn-sm btn-outline-secondary" type="button"
+                data-bs-toggle="collapse" data-bs-target="#courier-form">
+            <i class="bi bi-pencil"></i> {{ $order->courier_name ? 'Update' : 'Add' }}
+        </button>
+    </div>
+    <div class="card-body {{ $order->courier_name ? '' : 'collapse' }}" id="courier-form-display">
+        @if($order->courier_name)
+            <dl class="row mb-0">
+                <dt class="col-4">Courier</dt>
+                <dd class="col-8">{{ $order->courier_name }}</dd>
+                @if($order->tracking_number)
+                    <dt class="col-4">Tracking No.</dt>
+                    <dd class="col-8 font-monospace">{{ $order->tracking_number }}</dd>
+                @endif
+                @if($order->tracking_url)
+                    <dt class="col-4">Track Link</dt>
+                    <dd class="col-8">
+                        <a href="{{ $order->tracking_url }}" target="_blank">
+                            {{ $order->tracking_url }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                    </dd>
+                @endif
+            </dl>
+        @else
+            <p class="text-muted small mb-0">No courier assigned yet.</p>
+        @endif
+    </div>
+    <div class="collapse {{ $order->courier_name ? '' : 'show' }}" id="courier-form">
+        <div class="card-body border-top bg-light">
+            <form method="post" action="{{ route('admin.orders.courier.update', $order) }}">
+                @csrf @method('PATCH')
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Courier Name *</label>
+                        <input type="text" name="courier_name" class="form-control form-control-sm"
+                               value="{{ old('courier_name', $order->courier_name) }}"
+                               placeholder="e.g. GIG Logistics, Kwik, John Doe" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Tracking Number</label>
+                        <input type="text" name="tracking_number" class="form-control form-control-sm"
+                               value="{{ old('tracking_number', $order->tracking_number) }}"
+                               placeholder="e.g. GIG123456789">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Tracking URL <small class="text-muted">(optional)</small></label>
+                        <input type="url" name="tracking_url" class="form-control form-control-sm"
+                               value="{{ old('tracking_url', $order->tracking_url) }}"
+                               placeholder="https://track.giglogistics.com/...">
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button class="btn btn-sm btn-primary">Save Courier Info</button>
+                    @if($order->courier_name)
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="collapse" data-bs-target="#courier-form">Cancel</button>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+@endsection
