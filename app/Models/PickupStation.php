@@ -11,14 +11,11 @@ class PickupStation extends Model
     protected $fillable = [
         'name', 'address', 'city', 'state', 'phone',
         'instructions', 'is_active', 'fee_pct', 'access_pin',
-        'bank_name', 'bank_account_name', 'bank_account_number', 'bank_instructions',
-        'pickup_shipping_fee',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'fee_pct'   => 'decimal:2',
-        'pickup_shipping_fee' => 'decimal:2',
     ];
 
     /** Never expose the hashed PIN in JSON/arrays */
@@ -27,11 +24,6 @@ class PickupStation extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
-    }
-
-    public function bankAccounts(): HasMany
-    {
-        return $this->hasMany(PickupStationBankAccount::class);
     }
 
     public function getFullAddressAttribute(): string

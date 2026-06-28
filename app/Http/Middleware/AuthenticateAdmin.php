@@ -18,8 +18,9 @@ class AuthenticateAdmin
 
         // Must still be an admin/staff role
         if (! $user->isAdmin() && ! $user->isStaff()) {
-            // Authenticated but unauthorized -> forbid
-            abort(403, 'Access denied.');
+            Auth::logout();
+            return redirect()->route('admin.login')
+                ->withErrors(['email' => 'Access denied.']);
         }
 
         // Account must be active
