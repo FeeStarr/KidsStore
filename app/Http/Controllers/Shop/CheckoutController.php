@@ -4,18 +4,15 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Models\PickupStation;
-use App\Models\PaymentMethod;
-use Illuminate\Validation\Rule;
 use App\Services\CartService;
 use App\Services\OrderService;
-use App\Services\PaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class CheckoutController extends Controller
 {
-    public function __construct(private CartService $cart, private OrderService $orders, private PaymentService $payments)
+    public function __construct(private CartService $cart, private OrderService $orders)
     {
     }
 
@@ -27,14 +24,11 @@ class CheckoutController extends Controller
 
         $pickupStations = PickupStation::where('is_active', true)->orderBy('name')->get();
 
-        $methods = PaymentMethod::where('is_active', true)->orderBy('label')->get();
-
         return view('shop.checkout.show', [
             'items'          => $this->cart->items(),
             'subtotal'       => $this->cart->subtotal(),
             'customer'       => Auth::user(),
             'pickupStations' => $pickupStations,
-            'paymentMethods' => $methods,
         ]);
     }
 
@@ -44,14 +38,8 @@ class CheckoutController extends Controller
             return redirect()->route('shop.cart.index')->with('error', 'Your cart is empty.');
         }
 
-        $active = PaymentMethod::where('is_active', true)->pluck('key')->toArray();
-        if (empty($active)) {
-            $active = ['transfer'];
-        }
-
         $data = $request->validate([
             'delivery_method'   => ['required', 'in:delivery,pickup'],
-            'payment_method'    => ['nullable', Rule::in($active)],
             'phone'             => ['required', 'string', 'max:30'],
             'address'           => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
@@ -83,18 +71,6 @@ class CheckoutController extends Controller
         ]);
 
         $this->cart->clear();
-
-        // If customer selected Pay-on-delivery (bank transfer), record a zero-amount
-        // payment for bookkeeping and mark the order pending confirmation.
-        if (($data['payment_method'] ?? null) === 'transfer') {
-            $this->payments->record($order, [
-                'payment_date' => now()->toDateString(),
-                'amount'       => 0.00,
-                'method'       => 'transfer',
-                'note'         => 'Payment on delivery (transfer)',
-            ]);
-            $this->orders->markPendingConfirmation($order);
-        }
 
         return redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: '.$order->reference);

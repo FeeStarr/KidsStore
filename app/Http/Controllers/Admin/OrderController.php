@@ -111,25 +111,6 @@ class OrderController extends Controller
         return back()->with('success', 'Payment recorded.');
     }
 
-    public function markPaid(Order $order): RedirectResponse
-    {
-        // Record full outstanding balance as a manual transfer payment
-        $balance = round((float) $order->total_amount - (float) $order->amount_paid, 2);
-        if ($balance <= 0) {
-            return back()->with('info', 'Order already fully paid.');
-        }
-
-        $this->payments->record($order, [
-            'payment_date' => now()->toDateString(),
-            'amount'       => $balance,
-            'method'       => 'transfer',
-            'transaction_id'=> 'manual',
-            'note'         => 'Manual confirmation by admin',
-        ]);
-
-        return back()->with('success', 'Order marked as paid.');
-    }
-
     public function updateDeliveryDate(Request $request, Order $order): RedirectResponse
     {
         $request->validate([

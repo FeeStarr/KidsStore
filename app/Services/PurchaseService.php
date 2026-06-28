@@ -6,10 +6,8 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
-use App\Models\PickupStation;
 use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Encapsulates purchase business logic. Inventory updates are delegated
@@ -42,8 +40,6 @@ class PurchaseService
     {
         return DB::transaction(function () use ($data) {
             $purchaseNumber = $data['purchase_number'] ?? $data['reference'] ?? $this->generateReference();
-            $defaultPickupPct = (float) (PickupStation::where('is_active', true)->avg('fee_pct') ?? 0);
-
             $purchase = Purchase::create([
                 'purchase_number' => $purchaseNumber,
                 'reference'       => $purchaseNumber,
@@ -51,7 +47,7 @@ class PurchaseService
                 'purchase_date'   => $data['purchase_date'],
                 'status'          => $data['status'] ?? 'pending',
                 'note'            => $data['note'] ?? null,
-                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? $defaultPickupPct),
+                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? 0),
             ]);
 
             foreach ($data['items'] as $row) {
@@ -115,18 +111,14 @@ class PurchaseService
             throw new \RuntimeException('Only pending purchases can be edited.');
         }
 
-        Log::info('PurchaseService:update called', ['purchase_id' => $purchase->id, 'data_supplier' => $data['supplier_id'] ?? null]);
-
         return DB::transaction(function () use ($purchase, $data) {
-            $defaultPickupPct = (float) (PickupStation::where('is_active', true)->avg('fee_pct') ?? 0);
-
             $purchase->update([
                 'purchase_number' => $data['purchase_number'] ?? $purchase->purchase_number,
                 'reference'       => $data['purchase_number'] ?? $purchase->reference,
                 'supplier_id'     => $data['supplier_id'] ?? null,
                 'purchase_date'   => $data['purchase_date'],
                 'note'            => $data['note'] ?? null,
-                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? $defaultPickupPct),
+                'pickup_fee_pct'  => (float) ($data['pickup_fee_pct'] ?? 0),
             ]);
 
             // Replace all items
@@ -138,7 +130,6 @@ class PurchaseService
 
             $this->recalculateTotals($purchase);
 
-            Log::info('PurchaseService:update completed', ['purchase_id' => $purchase->id, 'supplier_id' => $purchase->supplier_id]);
             return $purchase->fresh('items.product');
         });
     }
@@ -192,7 +183,6 @@ class PurchaseService
             'selling_price'      => $sellingPrice,
             'discount'           => $discount,
             'line_total'         => $lineTotal,
-            'pickup_fee_pct'     => isset($row['pickup_fee_pct']) ? (float) $row['pickup_fee_pct'] : (float) $purchase->pickup_fee_pct,
         ]);
     }
 

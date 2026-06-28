@@ -8,7 +8,6 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\PurchaseService;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 
@@ -36,9 +35,7 @@ class PurchaseController extends Controller
             ])
             ->where('is_active', true)->orderBy('name')->get();
 
-        $avgPickupPct = (float) \App\Models\PickupStation::where('is_active', true)->avg('fee_pct') ?: 0;
-
-        return view('admin.purchases.create', compact('suppliers', 'products', 'avgPickupPct'));
+        return view('admin.purchases.create', compact('suppliers', 'products'));
     }
 
     public function store(PurchaseRequest $request): RedirectResponse
@@ -91,9 +88,7 @@ class PurchaseController extends Controller
             return back()->with('error', 'Only pending purchases can be deleted.');
         }
 
-        Log::info('PurchaseController:destroy called', ['purchase_id' => $purchase->id, 'user_id' => auth()->id()]);
         $this->purchases->delete($purchase);
-        Log::info('PurchaseController:destroy completed', ['purchase_id' => $purchase->id, 'user_id' => auth()->id()]);
 
         return redirect()->route('admin.purchases.index')
             ->with('success', 'Purchase deleted successfully.');

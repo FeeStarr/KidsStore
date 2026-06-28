@@ -12,13 +12,8 @@ class EnsureAdminRole
     {
         $user = Auth::user();
 
-        if (! $user) {
+        if (!$user || !$user->isAdmin()) {
             return redirect()->route('admin.login');
-        }
-
-        // Authenticated but not an admin -> forbidden
-        if (! $user->isAdmin()) {
-            abort(403, 'Access denied.');
         }
 
         return $next($request);
