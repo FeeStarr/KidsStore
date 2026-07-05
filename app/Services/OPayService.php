@@ -259,7 +259,12 @@ class OPayService
      */
     private function verifyWebhookSignature(array $payloadData, string $receivedSignature): bool
     {
-        if (empty($this->secretKey)) return true; // Skip in dev if key not set
+        // Never skip signature verification — an empty secret means webhook events are unverifiable.
+        // Reject all webhook calls if the secret key is not configured.
+        if (empty($this->secretKey)) {
+            Log::error('OPay webhook rejected: OPAY_SECRET_KEY is not configured.');
+            return false;
+        }
 
         $json     = json_encode($payloadData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $expected = hash_hmac('sha512', $json, $this->secretKey);

@@ -211,6 +211,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('pickup-stations', PickupStationController::class)
             ->except(['show']);
+        Route::get('settings', [App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('settings', [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
         Route::post('pickup-stations/apply-shipping-fee', [PickupStationController::class, 'applyShippingFeeAll'])->name('pickup-stations.apply-shipping-fee');
         Route::resource('bank-accounts', App\Http\Controllers\Admin\BankAccountController::class)->only(['index','store','update','destroy']);
         Route::get('pickup-payouts', [App\Http\Controllers\Admin\PickupPayoutController::class, 'index'])->name('pickup-payouts.index');
@@ -237,18 +239,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
-    Route::get('/',         [PickupPortalController::class, 'showLogin'])->name('login');
-    Route::post('/login',   [PickupPortalController::class, 'login'])->name('login.post');
-    Route::post('/logout',  [PickupPortalController::class, 'logout'])->name('logout');
-    Route::get('/dashboard',[PickupPortalController::class, 'dashboard'])->name('dashboard');
-    Route::get('/dashboard/data',[PickupPortalController::class, 'dashboardData'])->name('dashboard.data');
-    Route::get('/payments', [PickupPortalController::class, 'payments'])->name('payments');
-    Route::get('/deliveries', [PickupPortalController::class, 'deliveries'])->name('deliveries');
-    Route::get('/payouts', [PickupPortalController::class, 'payouts'])->name('payouts');
-    Route::get('/payouts/data', [PickupPortalController::class, 'payoutsData'])->name('payouts.data');
-    Route::post('/payouts/mark-paid', [PickupPortalController::class, 'markPaid'])->name('payouts.markPaid');
-    Route::post('/orders/{order}/confirm',         [PickupPortalController::class, 'confirmPickup'])->name('confirm');
-    Route::post('/orders/{order}/initiate-payment',[PickupPortalController::class, 'initiatePayment'])->name('initiate-payment');
-    Route::post('/orders/{order}/query-payment',   [PickupPortalController::class, 'queryPayment'])->name('query-payment');
-    Route::post('/orders/{order}/record-payment',  [PickupPortalController::class, 'recordPayment'])->name('record-payment');
+    // Public portal routes (no auth required)
+    Route::get('/',        [PickupPortalController::class, 'showLogin'])->name('login');
+    Route::post('/login',  [PickupPortalController::class, 'login'])->name('login.post');
+    Route::post('/logout', [PickupPortalController::class, 'logout'])->name('logout');
+
+    // Protected portal routes — require portal PIN session
+    Route::middleware('auth.portal')->group(function () {
+        Route::get('/dashboard',       [PickupPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard/data',  [PickupPortalController::class, 'dashboardData'])->name('dashboard.data');
+        Route::get('/payments',        [PickupPortalController::class, 'payments'])->name('payments');
+        Route::get('/deliveries',      [PickupPortalController::class, 'deliveries'])->name('deliveries');
+        Route::get('/payouts',         [PickupPortalController::class, 'payouts'])->name('payouts');
+        Route::get('/payouts/data',    [PickupPortalController::class, 'payoutsData'])->name('payouts.data');
+        Route::post('/payouts/mark-paid',                    [PickupPortalController::class, 'markPaid'])->name('payouts.markPaid');
+        Route::post('/orders/{order}/confirm',               [PickupPortalController::class, 'confirmPickup'])->name('confirm');
+        Route::post('/orders/{order}/initiate-payment',      [PickupPortalController::class, 'initiatePayment'])->name('initiate-payment');
+        Route::post('/orders/{order}/query-payment',         [PickupPortalController::class, 'queryPayment'])->name('query-payment');
+        Route::post('/orders/{order}/record-payment',        [PickupPortalController::class, 'recordPayment'])->name('record-payment');
+    });
 });

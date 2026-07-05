@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'auth.admin' => \App\Http\Middleware\AuthenticateAdmin::class,
+            'auth.admin'   => \App\Http\Middleware\AuthenticateAdmin::class,
+            'auth.portal'  => \App\Http\Middleware\AuthenticatePickupPortal::class,
             'role:customer' => \App\Http\Middleware\EnsureCustomerRole::class,
             'role:admin' => \App\Http\Middleware\EnsureAdminRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
