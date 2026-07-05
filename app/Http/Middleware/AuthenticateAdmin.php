@@ -10,6 +10,11 @@ class AuthenticateAdmin
 {
     public function handle(Request $request, Closure $next)
     {
+        // Prevent running admin panel with debug mode on in production
+        if (config('app.env') === 'production' && config('app.debug') === true) {
+            abort(500, 'APP_DEBUG must be false in production.');
+        }
+
         if (! Auth::check()) {
             return redirect()->route('admin.login');
         }

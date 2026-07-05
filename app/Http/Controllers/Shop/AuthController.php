@@ -126,7 +126,7 @@ class AuthController extends Controller
             'email'    => ['required', 'email', Rule::unique('users', 'email')],
             'phone'    => ['nullable', 'string', 'max:30'],
             'address'  => ['nullable', 'string', 'max:500'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $data['role'] = User::ROLE_CUSTOMER;
