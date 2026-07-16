@@ -26,7 +26,7 @@ class AdminUserManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.users.assign-role', $user), [
-                'role' => User::ROLE_VENDOR,
+                'roles' => [User::ROLE_VENDOR],
             ])
             ->assertRedirect();
 

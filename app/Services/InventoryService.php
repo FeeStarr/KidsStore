@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,8 @@ class InventoryService implements InventoryServiceInterface
             $inventory = $this->lockInventory($variant);
             $inventory->quantity += $quantity;
             $inventory->save();
+
+            $this->refreshProductStock($variant->product_id);
 
             return $this->recordMovement($variant, 'purchase', $quantity, $referenceType, $referenceId, $note);
         });
@@ -59,6 +62,8 @@ class InventoryService implements InventoryServiceInterface
             $inventory->quantity -= $quantity;
             $inventory->save();
 
+            $this->refreshProductStock($variant->product_id);
+
             return $this->recordMovement($variant, 'sale', -$quantity, $referenceType, $referenceId, $note);
         });
     }
@@ -70,9 +75,11 @@ class InventoryService implements InventoryServiceInterface
                 ->where('reference_id', $referenceId)
                 ->get();
 
+            $productIds = collect();
+
             foreach ($movements as $movement) {
                 if (! $movement->product_variant_id) {
-                    continue; // legacy movement without variant; skip safely
+                    continue;
                 }
                 $variant = ProductVariant::findOrFail($movement->product_variant_id);
                 $inventory = $this->lockInventory($variant);
@@ -88,6 +95,8 @@ class InventoryService implements InventoryServiceInterface
                 $inventory->quantity += $inverse;
                 $inventory->save();
 
+                $productIds->push($variant->product_id);
+
                 $this->recordMovement(
                     $variant,
                     'adjustment',
@@ -96,6 +105,10 @@ class InventoryService implements InventoryServiceInterface
                     $referenceId,
                     $note ?? 'Reversal of '.class_basename($referenceType).' #'.$referenceId
                 );
+            }
+
+            foreach ($productIds->unique() as $productId) {
+                $this->refreshProductStock($productId);
             }
         });
     }
@@ -128,6 +141,8 @@ class InventoryService implements InventoryServiceInterface
             $inventory->quantity += $delta;
             $inventory->save();
 
+            $this->refreshProductStock($variant->product_id);
+
             $combinedNote = $note ? $reason.' — '.$note : $reason;
 
             return InventoryMovement::create([
@@ -157,6 +172,11 @@ class InventoryService implements InventoryServiceInterface
         }
 
         return $inventory;
+    }
+
+    private function refreshProductStock(int $productId): void
+    {
+        Product::where('id', $productId)->first()?->refreshStock();
     }
 
     private function recordMovement(

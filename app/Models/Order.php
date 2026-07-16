@@ -29,6 +29,7 @@ class Order extends Model
         'total_amount',
         'subtotal', 'discount', 'shipping_fee', 'grand_total', 'amount_paid',
         'note', 'expected_delivery_date',
+        'pickup_station_fee_total',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class Order extends Model
         'shipping_fee'            => 'decimal:2',
         'grand_total'             => 'decimal:2',
         'amount_paid'             => 'decimal:2',
+        'pickup_station_fee_total' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo

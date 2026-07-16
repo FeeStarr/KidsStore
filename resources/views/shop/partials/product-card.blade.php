@@ -8,7 +8,7 @@
         ? $product->defaultVariant
         : $product->variants()->oldest('id')->first();
 
-    $singleDiscount = min(100, max(0, (float) ($product->discount ?? 0) + (float) ($defaultVariant->discount ?? 0)));
+    $singleDiscount = min(100, max(0, (float) ($product->discount ?? 0) + (float) ($defaultVariant?->discount ?? 0)));
     $hasDiscount = $singleDiscount > 0;
 
     $activeVariants = $product->relationLoaded('variants')

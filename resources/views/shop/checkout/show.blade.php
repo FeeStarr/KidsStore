@@ -28,22 +28,14 @@
             <hr>
             <h5 class="mb-3">Delivery Method</h5>
 
+            <input type="hidden" name="delivery_method" value="pickup">
+
             <div class="d-flex gap-3 mb-3">
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'delivery') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
-                     id="opt-delivery">
-                    <input class="form-check-input" type="radio" name="delivery_method"
-                           id="dm_delivery" value="delivery"
-                           {{ old('delivery_method', 'delivery') === 'delivery' ? 'checked' : '' }}>
-                    <label class="form-check-label fw-semibold" for="dm_delivery">
-                        <i class="bi bi-house-door me-1"></i> Home Delivery
-                        <small class="text-muted d-block fw-normal">We deliver to your address</small>
-                    </label>
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 border-primary bg-primary-subtle"
+                     id="opt-delivery" style="display:none">
                 </div>
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method') === 'pickup' ? 'border-primary bg-primary-subtle' : '' }}"
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 border-primary bg-primary-subtle"
                      id="opt-pickup">
-                    <input class="form-check-input" type="radio" name="delivery_method"
-                           id="dm_pickup" value="pickup"
-                           {{ old('delivery_method') === 'pickup' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="dm_pickup">
                         <i class="bi bi-geo-alt me-1"></i> Pick Up
                         <small class="text-muted d-block fw-normal">Collect from a station near you</small>
@@ -55,7 +47,7 @@
             @enderror
 
             {{-- Home delivery address --}}
-            <div id="section-delivery" style="{{ old('delivery_method', 'delivery') === 'pickup' ? 'display:none' : '' }}">
+            <div id="section-delivery" style="display:none">
                 <label class="form-label">Delivery Address *</label>
                 <textarea name="address" rows="3"
                           class="form-control @error('address') is-invalid @enderror"
@@ -64,7 +56,7 @@
             </div>
 
             {{-- Pickup station selection --}}
-            <div id="section-pickup" style="{{ old('delivery_method', 'delivery') !== 'pickup' ? 'display:none' : '' }}">
+            <div id="section-pickup">
                 <label class="form-label">Choose Pickup Station *</label>
                 @if($pickupStations->isEmpty())
                     <div class="alert alert-warning">No pickup stations are currently available. Please choose home delivery.</div>
@@ -74,11 +66,11 @@
                             <div class="col-12">
                                 <label class="d-block border rounded p-3 station-card {{ old('pickup_station_id') == $station->id ? 'border-primary bg-primary-subtle' : '' }}"
                                        style="cursor:pointer">
-                                    <div class="d-flex align-items-start gap-2">
-                                        <input type="radio" name="pickup_station_id"
-                                               value="{{ $station->id }}"
-                                               class="form-check-input mt-1 flex-shrink-0"
-                                               {{ old('pickup_station_id') == $station->id ? 'checked' : '' }}>
+                                     <div class="d-flex align-items-start gap-2">
+                                             <input type="radio" name="pickup_station_id"
+                                                 value="{{ $station->id }}"
+                                                 class="form-check-input mt-1 flex-shrink-0"
+                                                 {{ old('pickup_station_id') == $station->id ? 'checked' : '' }}>
                                         <div>
                                             <div class="fw-semibold">{{ $station->name }}</div>
                                             <div class="text-muted small">{{ $station->full_address }}</div>
@@ -128,11 +120,25 @@
             <dl class="row mb-3">
                 <dt class="col-6">Subtotal</dt>
                 <dd class="col-6 text-end">&#8358;{{ number_format($subtotal, 2) }}</dd>
-                <dt class="col-6">Shipping fee</dt>
+                @php
+                    $totalQuantity = $items->sum('quantity');
+                    $shippingFeePerItem = (float) \App\Models\Setting::get('shipping_fee', 0);
+                    $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
+                    $totalShippingBeforeDiscount = $shippingFeePerItem * $totalQuantity;
+                    $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
+                    $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
+                    $totalAmount = $subtotal + $totalShipping;
+                @endphp
+                <dt class="col-6">Shipping</dt>
                 <dd class="col-6 text-end">
-                    <input type="number" step="0.01" min="0" name="shipping_fee" value="{{ old('shipping_fee', 0) }}"
-                           class="form-control form-control-sm text-end" style="max-width:120px;display:inline-block">
+                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFeePerItem, 2) }} × {{ $totalQuantity }} item(s)</span>
+                    <strong>&#8358;{{ number_format($totalShipping, 2) }}</strong>
+                    @if($shippingDiscountPct > 0)
+                        <small class="text-success d-block">-{{ number_format($shippingDiscountPct, 0) }}% discount: -&#8358;{{ number_format($shippingDiscountAmount, 2) }}</small>
+                    @endif
                 </dd>
+                <dt class="col-6 fw-bold">Total Amount</dt>
+                <dd class="col-6 text-end fw-bold">&#8358;{{ number_format($totalAmount, 2) }}</dd>
             </dl>
             <div class="mb-3">
                 <label class="form-label">Payment Method</label>
@@ -182,29 +188,11 @@
 @push('scripts')
 <script>
 (function () {
-    const dmDelivery = document.getElementById('dm_delivery');
-    const dmPickup   = document.getElementById('dm_pickup');
-    const secDelivery = document.getElementById('section-delivery');
-    const secPickup   = document.getElementById('section-pickup');
-    const optDelivery = document.getElementById('opt-delivery');
-    const optPickup   = document.getElementById('opt-pickup');
+    const secPickup = document.getElementById('section-pickup');
+    const optPickup = document.getElementById('opt-pickup');
 
-    function toggle() {
-        const isPickup = dmPickup.checked;
-        secDelivery.style.display = isPickup ? 'none' : '';
-        secPickup.style.display   = isPickup ? '' : 'none';
-        optDelivery.classList.toggle('border-primary', !isPickup);
-        optDelivery.classList.toggle('bg-primary-subtle', !isPickup);
-        optPickup.classList.toggle('border-primary', isPickup);
-        optPickup.classList.toggle('bg-primary-subtle', isPickup);
-
-        // Required toggling
-        const addrField = secDelivery.querySelector('[name="address"]');
-        if (addrField) addrField.required = !isPickup;
-    }
-
-    dmDelivery.addEventListener('change', toggle);
-    dmPickup.addEventListener('change', toggle);
+    // Always show pickup section
+    if (secPickup) secPickup.style.display = '';
 
     // Highlight station cards on select
     document.querySelectorAll('[name="pickup_station_id"]').forEach(radio => {
@@ -223,8 +211,6 @@
             if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change')); }
         });
     });
-
-    toggle();
 })();
 </script>
 @endpush

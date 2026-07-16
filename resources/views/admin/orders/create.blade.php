@@ -40,7 +40,7 @@
     <div class="row g-3 mb-3">
         <div class="col-md-3"><label class="form-label">Order Discount (%)</label>
             <input type="number" step="0.01" min="0" max="100" name="discount" value="0" class="form-control"></div>
-        <div class="col-md-3"><label class="form-label">Shipping Fee</label>
+        <div class="col-md-3"><label class="form-label">Shipping Fee (per item)</label>
             <input type="number" step="0.01" name="shipping_fee" value="0" class="form-control"></div>
         <div class="col-md-6"><label class="form-label">Note</label>
             <input name="note" class="form-control"></div>

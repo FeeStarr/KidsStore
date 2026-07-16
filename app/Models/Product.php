@@ -15,7 +15,7 @@ class Product extends Model
     protected $fillable = [
         'category_id', 'brand_id', 'sku', 'name', 'slug', 'description', 'image', 'status',
         'age_group', 'gender', 'brand',
-        'selling_price', 'discount', 'is_active',
+        'selling_price', 'discount', 'stock_quantity', 'is_active',
     ];
 
     protected $casts = [
@@ -65,7 +65,7 @@ class Product extends Model
     }
 
     /**
-     * The first/auto-created variant. Every product has at least one ("Default").
+     * The first variant (by id). Returns null if the product has no variants.
      */
     public function defaultVariant(): HasOne
     {
@@ -110,13 +110,16 @@ class Product extends Model
         return (float) $this->selling_price * (1 - ((float) $this->discount / 100));
     }
 
-    public function getStockQuantityAttribute(): int
+    /**
+     * Recalculate and cache the total stock from all variant inventories.
+     */
+    public function refreshStock(): void
     {
-        // With variants, total stock = sum of all variant inventories.
-        return (int) $this->variants()
-            ->withSum('inventory as variant_qty', 'quantity')
-            ->get()
-            ->sum('variant_qty');
+        $total = (int) $this->variants()
+            ->join('inventories', 'inventories.product_variant_id', '=', 'product_variants.id')
+            ->sum('inventories.quantity');
+
+        $this->updateQuietly(['stock_quantity' => $total]);
     }
 
     /**

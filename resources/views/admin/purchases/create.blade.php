@@ -468,9 +468,9 @@ $productsJson = $products->map(fn($p) => [
         add('pickup_fee_pct', flt(document.getElementById('alloc-pickup')?.value).toFixed(2));
 
         rows.forEach((tr, n) => {
-            add(`items[${n}][product_variant_id]`, tr.dataset.variantId);
-            add(`items[${n}][product_id]`,         tr.dataset.productId);
-            add(`items[${n}][quantity]`,            flt(tr.querySelector('.vqty')?.value));
+            add(`items[${n}][product_variant_id]`, parseInt(tr.dataset.variantId, 10));
+            add(`items[${n}][product_id]`,         parseInt(tr.dataset.productId, 10));
+            add(`items[${n}][quantity]`,            Math.floor(flt(tr.querySelector('.vqty')?.value)));
             add(`items[${n}][cost_price]`,          flt(tr.querySelector('.vcost')?.value).toFixed(2));
             add(`items[${n}][selling_price]`,       flt(tr.querySelector('.vsell')?.value).toFixed(2));
             add(`items[${n}][shipping_fee]`,        flt(tr.dataset.ship || 0).toFixed(6));

@@ -1,4 +1,10 @@
 <?php
+
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    echo "Forbidden.";
+    exit;
+}
 use Illuminate\Support\Facades\DB;
 
 require __DIR__ . '/vendor/autoload.php';
@@ -7,6 +13,24 @@ $app = require_once __DIR__ . '/bootstrap/app.php';
 
 // Bootstrap the application
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+// Safety guard: this script permanently DROPS every table in the database.
+// It must not run accidentally (e.g. via a mis-clicked VS Code task).
+// Require explicit confirmation via env var or CLI flag before proceeding.
+$confirmed = (getenv('RESET_DB_CONFIRM') === '1')
+    || in_array('--yes', $argv, true)
+    || in_array('--force', $argv, true);
+
+if (!$confirmed) {
+    $dbName = config('database.connections.' . config('database.default') . '.database', 'unknown');
+    echo "!!! DANGER: This will PERMANENTLY DROP every table in database '{$dbName}' and re-run migrations.\n";
+    echo "All data will be lost unless you have a backup.\n\n";
+    echo "To proceed, re-run with one of:\n";
+    echo "  RESET_DB_CONFIRM=1 php reset_db.php\n";
+    echo "  php reset_db.php --yes\n\n";
+    echo "Aborting. No changes were made.\n";
+    exit(1);
+}
 
 echo "=== Clearing Migrations Table ===\n\n";
 

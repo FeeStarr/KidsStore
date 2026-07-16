@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\Brand;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\Color;
+use App\Models\AgeRange;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,28 +30,33 @@ class ProductService
     {
         return DB::transaction(function () use ($data, $images) {
             $data['slug'] = $data['slug'] ?? Str::slug($data['name']).'-'.Str::random(5);
-            $data['sku']  = $data['sku']  ?? strtoupper(Str::random(8));
+            // Reserve a production-safe product code from the `sequences` table and set final SKU before insert.
+            $prefix = trim((string) (env('STORE_PREFIX', 'KF')));
+
+            // Lock and increment sequence row for product_code atomically.
+            $seqRow = DB::table('sequences')->where('name', 'product_code')->lockForUpdate()->first();
+            if (! $seqRow) {
+                // create sequence row starting at 1
+                DB::table('sequences')->insert([
+                    'name' => 'product_code',
+                    'value' => 2, // next value after reserving 1
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $nextId = 1;
+            } else {
+                $nextId = (int) $seqRow->value;
+                DB::table('sequences')->where('name', 'product_code')->update([
+                    'value' => $nextId + 1,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $productCode = 'P' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
+            $data['sku'] = strtoupper(($prefix !== '' ? $prefix . '-' : '') . $productCode);
             $data['brand_id'] = $data['brand_id'] ?? $this->resolveBrandId($data['brand'] ?? null);
 
             $product = Product::create($data);
-
-            // Auto-create a default variant. Admin can add more later.
-            $variant = ProductVariant::create([
-                'product_id'    => $product->id,
-                'sku'           => $product->sku,
-                'name'          => 'Default',
-                'options'       => null,
-                'selling_price' => $data['selling_price'] ?? 0,
-                'discount'      => 0,
-                'is_active'     => true,
-            ]);
-
-            // One inventory row per variant.
-            $variant->inventory()->create([
-                'product_id'    => $product->id,
-                'quantity'      => 0,
-                'reorder_level' => $data['reorder_level'] ?? 5,
-            ]);
 
             $this->attachImages($product, $images);
 
@@ -200,7 +207,7 @@ class ProductService
                     'is_active'     => $v['is_active'] ?? $variant->is_active,
                 ]));
             } else {
-                $skuCandidate = $v['sku'] ?? ($product->sku ?? null);
+                $skuCandidate = $v['sku'] ?? $this->generateVariantSku($product, $v);
                 $variant      = ProductVariant::create($this->filterVariantColumns([
                     'product_id'    => $product->id,
                     'sku'           => $this->ensureUniqueSku($skuCandidate),
@@ -235,7 +242,7 @@ class ProductService
     /**
      * Ensure the given SKU is unique among product_variants. If empty, generate one.
      */
-    private function ensureUniqueSku(?string $sku): string
+    public function ensureUniqueSku(?string $sku): string
     {
         $sku = trim((string) ($sku ?? ''));
         if ($sku === '') {
@@ -250,6 +257,60 @@ class ProductService
         }
 
         return $sku;
+    }
+
+    /**
+     * Generate a SKU using store prefix, product SKU/code, color code and age suffix.
+     * Format: {PREFIX}-{PRODUCTCODE}-{COLORCODE}-{AGESUFFIX}
+     * Falls back gracefully if parts are missing.
+     *
+     * @param Product $product
+     * @param array<string,mixed> $v
+     * @return string
+     */
+    public function generateVariantSku(Product $product, array $v): string
+    {
+        $prefix = trim((string) (env('STORE_PREFIX', 'KF')));
+
+        $productSku = strtoupper(trim((string) ($product->sku ?? '')));
+        if ($productSku !== '') {
+            if ($prefix !== '' && str_starts_with($productSku, $prefix . '-')) {
+                // remove leading prefix so we don't duplicate it in the final SKU
+                $productCode = substr($productSku, strlen($prefix) + 1);
+            } else {
+                $productCode = $productSku;
+            }
+        } else {
+            $productCode = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        }
+
+        $colorCode = '';
+        if (! empty($v['color_id'])) {
+            $c = Color::find($v['color_id']);
+            if ($c && isset($c->code) && $c->code !== null) {
+                $colorCode = strtoupper($c->code);
+            } else {
+                $colorCode = strtoupper(substr(preg_replace('/[^A-Z]/i', '', ($c->name ?? '')), 0, 3));
+            }
+        }
+
+        $ageSuffix = '';
+        if (! empty($v['age_range_id'])) {
+            $a = AgeRange::find($v['age_range_id']);
+            if ($a && $a->name) {
+                $s = $a->name;
+                $s = str_ireplace(['years', 'year', 'yrs', 'yr'], 'Y', $s);
+                $s = str_ireplace(['months', 'month', 'mos', 'mo'], 'M', $s);
+                $s = strtoupper(str_replace(' ', '', $s));
+                // keep only alnum and dash
+                $s = preg_replace('/[^A-Z0-9\-]/', '', $s);
+                $ageSuffix = $s;
+            }
+        }
+
+        $parts = array_filter([$prefix, $productCode, $colorCode, $ageSuffix], fn($p) => $p !== '');
+        $candidate = implode('-', $parts);
+        return $candidate ?: strtoupper(Str::random(8));
     }
 
     /**

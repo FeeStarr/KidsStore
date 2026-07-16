@@ -70,6 +70,38 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        $currentUser = auth()->user();
+
+        // Security: only superadmin can edit another superadmin or change someone's role to superadmin
+        $requestedRoles = $request->input('roles', []);
+        $isAssigningSuperAdmin = in_array(User::ROLE_SUPERADMIN, $requestedRoles);
+
+        if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
+            return redirect()->back()->withErrors(['roles' => 'Only Super Admins can edit other Super Admins.']);
+        }
+
+        if ($isAssigningSuperAdmin && !$currentUser->isSuperAdmin()) {
+            return redirect()->back()->withErrors(['roles' => 'Only Super Admins can assign the Super Admin role.']);
+        }
+
+        // Prevent self-lockout: cannot deactivate yourself or change your own role to something non-admin
+        if ($currentUser->id === $user->id) {
+            if ($request->has('is_active') && !$request->boolean('is_active')) {
+                return redirect()->back()->withErrors(['is_active' => 'You cannot deactivate your own account.']);
+            }
+
+            $isAdminRole = false;
+            foreach ($requestedRoles as $role) {
+                if ($role === User::ROLE_ADMIN || $role === User::ROLE_SUPERADMIN) {
+                    $isAdminRole = true;
+                    break;
+                }
+            }
+            if (!$isAdminRole) {
+                return redirect()->back()->withErrors(['roles' => 'You cannot remove your own admin role.']);
+            }
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
@@ -103,6 +135,8 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user): RedirectResponse
     {
+        $currentUser = auth()->user();
+
         $data = $request->validate([
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', Rule::in(array_keys(User::roleOptions()))],
@@ -110,6 +144,26 @@ class UserController extends Controller
         ]);
 
         $roles = $data['roles'];
+
+        // Security: only superadmin can assign superadmin role or modify a superadmin
+        if (($user->isSuperAdmin() || in_array(User::ROLE_SUPERADMIN, $roles)) && !$currentUser->isSuperAdmin()) {
+            return redirect()->back()->withErrors(['roles' => 'Only Super Admins can manage Super Admin roles.']);
+        }
+
+        // Prevent self-demotion
+        if ($currentUser->id === $user->id) {
+            $isAdminRole = false;
+            foreach ($roles as $role) {
+                if ($role === User::ROLE_ADMIN || $role === User::ROLE_SUPERADMIN) {
+                    $isAdminRole = true;
+                    break;
+                }
+            }
+            if (!$isAdminRole) {
+                return redirect()->back()->withErrors(['roles' => 'You cannot remove your own admin role.']);
+            }
+        }
+
         $staffType = in_array(User::ROLE_STAFF, $roles, true) ? ($data['staff_type'] ?? null) : null;
 
         $user->role = $roles[0];
@@ -122,10 +176,20 @@ class UserController extends Controller
 
     public function toggleActive(User $user): RedirectResponse
     {
+        if (auth()->id() === $user->id) {
+            return redirect()->back()->withErrors(['error' => 'You cannot deactivate your own account.']);
+        }
+
+        // Only superadmin can deactivate other admins/superadmins (optional but safer)
+        if ($user->isAdmin() && !auth()->user()->isSuperAdmin()) {
+            return redirect()->back()->withErrors(['error' => 'Only Super Admins can deactivate other Admin accounts.']);
+        }
+
         $user->is_active = ! $user->is_active;
         $user->save();
 
-        return redirect()->back()->with('success', 'User status updated');
+        $state = $user->is_active ? 'activated' : 'deactivated';
+        return redirect()->back()->with('success', "User account {$state}.");
     }
 
     public function toggle2FA(User $user): RedirectResponse

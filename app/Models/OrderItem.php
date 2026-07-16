@@ -11,6 +11,7 @@ class OrderItem extends Model
         'order_id', 'product_id', 'product_variant_id', 'quantity',
         'unit_price', 'landed_unit_cost', 'discount', 'line_total',
         'selected_age_group', 'selected_size',
+        'pickup_station_fee',
     ];
 
     protected $casts = [
@@ -19,6 +20,7 @@ class OrderItem extends Model
         'landed_unit_cost' => 'decimal:2',
         'discount' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'pickup_station_fee' => 'decimal:2',
     ];
 
     public function order(): BelongsTo

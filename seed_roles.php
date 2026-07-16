@@ -1,4 +1,10 @@
 <?php
+
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    echo "Forbidden.";
+    exit;
+}
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;

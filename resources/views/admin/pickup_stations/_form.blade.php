@@ -47,8 +47,8 @@
         @error('fee_pct')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
     <div class="col-md-6">
-        <label class="form-label">Pickup Shipping Fee
-            <small class="text-muted">— flat fee charged for pickup at this station (₦)</small>
+        <label class="form-label">Pickup Shipping Fee (per item)
+            <small class="text-muted">— flat fee per item charged for pickup at this station (₦)</small>
         </label>
         <input type="number" step="0.01" min="0" name="pickup_shipping_fee"
                class="form-control @error('pickup_shipping_fee') is-invalid @enderror"

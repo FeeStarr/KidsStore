@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class PickupPayoutController extends Controller
 {
@@ -124,7 +125,18 @@ class PickupPayoutController extends Controller
         $orderIds = $request->input('order_ids', []);
         if (empty($orderIds)) return back()->with('error', 'No orders selected.');
 
-        $orders = \App\Models\Order::with('items')->whereIn('id', $orderIds)->get();
+        $data = $request->validate([
+            'order_ids' => ['required','array'],
+            'order_ids.*' => ['integer','exists:orders,id'],
+            'note' => ['nullable','string'],
+        ]);
+
+        $orderIds = $data['order_ids'];
+
+        $orders = \App\Models\Order::with('items')
+            ->whereIn('id', $orderIds)
+            ->where('pickup_station_id', $pickupStation->id)
+            ->get();
 
         $total = 0;
         foreach ($orders as $o) {
@@ -136,8 +148,8 @@ class PickupPayoutController extends Controller
             'pickup_station_id' => $pickupStation->id,
             'amount' => $total,
             'created_by' => auth()->id(),
-            'reference' => 'PP-'.str_pad((string)(\App\Models\PickupPayout::max('id') + 1 ?? 1), 6, '0', STR_PAD_LEFT),
-            'note' => $request->input('note'),
+            'reference' => 'PP-'.Str::upper(substr((string) Str::uuid(), 0, 8)),
+            'note' => $data['note'] ?? null,
         ]);
 
         foreach ($orders as $o) {
@@ -154,6 +166,8 @@ class PickupPayoutController extends Controller
                 'pickup_station_fee_paid_at' => now(),
             ]);
         }
+
+        if ($orders->isEmpty()) return back()->with('error', 'No matching orders found for this station.');
 
         return back()->with('success', 'Marked selected orders as paid and created payout record.');
     }

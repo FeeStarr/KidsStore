@@ -58,9 +58,27 @@ class RefundService
             throw new \RuntimeException('A refund request for this item is already pending.');
         }
 
-        $amount = $item
+        $itemPrice = $item
             ? round((float) $item->unit_price * (1 - (float) $item->discount / 100) * $quantity, 2)
             : (float) $order->amount_paid;
+
+        // Reasons that qualify for shipping fee refund (product issues from our side)
+        $shippingRefundReasons = ['wrong_item', 'damaged', 'not_received'];
+        $includeShipping = in_array($reason, $shippingRefundReasons);
+
+        if ($item && $includeShipping) {
+            // Item-level refund: add shipping fee for the returned quantity (after discount)
+            $shippingRefundBeforeDiscount = (float) $order->shipping_fee * $quantity;
+            $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
+            $shippingRefund = $shippingRefundBeforeDiscount * (1 - $shippingDiscountPct / 100);
+            $amount = round($itemPrice + $shippingRefund, 2);
+        } elseif (! $item && $includeShipping) {
+            // Full order refund: shipping fee is already included in amount_paid
+            $amount = $itemPrice;
+        } else {
+            // Changed mind or other: no shipping fee refund
+            $amount = $itemPrice;
+        }
 
         $evidencePath = null;
         if ($evidence) {

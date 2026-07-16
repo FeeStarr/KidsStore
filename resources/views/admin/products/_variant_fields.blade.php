@@ -49,8 +49,8 @@
 <div class="row g-3">
     {{-- ── Identity ──────────────────────────────────────────────────────── --}}
     <div class="col-md-4">
-        <label class="form-label">SKU *</label>
-        <input name="sku" class="form-control" required value="{{ $fSku }}">
+        <label class="form-label">SKU <small class="text-muted">(leave blank to auto-generate)</small></label>
+        <input name="sku" class="form-control" value="{{ $fSku }}" placeholder="Auto-generated if blank">
     </div>
     <div class="col-md-8">
         <label class="form-label">Variant Name <small class="text-muted">(optional — auto-built from options if blank)</small></label>

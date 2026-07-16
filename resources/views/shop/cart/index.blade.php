@@ -37,7 +37,6 @@
                 @if(!empty($line->selected_size))
                     <div class="small text-muted">Size: {{ $line->selected_size }}</div>
                 @endif
-                <div class="small text-muted">SKU: {{ $variant->sku }}</div>
             </td>
             <td class="text-end">
                 @if($line->discount > 0)

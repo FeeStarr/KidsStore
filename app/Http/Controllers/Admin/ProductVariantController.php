@@ -9,6 +9,7 @@ use App\Models\AgeRange;
 use App\Models\Color;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\ProductService;
 use App\Models\Size;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,14 @@ class ProductVariantController extends Controller
     {
         DB::transaction(function () use ($request, $product) {
             $data    = $this->prepareData($request, $product);
+
+            // Ensure SKU exists: allow blank in form and auto-generate here for admin-created variants
+            if (empty($data['sku'])) {
+                $svc = new ProductService();
+                $candidate = $svc->generateVariantSku($product, $data);
+                $data['sku'] = $svc->ensureUniqueSku($candidate);
+            }
+
             $variant = $product->variants()->create($data);
 
             Inventory::create([
@@ -29,6 +38,8 @@ class ProductVariantController extends Controller
             ]);
 
             $this->syncGallery($variant, $request->input('image_ids', []));
+
+            $product->refreshStock();
         });
 
         return back()->with('success', 'Variant added.');
@@ -64,13 +75,11 @@ class ProductVariantController extends Controller
     public function destroy(ProductVariant $variant): RedirectResponse
     {
         $product = $variant->product;
-        if ($product->variants()->count() <= 1) {
-            return back()->with('error', 'A product must have at least one variant.');
-        }
         if ($variant->purchaseItems()->exists() || $variant->orderItems()->exists()) {
             return back()->with('error', 'Cannot delete a variant that has purchase or order history.');
         }
         $variant->delete();
+        $product->refreshStock();
 
         return back()->with('success', 'Variant deleted.');
     }
@@ -97,16 +106,18 @@ class ProductVariantController extends Controller
         }
 
         // Resolve color FK from free-text fallback if needed.
-        if (empty($data['color_id']) && ! empty($data['color_name'] ?? null)) {
+        $colorText = $data['color_name'] ?? $data['color_text'] ?? null;
+        if (empty($data['color_id']) && ! empty($colorText)) {
             $data['color_id'] = Color::query()
-                ->firstOrCreate(['name' => trim($data['color_name'])], ['is_active' => true])
+                ->firstOrCreate(['name' => trim((string) $colorText)], ['is_active' => true])
                 ->id;
         }
 
         // Resolve size FK from free-text fallback if needed.
-        if (empty($data['size_id']) && ! empty($data['size_name'] ?? null)) {
+        $sizeText = $data['size_name'] ?? $data['size_text'] ?? null;
+        if (empty($data['size_id']) && ! empty($sizeText)) {
             $data['size_id'] = Size::query()
-                ->firstOrCreate(['name' => trim($data['size_name'])], ['is_active' => true])
+                ->firstOrCreate(['name' => trim((string) $sizeText)], ['is_active' => true])
                 ->id;
         }
 
