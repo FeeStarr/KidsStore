@@ -17,7 +17,7 @@ class ProductVariantRequest extends FormRequest
         $variantId = $this->route('variant')?->id;
 
         return [
-            'sku'           => ['required', 'string', 'max:64',
+            'sku'           => ['nullable', 'string', 'max:64',
                 Rule::unique('product_variants', 'sku')->ignore($variantId)],
             'name'          => ['nullable', 'string', 'max:120'],
             'age_range_id'  => ['nullable', 'integer', 'exists:age_ranges,id'],

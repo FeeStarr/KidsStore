@@ -1,4 +1,10 @@
 <?php
+
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    echo "Forbidden.";
+    exit;
+}
 use Illuminate\Support\Facades\DB;
 
 require __DIR__ . '/vendor/autoload.php';

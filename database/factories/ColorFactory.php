@@ -14,9 +14,11 @@ class ColorFactory extends Factory
 
     public function definition(): array
     {
+        $name = ucfirst(fake()->unique()->colorName());
         return [
-            'name' => ucfirst(fake()->unique()->colorName()),
-            'hex' => '#' . substr(md5(fake()->unique()->word()), 0, 6),
+            'name' => $name,
+            'code' => strtoupper(substr($name, 0, 3)),
+            'hex' => fake()->safeHexColor(),
         ];
     }
 }

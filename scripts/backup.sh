@@ -44,8 +44,9 @@ RCLONE_REMOTE=""
 DB_ONLY=false
 RESTORE=false
 RESTORE_FILE=""
-KEEP_DAYS=0  # 0 = delete local backup immediately after successful upload
+KEEP_DAYS=1  # 0 = delete local backup immediately after successful upload
 GPG_RECIPIENT=""  # set to your GPG key email to encrypt backups at rest
+ENCRYPT=false
 
 # ── parse arguments ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -59,6 +60,7 @@ while [[ $# -gt 0 ]]; do
         --db-host)       DB_HOST="$2"; shift ;;
         --backup-dir)    BACKUP_DIR="$2"; shift ;;
         --keep-days)     KEEP_DAYS="$2"; shift ;;
+        --encrypt)       ENCRYPT=true ;;
         --encrypt-recipient) GPG_RECIPIENT="$2"; shift ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
     esac
@@ -103,6 +105,16 @@ if [[ "$RESTORE" == "true" ]]; then
 
     SQL_FILE="$RESTORE_FILE"
     TMP_DIR=""
+
+    # Decrypt if GPG
+    if [[ "$RESTORE_FILE" == *.gpg ]]; then
+        require_cmd gpg
+        log "Decrypting GPG file..."
+        DECRYPTED="${RESTORE_FILE%.gpg}"
+        gpg --decrypt --output "$DECRYPTED" "$RESTORE_FILE"
+        RESTORE_FILE="$DECRYPTED"
+        SQL_FILE="$DECRYPTED"
+    fi
 
     # Extract from zip if needed
     if [[ "$RESTORE_FILE" == *.zip ]]; then
@@ -211,12 +223,22 @@ UPLOAD_FILE="$ZIP_PATH"
 if [[ -n "$GPG_RECIPIENT" ]]; then
     if command -v gpg &>/dev/null; then
         log "Encrypting backup with GPG for $GPG_RECIPIENT..."
-        gpg --batch --yes --encrypt --recipient "$GPG_RECIPIENT" --output "${ZIP_PATH}.gpg" "$ZIP_PATH"
+        gpg --batch --yes --encrypt --recipient "$GPG_RECIPIENT" --trust-model always --output "${ZIP_PATH}.gpg" "$ZIP_PATH"
         rm -f "$ZIP_PATH"
         UPLOAD_FILE="${ZIP_PATH}.gpg"
         log "  Encrypted: $UPLOAD_FILE"
     else
-        log "WARNING: gpg not installed - skipping encryption. Install with: apt install gnupg"
+        log "WARNING: gpg not installed - skipping encryption."
+    fi
+elif [[ "$ENCRYPT" == "true" ]]; then
+    if command -v gpg &>/dev/null; then
+        log "No --encrypt-recipient provided. Using symmetric encryption..."
+        read -rsp "Enter GPG encryption password: " GPG_PASS
+        echo
+        echo "$GPG_PASS" | gpg --batch --yes --passphrase-fd 0 --symmetric --output "${ZIP_PATH}.gpg" "$ZIP_PATH"
+        rm -f "$ZIP_PATH"
+        UPLOAD_FILE="${ZIP_PATH}.gpg"
+        log "  Encrypted (Symmetric): $UPLOAD_FILE"
     fi
 fi
 
@@ -237,13 +259,13 @@ unset DB_PASS
 # Retention: manage local backup files
 if [[ -n "$RCLONE_REMOTE" ]]; then
     if [[ "$KEEP_DAYS" -eq 0 ]]; then
-        rm -f "$ZIP_PATH"
+        rm -f "$UPLOAD_FILE"
         log "Local backup deleted after upload (KEEP_DAYS=0)."
     elif [[ "$KEEP_DAYS" -gt 0 ]]; then
         CUTOFF=$(date -d "$KEEP_DAYS days ago" '+%Y-%m-%d' 2>/dev/null || date -v-"${KEEP_DAYS}"d '+%Y-%m-%d')
-        OLD_FILES=$(find "$BACKUP_DIR" -name 'kidsstore-*.zip' | while read -r f; do
+        OLD_FILES=$(find "$BACKUP_DIR" \( -name 'kidsstore-*.zip' -o -name 'kidsstore-*.zip.gpg' \) | while read -r f; do
             FNAME=$(basename "$f")
-            FDATE=$(echo "$FNAME" | grep -oP '\d{4}-\d{2}-\d{2}')
+            FDATE=$(echo "$FNAME" | grep -oE '\d{4}-\d{2}-\d{2}')
             [[ -n "$FDATE" && "$FDATE" < "$CUTOFF" ]] && echo "$f"
         done)
         if [[ -n "$OLD_FILES" ]]; then

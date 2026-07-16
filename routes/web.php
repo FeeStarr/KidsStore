@@ -34,15 +34,6 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Default Login Redirect (for auth middleware)
-|--------------------------------------------------------------------------
-*/
-Route::get('/login', function () {
-    return redirect()->route('shop.login');
-})->name('login');
-
-/*
-|--------------------------------------------------------------------------
 | Public Storefront
 |--------------------------------------------------------------------------
 */
@@ -141,45 +132,45 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('contact/messages/{message}', [AdminContactController::class, 'showMessage'])->name('contact.messages.show');
         Route::delete('contact/messages/{message}', [AdminContactController::class, 'destroyMessage'])->name('contact.messages.destroy');
 
-        Route::resource('products', ProductController::class);
+        Route::resource('products', ProductController::class)->middleware('permission:manage_products');
         Route::post('products/{product}/images/{imageId}/primary', [ProductController::class, 'setPrimaryImage'])
-            ->name('products.images.primary');
+            ->name('products.images.primary')->middleware('permission:manage_products');
 
         // Product variants (nested store; shallow update/delete by variant id)
         Route::post('products/{product}/variants',     [ProductVariantController::class, 'store'])
-            ->name('products.variants.store');
+            ->name('products.variants.store')->middleware('permission:manage_products');
         Route::get('variants/{variant}',               [ProductVariantController::class, 'show'])
-            ->name('variants.show');
+            ->name('variants.show')->middleware('permission:manage_products');
         Route::put('variants/{variant}',               [ProductVariantController::class, 'update'])
-            ->name('variants.update');
+            ->name('variants.update')->middleware('permission:manage_products');
         Route::delete('variants/{variant}',            [ProductVariantController::class, 'destroy'])
-            ->name('variants.destroy');
+            ->name('variants.destroy')->middleware('permission:manage_products');
 
-        Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::resource('categories', CategoryController::class)->except(['show'])->middleware('permission:manage_categories');
 
-        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])
-            ->name('inventory.reorder');
+            ->name('inventory.reorder')->middleware('permission:update_inventory');
         Route::post('inventory/{inventory}/adjust', [InventoryController::class, 'adjust'])
-            ->name('inventory.adjust');
+            ->name('inventory.adjust')->middleware('permission:update_inventory');
 
-        Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
-        Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive'])->name('purchases.receive');
-        Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel');
+        Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])->middleware('permission:update_inventory');
+        Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive'])->name('purchases.receive')->middleware('permission:update_inventory');
+        Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel')->middleware('permission:update_inventory');
 
-        Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
-        Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid');
-        Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
-        Route::post('orders/{order}/pending-confirmation', [OrderController::class, 'pendingConfirmation'])->name('orders.pending-confirmation');
-        Route::post('orders/{order}/processing', [OrderController::class, 'processing'])->name('orders.processing');
-        Route::post('orders/{order}/ship', [OrderController::class, 'ship'])->name('orders.ship');
-        Route::post('orders/{order}/ready-for-pickup', [OrderController::class, 'readyForPickup'])->name('orders.ready-for-pickup');
-        Route::post('orders/{order}/deliver', [OrderController::class, 'deliver'])->name('orders.deliver');
-        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+        Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:manage_orders');
+        Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/pending-confirmation', [OrderController::class, 'pendingConfirmation'])->name('orders.pending-confirmation')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/processing', [OrderController::class, 'processing'])->name('orders.processing')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/ship', [OrderController::class, 'ship'])->name('orders.ship')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/ready-for-pickup', [OrderController::class, 'readyForPickup'])->name('orders.ready-for-pickup')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/deliver', [OrderController::class, 'deliver'])->name('orders.deliver')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel')->middleware('permission:update_order_status');
 
-        Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store');
-        Route::patch('orders/{order}/delivery-date', [OrderController::class, 'updateDeliveryDate'])->name('orders.delivery-date.update');
-        Route::patch('orders/{order}/courier',        [OrderController::class, 'updateCourier'])->name('orders.courier.update');
+        Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store')->middleware('permission:manage_orders');
+        Route::patch('orders/{order}/delivery-date', [OrderController::class, 'updateDeliveryDate'])->name('orders.delivery-date.update')->middleware('permission:manage_orders');
+        Route::patch('orders/{order}/courier',        [OrderController::class, 'updateCourier'])->name('orders.courier.update')->middleware('permission:manage_orders');
 
         Route::resource('users', UserController::class)->except(['destroy'])->middleware('permission:manage_customers');
         Route::post('users/{user}/assign-role', [UserController::class, 'assignRole'])
@@ -210,11 +201,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('reports.profit')->middleware('permission:view_reports');
 
         Route::resource('pickup-stations', PickupStationController::class)
-            ->except(['show']);
-        Route::get('settings', [App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings.edit');
-        Route::put('settings', [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
-        Route::post('pickup-stations/apply-shipping-fee', [PickupStationController::class, 'applyShippingFeeAll'])->name('pickup-stations.apply-shipping-fee');
-        Route::resource('bank-accounts', App\Http\Controllers\Admin\BankAccountController::class)->only(['index','store','update','destroy']);
+            ->except(['show'])->middleware('permission:manage_settings');
+        Route::get('settings', [App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings.edit')->middleware('permission:manage_settings');
+        Route::put('settings', [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update')->middleware('permission:manage_settings');
+        Route::post('pickup-stations/apply-shipping-fee', [PickupStationController::class, 'applyShippingFeeAll'])->name('pickup-stations.apply-shipping-fee')->middleware('permission:manage_settings');
+        Route::resource('bank-accounts', App\Http\Controllers\Admin\BankAccountController::class)->only(['index','store','update','destroy'])->middleware('permission:manage_settings');
         Route::get('pickup-payouts', [App\Http\Controllers\Admin\PickupPayoutController::class, 'index'])->name('pickup-payouts.index');
         Route::get('pickup-payouts/records', [App\Http\Controllers\Admin\PickupPayoutController::class, 'records'])->name('pickup-payouts.records');
         Route::get('pickup-payouts/records/export', [App\Http\Controllers\Admin\PickupPayoutController::class, 'export'])->name('pickup-payouts.export');

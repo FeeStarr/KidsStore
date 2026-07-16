@@ -204,6 +204,14 @@ class OrderService
         $discountAmount = $unitPrice * ($discount / 100);
         $lineTotal      = ($unitPrice - $discountAmount) * $quantity;
         $landedUnitCost = $this->resolveLandedUnitCost($variant->id);
+        // Calculate pickup station fee for this item (if order is pickup)
+        $pickupFeePct = 0.0;
+        if ($order->delivery_method === Order::DELIVERY_METHOD_PICKUP && $order->pickup_station_id) {
+            $station = $order->pickupStation()->first();
+            $pickupFeePct = $station?->fee_pct ? (float) $station->fee_pct : 0.0;
+        }
+
+        $pickupStationFee = round($lineTotal * ($pickupFeePct / 100), 2);
 
         return $order->items()->create([
             'product_id'         => $product->id,
@@ -215,6 +223,7 @@ class OrderService
             'landed_unit_cost'   => $landedUnitCost,
             'discount'           => $discount,
             'line_total'         => $lineTotal,
+            'pickup_station_fee' => $pickupStationFee,
         ]);
     }
 
@@ -263,12 +272,25 @@ class OrderService
         $subtotal = (float) $order->items()->sum('line_total');
         // Order-level discount is also a PERCENTAGE (0-100) of the subtotal.
         $orderDiscount = $subtotal * ((float) $order->discount / 100);
-        $grand = $subtotal - $orderDiscount + (float) $order->shipping_fee;
+        
+        // Shipping fee is per-item, so total shipping = per-item fee × total quantity
+        $totalQuantity = (int) $order->items()->sum('quantity');
+        $totalShippingBeforeDiscount = (float) $order->shipping_fee * $totalQuantity;
+        
+        // Apply shipping discount from site settings
+        $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
+        $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
+        $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
+        
+        $grand = $subtotal - $orderDiscount + $totalShipping;
+
+        $pickupTotal = (float) $order->items()->sum('pickup_station_fee');
 
         $order->update([
             'subtotal'    => $subtotal,
             'grand_total' => max(0, $grand),
             'total_amount' => max(0, $grand),
+            'pickup_station_fee_total' => $pickupTotal,
         ]);
     }
 

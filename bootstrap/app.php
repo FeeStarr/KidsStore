@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\LogUserActivity::class);
+
         $middleware->alias([
             'auth.admin'   => \App\Http\Middleware\AuthenticateAdmin::class,
             'auth.portal'  => \App\Http\Middleware\AuthenticatePickupPortal::class,
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role:admin' => \App\Http\Middleware\EnsureAdminRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
+
+        $middleware->redirectGuestsTo(fn () => route('shop.login'));
 
         // OPay webhook is an unauthenticated server-to-server POST — exempt from CSRF
         $middleware->validateCsrfTokens(except: [

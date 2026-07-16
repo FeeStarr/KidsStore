@@ -58,6 +58,15 @@ class CheckoutController extends Controller
             'discount'           => $l->discount,
         ])->all();
 
+        // Determine authoritative per-item shipping fee from general site settings
+        $shippingFee = 0;
+        $shippingFeeSetting = \App\Models\Setting::get('shipping_fee', null);
+        if ($shippingFeeSetting !== null && $shippingFeeSetting !== '') {
+            $shippingFee = (float) $shippingFeeSetting;
+        } else {
+            $shippingFee = (float) ($data['shipping_fee'] ?? 0);
+        }
+
         $order = $this->orders->create([
             'customer_id'       => $customer->id,
             'order_date'        => now()->toDateString(),
@@ -65,7 +74,7 @@ class CheckoutController extends Controller
             'delivery_method'   => $data['delivery_method'],
             'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
             'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
-            'shipping_fee'      => (float) ($data['shipping_fee'] ?? 0),
+            'shipping_fee'      => $shippingFee,
             'note'              => trim($data['note'] ?? '') ?: null,
             'items'             => $items,
         ]);

@@ -1,62 +1,67 @@
 @extends('layouts.shop')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">Forgot Password</h2>
+<div class="row justify-content-center py-4">
+    <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-envelope-paper fs-3"></i>
+                    </div>
+                    <h2 class="h3 fw-bold mb-1">Forgot Password</h2>
+                    <p class="text-muted mb-0">We will send you a secure reset link.</p>
+                </div>
 
-        @if (session('status'))
-            <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded">
-                {{ session('status') }}
+                @if (session('status'))
+                    <div class="alert alert-success" role="alert">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="alert alert-danger" role="alert">
+                        <ul class="mb-0 ps-3">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <p class="text-muted mb-4">
+                    Enter your email address and we will send you a link to reset your password.
+                </p>
+
+                <form method="POST" action="{{ route('shop.password.email') }}">
+                    @csrf
+
+                    <div class="mb-4">
+                        <label for="email" class="form-label fw-semibold">Email Address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            required
+                            autofocus
+                            class="form-control form-control-lg"
+                        />
+                        @error('email')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-send me-1"></i> Send Reset Link
+                    </button>
+                </form>
+
+                <div class="mt-4 text-center">
+                    <span class="text-muted">Remember your password?</span>
+                    <a href="{{ route('shop.login') }}" class="text-decoration-none fw-semibold">Log in</a>
+                </div>
             </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded">
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        <p class="text-gray-600 mb-6">
-            Enter your email address and we'll send you a link to reset your password.
-        </p>
-
-        <form method="POST" action="{{ route('shop.password.email') }}">
-            @csrf
-
-            <div class="mb-4">
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value="{{ old('email') }}"
-                    required
-                    autofocus
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                @error('email')
-                    <span class="text-red-600 text-sm">{{ $message }}</span>
-                @enderror
-            </div>
-
-            <button
-                type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition"
-            >
-                Send Reset Link
-            </button>
-        </form>
-
-        <div class="mt-6 text-center">
-            <p class="text-gray-600">
-                Remember your password?
-                <a href="{{ route('shop.login') }}" class="text-blue-600 hover:text-blue-700">Log in</a>
-            </p>
         </div>
     </div>
 </div>

@@ -97,15 +97,13 @@
                                     data-bs-toggle="modal" data-bs-target="#editVariantModal-{{ $v->id }}">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            @if($product->variants->count() > 1)
-                                <form action="{{ route('admin.variants.destroy', $v) }}" method="post"
-                                      class="d-inline confirm-delete">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            @endif
+                            <form action="{{ route('admin.variants.destroy', $v) }}" method="post"
+                                  class="d-inline confirm-delete">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 @empty

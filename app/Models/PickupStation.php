@@ -10,12 +10,13 @@ class PickupStation extends Model
 {
     protected $fillable = [
         'name', 'address', 'city', 'state', 'phone',
-        'instructions', 'is_active', 'fee_pct', 'access_pin',
+        'instructions', 'is_active', 'fee_pct', 'pickup_shipping_fee', 'access_pin',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'fee_pct'   => 'decimal:2',
+        'pickup_shipping_fee' => 'decimal:2',
     ];
 
     /** Never expose the hashed PIN in JSON/arrays */

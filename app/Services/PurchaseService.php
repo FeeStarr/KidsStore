@@ -234,14 +234,17 @@ class PurchaseService
 
         $purchase->update($totals);
     }
-
     private function applyInventoryIncrease(Purchase $purchase): void
     {
         foreach ($purchase->items()->with('variant.product')->get() as $item) {
             $variant = $item->variant;
             if (! $variant) {
+                \Illuminate\Support\Facades\Log::warning(
+                    "Purchase item {$item->id} has no variant (product_variant_id: {$item->product_variant_id}). Skipping inventory increase."
+                );
                 continue;
             }
+
             $this->inventory->increaseFromPurchase(
                 $variant,
                 $item->quantity,

@@ -34,11 +34,13 @@ class PickupStationController extends Controller
             'phone'        => ['nullable', 'string', 'max:30'],
             'instructions' => ['nullable', 'string', 'max:1000'],
             'fee_pct'      => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'pickup_shipping_fee' => ['nullable', 'numeric', 'min:0'],
             'access_pin'   => ['nullable', 'string', 'min:4', 'max:20'],
             'is_active'    => ['nullable', 'boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
         $data['fee_pct']   = (float) ($data['fee_pct'] ?? 0);
+        $data['pickup_shipping_fee'] = isset($data['pickup_shipping_fee']) ? (float) $data['pickup_shipping_fee'] : null;
         if (! empty($data['access_pin'])) {
             $data['access_pin'] = Hash::make($data['access_pin']);
         } else {
@@ -66,11 +68,13 @@ class PickupStationController extends Controller
             'phone'        => ['nullable', 'string', 'max:30'],
             'instructions' => ['nullable', 'string', 'max:1000'],
             'fee_pct'      => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'pickup_shipping_fee' => ['nullable', 'numeric', 'min:0'],
             'access_pin'   => ['nullable', 'string', 'min:4', 'max:20'],
             'is_active'    => ['nullable', 'boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
         $data['fee_pct']   = (float) ($data['fee_pct'] ?? 0);
+        $data['pickup_shipping_fee'] = isset($data['pickup_shipping_fee']) ? (float) $data['pickup_shipping_fee'] : null;
         if (! empty($data['access_pin'])) {
             $data['access_pin'] = Hash::make($data['access_pin']);
         } else {

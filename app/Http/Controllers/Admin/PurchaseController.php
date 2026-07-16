@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PurchaseRequest;
 use App\Models\Product;
+use App\Models\PickupStation;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\PurchaseService;
@@ -35,7 +36,9 @@ class PurchaseController extends Controller
             ])
             ->where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.purchases.create', compact('suppliers', 'products'));
+        $avgPickupPct = (float) PickupStation::where('is_active', true)->max('fee_pct') ?: 0;
+
+        return view('admin.purchases.create', compact('suppliers', 'products', 'avgPickupPct'));
     }
 
     public function store(PurchaseRequest $request): RedirectResponse
@@ -71,7 +74,9 @@ class PurchaseController extends Controller
             ])
             ->where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.purchases.edit', compact('purchase', 'suppliers', 'products'));
+        $avgPickupPct = (float) PickupStation::where('is_active', true)->max('fee_pct') ?: 0;
+
+        return view('admin.purchases.edit', compact('purchase', 'suppliers', 'products', 'avgPickupPct'));
     }
 
     public function update(PurchaseRequest $request, Purchase $purchase): \Illuminate\Http\RedirectResponse

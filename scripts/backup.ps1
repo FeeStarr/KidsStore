@@ -37,7 +37,9 @@ param(
     [string]$RestoreFile  = "",
     [switch]$UseRclone,
     [string]$RcloneRemote = "",
-    [int]$KeepDays = 0   # 0 = delete local backup immediately after successful rclone upload; set >0 to keep N days locally
+    [switch]$Encrypt,
+    [string]$GpgRecipient = "", # The email/ID of your GPG public key
+    [int]$KeepDays = 1   # 0 = delete local backup immediately after successful rclone upload; set >0 to keep N days locally
 )
 
 Set-StrictMode -Version Latest
@@ -66,6 +68,23 @@ if (-not (Test-Path $BackupDir)) {
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 
+# Load .env variables for defaults
+$envFile = Join-Path $repoRoot ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | Where-Object { $_ -match "=" -and $_ -notmatch "^#" } | ForEach-Object {
+        $name, $value = $_ -split '=', 2
+        $name = $name.Trim()
+        $value = $value.Trim()
+        if ($value -match '^"(.*)"$') { $value = $matches[1] }
+        elseif ($value -match "^'(.*)'$") { $value = $matches[1] }
+        
+        # Set local variables for script use if not already set by parameters
+        if ($name -eq "DB_DATABASE" -and $DbName -eq "kidsstore") { $DbName = $value }
+        if ($name -eq "DB_USERNAME" -and $DbUser -eq "root") { $DbUser = $value }
+        if ($name -eq "DB_PASSWORD") { $script:envPass = $value }
+    }
+}
+
 # ============================================================
 # RESTORE MODE
 # ============================================================
@@ -74,7 +93,9 @@ if ($Restore) {
         Write-Error "Provide a valid -RestoreFile path."
         exit 1
     }
-    $pass = Read-Password "MySQL root password"
+    
+    $pass = if ($script:envPass) { $script:envPass } else { Read-Password "MySQL password for $DbUser" }
+    
     Write-Output ""
     Write-Output "=== RESTORE ==="
     Write-Output "File   : $RestoreFile"
@@ -82,6 +103,17 @@ if ($Restore) {
     Write-Output ""
     $sqlFile = $RestoreFile
     $tmpDir  = ""
+    
+    # Decrypt if GPG
+    if ($RestoreFile -match "\.gpg$") {
+        if (-not (Get-Command gpg -ErrorAction SilentlyContinue)) { Write-Error "gpg not found."; exit 1 }
+        Write-Output "Decrypting GPG file..."
+        $decrypted = $RestoreFile -replace "\.gpg$", ""
+        gpg --decrypt --output "$decrypted" "$RestoreFile"
+        $RestoreFile = $decrypted
+        $sqlFile = $decrypted
+    }
+
     if ($RestoreFile -match "\.zip$") {
         Write-Output "Extracting SQL from zip..."
         $tmpDir = Join-Path $env:TEMP ("kidsstore_restore_" + (Get-Date -Format "yyyyMMddHHmmss"))
@@ -121,15 +153,38 @@ Write-Output "=== KidsStore Backup ($label) $dt ==="
 Write-Output "Saving to: $BackupDir"
 Write-Output ""
 
-$pass    = Read-Password "MySQL root password"
+$pass    = if ($script:envPass) { $script:envPass } else { Read-Password "MySQL password for $DbUser" }
 $toZip   = [System.Collections.Generic.List[string]]::new()
 
 # Step 1 - DB dump
 $sqlOut = Join-Path $BackupDir "kidsstore-sql-$dt.sql"
 Write-Output "[1/$steps] Dumping database '$DbName'..."
 if (Test-Path $MysqlDump) {
+    # Test connection first to avoid confusing errors
+    if ($pass) {
+        $testCmd = ('"' + $MysqlBin + '" -u' + $DbUser + ' "--password=' + $pass + '" -e "exit" ' + $DbName + " 2>&1")
+    } else {
+        $testCmd = ('"' + $MysqlBin + '" -u' + $DbUser + ' -e "exit" ' + $DbName + " 2>&1")
+    }
+    $testResult = cmd.exe /c $testCmd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Connection failed as $DbUser to $DbName. Error: $testResult"
+        exit 1
+    }
+
     $t = Get-Date
-    & $MysqlDump "-u$DbUser" "--password=$pass" --single-transaction --quick --skip-lock-tables --routines --triggers --events $DbName | Set-Content -Path $sqlOut -Encoding UTF8
+    # We use cmd.exe /c for dumping to ensure redirection works correctly with high-performance
+    $dumpCmd = ('"' + $MysqlDump + '" -u' + $DbUser + ' "--password=' + $pass + '" --single-transaction --quick --skip-lock-tables --routines --triggers --events ' + $DbName + ' > "' + $sqlOut + '"')
+    if (-not $pass) {
+        $dumpCmd = ('"' + $MysqlDump + '" -u' + $DbUser + ' --single-transaction --quick --skip-lock-tables --routines --triggers --events ' + $DbName + ' > "' + $sqlOut + '"')
+    }
+    cmd.exe /c $dumpCmd
+
+    if (-not (Test-Path $sqlOut) -or (Get-Item $sqlOut).Length -lt 100) {
+        Write-Error "Database dump file is missing or too small. Check MySQL permissions."
+        exit 1
+    }
+
     $mb = [math]::Round((Get-Item $sqlOut).Length / 1MB, 2)
     Write-Output ("  Done in " + [math]::Round(((Get-Date) - $t).TotalSeconds, 1) + "s - $mb MB")
     $toZip.Add($sqlOut)
@@ -167,6 +222,29 @@ if (-not $DbOnly) {
 # Final - compress
 Write-Output "[$steps/$steps] Compressing..."
 New-ZipFrom -Items $toZip.ToArray() -Dest $zipPath
+
+# Binary Encryption (GPG)
+if ($Encrypt) {
+    if (Get-Command gpg -ErrorAction SilentlyContinue) {
+        $encryptedPath = $zipPath + ".gpg"
+        Write-Output "Encrypting backup with GPG..."
+        if ($GpgRecipient) {
+            gpg --encrypt --recipient "$GpgRecipient" --trust-model always --output "$encryptedPath" "$zipPath"
+        } else {
+            Write-Warning "No -GpgRecipient provided. Using symmetric encryption (password-based)..."
+            $gpgPass = Read-Password "Enter encryption password (for GPG)"
+            echo "$gpgPass" | gpg --batch --yes --passphrase-fd 0 --symmetric --output "$encryptedPath" "$zipPath"
+        }
+        
+        if (Test-Path $encryptedPath) {
+            Remove-Item $zipPath -Force
+            $zipPath = $encryptedPath
+            Write-Output "  Encrypted: $zipPath"
+        }
+    } else {
+        Write-Warning "gpg not found. Skipping encryption. Install Gpg4win."
+    }
+}
 
 # Remove temp files (not the uploads folder itself)
 foreach ($f in $toZip) {

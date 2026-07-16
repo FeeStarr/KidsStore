@@ -1,5 +1,11 @@
 <?php
 
+if (php_sapi_name() !== 'cli') {
+	http_response_code(403);
+	echo "Forbidden.";
+	exit;
+}
+
 require __DIR__.'/vendor/autoload.php';
 
 $app = require_once __DIR__.'/bootstrap/app.php';

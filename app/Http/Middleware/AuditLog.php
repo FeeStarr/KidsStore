@@ -6,7 +6,7 @@ use App\Models\AuditLog;
 use Closure;
 use Illuminate\Http\Request;
 
-class AuditLog
+class LogUserActivity
 {
     public function handle(Request $request, Closure $next)
     {
@@ -15,7 +15,7 @@ class AuditLog
         // Only log authenticated users and mutating requests
         if ($request->user() && in_array($request->method(), ['POST','PUT','PATCH','DELETE'])) {
             try {
-                AuditLog::create([
+                \App\Models\AuditLog::create([
                     'user_id' => $request->user()->id,
                     'action' => $request->method() . ' ' . $request->path(),
                     'auditable_type' => null,

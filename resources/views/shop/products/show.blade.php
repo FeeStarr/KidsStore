@@ -74,8 +74,6 @@
             ->exists()
         : false;
     $productBrand = $product->brandRef?->name ?: $product->brand;
-    $defaultAge  = $defaultVariant?->ageRange?->name ?? '';
-    $defaultSize = $defaultVariant?->sizeRef?->name ?? '';
 @endphp
 
 <nav aria-label="breadcrumb" class="small mb-3">
@@ -113,8 +111,7 @@
     <div class="col-md-6">
         <h2 class="mb-1">{{ $product->name }}</h2>
         <div class="text-muted small mb-2">
-            <span data-pdp="sku">SKU: {{ $defaultVariant?->sku ?? $product->sku }}</span>
-            @if($productBrand) | Brand: {{ $productBrand }} @endif
+            @if($productBrand) Brand: {{ $productBrand }} @endif
         </div>
 
         <div class="mb-2">
@@ -138,21 +135,6 @@
 
         <p>{{ $product->description }}</p>
 
-        <div class="mb-3 small">
-            @if(!empty($defaultAge)) <span class="badge text-bg-light" data-pdp="age">Age: {{ $defaultAge }}</span> @endif
-            @if($product->gender)    <span class="badge text-bg-light">{{ ucfirst($product->gender) }}</span> @endif
-        </div>
-
-        <div class="alert alert-light border py-2 px-3 mb-3 small" data-pdp="selected-summary">
-            <strong>Selected:</strong>
-            <span data-pdp="selected-summary-value">{{ $defaultVariant?->sku ?? '—' }}</span>
-        </div>
-
-        <div class="row g-2 mb-3 small text-muted">
-            <div class="col-12 col-sm-4"><i class="bi bi-shield-check me-1"></i>Secure Checkout</div>
-            <div class="col-12 col-sm-4"><i class="bi bi-truck me-1"></i>Fast Nationwide Delivery</div>
-            <div class="col-12 col-sm-4"><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</div>
-        </div>
 
         @if($variants->count() > 1)
             {{-- Color thumbnails --}}
@@ -177,7 +159,8 @@
             <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
         @endif
 
-        <form id="addToCartForm" action="{{ $defaultVariant ? route('shop.cart.add', $defaultVariant) : '#' }}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+        @if($defaultVariant)
+        <form id="addToCartForm" action="{{ route('shop.cart.add', $defaultVariant) }}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
             @csrf
             <input type="number" name="quantity" value="{{ $remaining > 0 ? 1 : 0 }}" min="1"
                    max="{{ max($remaining, 1) }}" class="form-control" style="width:90px"
@@ -202,6 +185,21 @@
                 @endif
             </small>
         </form>
+        @else
+            <div class="alert alert-light border small">This product has no variants yet. Please check back later.</div>
+        @endif
+
+        @if((float) \App\Models\Setting::get('shipping_fee', 0) > 0)
+            <div class="mb-3 small text-muted" data-pdp="shipping-fee">
+                <i class="bi bi-truck me-1"></i>
+                Shipping: &#8358;{{ number_format((float) \App\Models\Setting::get('shipping_fee', 0), 2) }} per item
+            </div>
+        @endif
+
+        <div class="row g-2 mb-3 small text-muted">
+            <div class="col-12 col-sm-4"><i class="bi bi-shield-check me-1"></i>Secure Checkout</div>
+            <div class="col-12 col-sm-4"><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</div>
+        </div>
     </div>
 </div>
 
@@ -261,7 +259,7 @@
         items.forEach(item => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-sm rounded-pill ' + (item === active ? 'btn-secondary text-white' : 'btn-outline-secondary');
+            btn.className = 'btn btn-sm rounded-pill ' + (item === active ? 'btn-primary text-white fw-bold border-0 shadow-sm' : 'btn-outline-secondary');
             btn.textContent = item;
             btn.addEventListener('click', () => onClick(item));
             container.appendChild(btn);
@@ -316,9 +314,7 @@
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
         const priceBadge = document.querySelector('[data-pdp="price-badge"]');
-        const skuEl      = document.querySelector('[data-pdp="sku"]');
-
-        if (skuEl) skuEl.textContent = 'SKU: ' + v.sku;
+        // SKU is intentionally not displayed on the product details page.
 
         if (v.discount > 0) {
             if (priceOld)   { priceOld.textContent = fmt(v.selling_price); priceOld.classList.remove('d-none'); }
@@ -338,22 +334,6 @@
                 '<img src="' + url + '" class="d-block w-100" style="aspect-ratio:1/1;object-fit:cover" alt="">' +
                 '</div>'
             ).join('');
-        }
-
-        // Summary bar
-        const summaryEl = document.querySelector('[data-pdp="selected-summary-value"]');
-        if (summaryEl) {
-            const parts = [v.sku];
-            if (v.color) parts.push(v.color);
-            if (v.age)   parts.push(v.age);
-            if (v.size)  parts.push(v.size);
-            summaryEl.textContent = parts.join(' • ');
-        }
-
-        // Age badge
-        const ageEl = document.querySelector('[data-pdp="age"]');
-        if (ageEl) {
-            if (v.age) { ageEl.textContent = 'Age: ' + v.age; ageEl.classList.remove('d-none'); }
         }
 
         // Stock / qty UI
@@ -582,6 +562,7 @@
 
         fetch(form.action, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             body: new FormData(form),
         })
@@ -628,6 +609,7 @@
 
             fetch(url, {
                 method: 'DELETE',
+                credentials: 'same-origin',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',

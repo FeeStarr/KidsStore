@@ -69,6 +69,9 @@
                             <span class="badge bg-danger ms-1">{{ $unreadCount }}</span>
                         @endif
                     </a>
+                    @if(auth()->user()->hasPermission('manage_settings'))
+                        <a href="{{ route('admin.settings.edit') }}" class="{{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
+                    @endif
                     <hr class="my-3">
                     <form method="post" action="{{ route('admin.logout') }}" class="px-2">
                         @csrf

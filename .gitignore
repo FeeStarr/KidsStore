@@ -35,3 +35,17 @@ config/*.local.php
 *.secret
 *.pem
 credentials.json
+
+# Backups and temporary files
+/KIdsFlairr_Prod/
+/KIdsFlairr_Prod.zip
+/KidsStore1/
+/KidsStore1.zip
+/tmp_*
+appkey.txt
+*.bundle
+*.zip
+bk_script.ps1
+check_session_driver.php
+ensure_test_db.php
+test_db_connection.php

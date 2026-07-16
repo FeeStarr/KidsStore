@@ -29,7 +29,7 @@ class PurchaseRequest extends FormRequest
 
             'items'                       => ['required', 'array', 'min:1'],
             'items.*.product_id'          => ['required', 'exists:products,id'],
-            'items.*.product_variant_id'  => ['nullable', 'exists:product_variants,id'],
+            'items.*.product_variant_id'  => ['required', 'exists:product_variants,id'],
             'items.*.quantity'            => ['required', 'integer', 'min:1'],
             'items.*.cost_price'          => ['required', 'numeric', 'min:0'],
             'items.*.shipping_fee'        => ['nullable', 'numeric', 'min:0'],
