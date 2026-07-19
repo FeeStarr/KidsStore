@@ -39,6 +39,9 @@
         <div class="card-body pt-0">
             <div class="small text-muted">{{ $product->category?->name }}</div>
             <h6 class="mb-1">{{ $product->name }}</h6>
+            @if(!($product->is_returnable ?? true))
+                <span class="badge bg-warning-subtle text-warning" style="font-size:10px;"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable</span>
+            @endif
             @if($reviewsCount > 0 && $avgRating > 0)
                 <div class="small text-muted mb-1">&#9733; {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
             @endif
@@ -70,7 +73,7 @@
             <a href="{{ route('shop.products.show', $product) }}" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-eye"></i> Choose options
             </a>
-            <small class="text-success">{{ $stock }} in stock</small>
+            <small class="text-success">In stock</small>
         @elseif($defaultVariant)
             <form action="{{ route('shop.cart.add', $defaultVariant) }}" method="post" class="m-0">
                 @csrf

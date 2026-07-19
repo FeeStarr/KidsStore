@@ -214,13 +214,13 @@
     $canRefund       = $order->status === 'delivered'
                        && $order->updated_at->diffInDays(now()) <= \App\Models\RefundRequest::REFUND_WINDOW_DAYS;
     $existingRequests = $order->refundRequests ?? collect();
-    $pendingRefund    = $existingRequests->whereIn('status', ['pending','approved'])->first();
+    $pendingRefund    = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->first();
 @endphp
 
 @if($canRefund)
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-arrow-counterclockwise me-1"></i>Refund Request</span>
+        <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
         @if(! $pendingRefund)
             <button class="btn btn-sm btn-outline-warning" type="button"
                     data-bs-toggle="collapse" data-bs-target="#refund-form">
@@ -231,16 +231,19 @@
 
     @if($existingRequests->isNotEmpty())
     <div class="card-body border-bottom">
-        <div class="small text-muted mb-2">Your refund requests for this order:</div>
+        <div class="small text-muted mb-2">Your return requests for this order:</div>
         @foreach($existingRequests as $rr)
             @php
                 $rbadge = match($rr->status) {
-                    'pending'  => 'bg-warning text-dark',
-                    'approved' => 'bg-primary',
-                    'refunded' => 'bg-success',
-                    'rejected' => 'bg-danger',
-                    'failed'   => 'bg-dark',
-                    default    => 'bg-secondary',
+                    'requested', 'pending_review'    => 'bg-warning text-dark',
+                    'awaiting_evidence'              => 'bg-warning text-dark',
+                    'approved', 'awaiting_shipment', 'in_transit' => 'bg-primary',
+                    'received', 'inspection'         => 'bg-secondary',
+                    'refund_approved', 'refund_processing' => 'bg-info',
+                    'refunded', 'completed', 'replacement_delivered' => 'bg-success',
+                    'rejected', 'cancelled'          => 'bg-danger',
+                    'refund_failed'                  => 'bg-dark',
+                    default                          => 'bg-secondary',
                 };
             @endphp
             <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
@@ -249,12 +252,42 @@
                     <span class="small text-muted ms-2">— {{ $rr->reason_label }}</span>
                 </div>
                 <div class="text-end">
-                    <span class="badge {{ $rbadge }}">{{ ucfirst($rr->status) }}</span>
+                    <span class="badge {{ $rbadge }}">{{ ucfirst(str_replace('_', ' ', $rr->status)) }}</span>
                     <div class="small fw-bold">₦{{ number_format($rr->amount, 2) }}</div>
                 </div>
             </div>
             @if($rr->admin_note)
                 <div class="small text-muted mt-1"><i class="bi bi-chat-left-text me-1"></i>{{ $rr->admin_note }}</div>
+            @endif
+
+            {{-- Evidence upload form for awaiting_evidence status --}}
+            @if($rr->status === 'awaiting_evidence')
+                <div class="mt-2 p-3 bg-light rounded">
+                    <div class="small fw-semibold mb-2"><i class="bi bi-camera me-1"></i>Additional evidence needed</div>
+                    <form method="post" action="{{ route('shop.refund.evidence', [$order, $rr]) }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="mb-2">
+                            <input type="file" name="evidence" class="form-control form-control-sm" accept="image/*" required>
+                            <div class="form-text">Upload a clear photo of the item (max 5MB).</div>
+                        </div>
+                        <div class="mb-2">
+                            <textarea name="details" rows="2" class="form-control form-control-sm"
+                                      placeholder="Additional details (required for some reasons)"></textarea>
+                        </div>
+                        <button class="btn btn-sm btn-primary"><i class="bi bi-upload me-1"></i>Upload Evidence</button>
+                    </form>
+                </div>
+            @endif
+
+            {{-- Cancel button for active requests --}}
+            @if(in_array($rr->status, ['requested', 'pending_review', 'awaiting_evidence']))
+                <div class="mt-2">
+                    <form method="post" action="{{ route('shop.refund.cancel', [$order, $rr]) }}" class="d-inline"
+                          onsubmit="return confirm('Cancel this return request?')">
+                        @csrf
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Cancel Request</button>
+                    </form>
+                </div>
             @endif
         @endforeach
     </div>
@@ -267,9 +300,22 @@
                   enctype="multipart/form-data">
                 @csrf
 
+                @php
+                    $returnableItems = $order->items->filter(fn ($i) => $i->product && $i->product->is_returnable);
+                    $allNonReturnable = $returnableItems->isEmpty() && $order->items->isNotEmpty();
+                    $hasReturnable = $returnableItems->isNotEmpty();
+                @endphp
+
+                @if($allNonReturnable)
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        None of the items in this order are eligible for returns or refunds.
+                    </div>
+                @else
                 {{-- Scope --}}
                 <div class="mb-3">
                     <label class="form-label">What would you like to refund? *</label>
+                    @if($hasReturnable)
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="scope"
                                id="scope_full" value="full" checked>
@@ -277,20 +323,27 @@
                             Full order — ₦{{ number_format($order->amount_paid, 2) }}
                         </label>
                     </div>
+                    @endif
                     @foreach($order->items as $it)
+                        @php $isReturnable = $it->product && $it->product->is_returnable; @endphp
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="scope"
                                    id="scope_item_{{ $it->id }}" value="item"
                                    data-item-id="{{ $it->id }}"
-                                   class="scope-item-radio">
+                                   class="scope-item-radio"
+                                   {{ !$isReturnable ? 'disabled' : '' }}>
                             <label class="form-check-label" for="scope_item_{{ $it->id }}">
                                 {{ $it->product?->name }}
                                 @if($it->variant?->options_label) — {{ $it->variant->options_label }}@endif
                                 (×{{ $it->quantity }}) — ₦{{ number_format($it->line_total, 2) }}
+                                @if(!$isReturnable)
+                                    <span class="badge bg-secondary ms-1" style="font-size:10px;">Non-returnable</span>
+                                @endif
                             </label>
                         </div>
                     @endforeach
                 </div>
+                @endif
 
                 {{-- Hidden item fields, shown when item radio selected --}}
                 <div id="item-fields" style="display:none" class="mb-3 ms-4 row g-2">

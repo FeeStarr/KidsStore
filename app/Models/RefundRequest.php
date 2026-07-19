@@ -4,40 +4,122 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class RefundRequest extends Model
 {
-    // Refund window in days after delivery
+    // Refund window in days after delivery (default, can be overridden per category)
     public const REFUND_WINDOW_DAYS = 7;
 
-    public const STATUS_PENDING  = 'pending';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_REJECTED = 'rejected';
-    public const STATUS_REFUNDED = 'refunded';
-    public const STATUS_FAILED   = 'failed';
+    // ── Statuses ──────────────────────────────────────────────────────────────
+    public const STATUS_REQUESTED            = 'requested';
+    public const STATUS_PENDING_REVIEW      = 'pending_review';
+    public const STATUS_AWAITING_EVIDENCE   = 'awaiting_evidence';
+    public const STATUS_APPROVED            = 'approved';
+    public const STATUS_REJECTED            = 'rejected';
+    public const STATUS_AWAITING_SHIPMENT   = 'awaiting_shipment';
+    public const STATUS_IN_TRANSIT          = 'in_transit';
+    public const STATUS_RECEIVED            = 'received';
+    public const STATUS_INSPECTION          = 'inspection';
+    public const STATUS_REFUND_APPROVED     = 'refund_approved';
+    public const STATUS_REFUND_PROCESSING   = 'refund_processing';
+    public const STATUS_REFUNDED            = 'refunded';
+    public const STATUS_REFUND_FAILED       = 'refund_failed';
+    public const STATUS_REPLACEMENT_APPROVED = 'replacement_approved';
+    public const STATUS_REPLACEMENT_SHIPPED = 'replacement_shipped';
+    public const STATUS_REPLACEMENT_DELIVERED = 'replacement_delivered';
+    public const STATUS_COMPLETED           = 'completed';
+    public const STATUS_CANCELLED           = 'cancelled';
 
+    // Alias for backward compatibility
+    public const STATUS_PENDING  = self::STATUS_PENDING_REVIEW;
+    public const STATUS_FAILED   = self::STATUS_REFUND_FAILED;
+
+    public const STATUSES = [
+        self::STATUS_REQUESTED            => 'Requested',
+        self::STATUS_PENDING_REVIEW      => 'Pending Review',
+        self::STATUS_AWAITING_EVIDENCE   => 'Awaiting Customer Evidence',
+        self::STATUS_APPROVED            => 'Approved',
+        self::STATUS_REJECTED            => 'Rejected',
+        self::STATUS_AWAITING_SHIPMENT   => 'Awaiting Shipment',
+        self::STATUS_IN_TRANSIT          => 'In Transit',
+        self::STATUS_RECEIVED            => 'Item Received',
+        self::STATUS_INSPECTION          => 'Under Inspection',
+        self::STATUS_REFUND_APPROVED     => 'Refund Approved',
+        self::STATUS_REFUND_PROCESSING   => 'Refund Processing',
+        self::STATUS_REFUNDED            => 'Refund Completed',
+        self::STATUS_REFUND_FAILED       => 'Refund Failed',
+        self::STATUS_REPLACEMENT_APPROVED => 'Replacement Approved',
+        self::STATUS_REPLACEMENT_SHIPPED => 'Replacement Shipped',
+        self::STATUS_REPLACEMENT_DELIVERED => 'Replacement Delivered',
+        self::STATUS_COMPLETED           => 'Completed',
+        self::STATUS_CANCELLED           => 'Cancelled',
+    ];
+
+    // ── Return Reasons ────────────────────────────────────────────────────────
     public const REASONS = [
-        'wrong_item'    => 'Wrong item received',
-        'damaged'       => 'Item arrived damaged',
-        'not_received'  => 'Item not received',
-        'changed_mind'  => 'Changed my mind',
-        'other'         => 'Other',
+        'wrong_item'           => 'Wrong item received',
+        'wrong_size'           => 'Wrong size',
+        'wrong_color'          => 'Wrong color',
+        'damaged'              => 'Item arrived damaged',
+        'manufacturing_defect' => 'Manufacturing defect',
+        'missing_item'         => 'Missing item',
+        'incomplete_order'     => 'Incomplete order',
+        'not_as_described'     => 'Product not as described',
+        'changed_mind'         => 'Changed my mind',
+    ];
+
+    /**
+     * Evidence requirements per reason.
+     * photos: 'required', 'optional', 'no'
+     * video:  'required', 'recommended', 'optional', 'no'
+     * comments: 'required', 'optional', 'no'
+     */
+    public const EVIDENCE_RULES = [
+        'wrong_item'           => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
+        'wrong_size'           => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
+        'wrong_color'          => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
+        'damaged'              => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
+        'manufacturing_defect' => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
+        'missing_item'         => ['photos' => 'optional',  'video' => 'no',        'comments' => 'required'],
+        'incomplete_order'     => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
+        'not_as_described'     => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
+        'changed_mind'         => ['photos' => 'no',        'video' => 'no',        'comments' => 'required'],
+    ];
+
+    // Reasons that qualify for shipping fee refund
+    public const SHIPPING_REFUND_REASONS = [
+        'wrong_item', 'wrong_size', 'wrong_color', 'damaged', 'manufacturing_defect',
+        'missing_item', 'incomplete_order', 'not_as_described',
+    ];
+
+    // ── Returnable Statuses (customer can still interact) ─────────────────────
+    public const ACTIVE_STATUSES = [
+        self::STATUS_REQUESTED,
+        self::STATUS_PENDING_REVIEW,
+        self::STATUS_AWAITING_EVIDENCE,
+        self::STATUS_APPROVED,
+        self::STATUS_AWAITING_SHIPMENT,
     ];
 
     protected $fillable = [
         'order_id', 'order_item_id', 'quantity', 'amount',
-        'status', 'reason', 'details', 'evidence_path',
+        'status', 'reason', 'details', 'evidence_path', 'evidence_video_path',
         'admin_note', 'reviewed_by', 'reviewed_at',
         'opay_refund_no', 'opay_payload',
+        'inspection_notes', 'inspected_by', 'inspected_at',
     ];
 
     protected $casts = [
-        'amount'      => 'decimal:2',
-        'quantity'    => 'integer',
-        'reviewed_at' => 'datetime',
-        'opay_payload'=> 'array',
+        'amount'         => 'decimal:2',
+        'quantity'       => 'integer',
+        'reviewed_at'    => 'datetime',
+        'inspected_at'   => 'datetime',
+        'opay_payload'   => 'array',
     ];
+
+    // ── Relationships ─────────────────────────────────────────────────────────
 
     public function order(): BelongsTo
     {
@@ -54,15 +136,39 @@ class RefundRequest extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function inspector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'inspected_by');
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(ReturnAuditLog::class)->latest();
+    }
+
+    // ── Accessors ─────────────────────────────────────────────────────────────
+
     public function getReasonLabelAttribute(): string
     {
-        return self::REASONS[$this->reason] ?? ucfirst($this->reason);
+        return self::REASONS[$this->reason] ?? ucfirst(str_replace('_', ' ', $this->reason));
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUSES[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
     }
 
     public function getEvidenceUrlAttribute(): ?string
     {
         return $this->evidence_path
             ? Storage::disk('public')->url($this->evidence_path)
+            : null;
+    }
+
+    public function getEvidenceVideoUrlAttribute(): ?string
+    {
+        return $this->evidence_video_path
+            ? Storage::disk('public')->url($this->evidence_video_path)
             : null;
     }
 
@@ -77,7 +183,57 @@ class RefundRequest extends Model
         return 'Full Order';
     }
 
-    public function isPending(): bool  { return $this->status === self::STATUS_PENDING; }
-    public function isApproved(): bool { return $this->status === self::STATUS_APPROVED; }
-    public function isRefunded(): bool { return $this->status === self::STATUS_REFUNDED; }
+    /**
+     * Get evidence requirements for the current reason.
+     */
+    public function getEvidenceRequirements(): array
+    {
+        return self::EVIDENCE_RULES[$this->reason] ?? ['photos' => 'optional', 'video' => 'no', 'comments' => 'optional'];
+    }
+
+    // ── Status Checks ─────────────────────────────────────────────────────────
+
+    public function isPending(): bool
+    {
+        return in_array($this->status, [self::STATUS_REQUESTED, self::STATUS_PENDING_REVIEW], true);
+    }
+
+    public function isAwaitingEvidence(): bool
+    {
+        return $this->status === self::STATUS_AWAITING_EVIDENCE;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === self::STATUS_APPROVED;
+    }
+
+    public function isRefunded(): bool
+    {
+        return $this->status === self::STATUS_REFUNDED;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === self::STATUS_REJECTED;
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->status, self::ACTIVE_STATUSES, true);
+    }
+
+    public function isCompleted(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_REFUNDED,
+            self::STATUS_REPLACEMENT_DELIVERED,
+            self::STATUS_COMPLETED,
+        ], true);
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
 }

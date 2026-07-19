@@ -39,33 +39,24 @@ class OrderPlacedNotification extends Notification
             : "Your order has been received — {$order->reference}";
 
         $message = (new MailMessage)
-            ->subject($subject)
-            ->greeting($isInternal ? "New order from {$order->customer?->name}" : "Hello {$notifiable->name},");
+            ->subject($subject);
 
         if ($isInternal) {
-            $message->line("A new order **{$order->reference}** has been placed.")
+            $message->greeting("New order from {$order->customer?->name}")
+                    ->line("A new order **{$order->reference}** has been placed.")
                     ->line("**Customer:** {$order->customer?->name} ({$order->customer?->email})")
                     ->line("**Delivery:** {$order->getDeliveryMethodLabel()}")
                     ->line("**Total:** ₦" . number_format($order->grand_total, 2))
                     ->action('View Order', url('/admin/orders/' . $order->id));
-        } else {
-            $message->line("Thank you for your order! We've received it and will begin processing shortly.")
-                    ->line("**Order Reference:** {$order->reference}")
-                    ->line("**Order Date:** " . $order->order_date->format('M d, Y'))
-                    ->line("**Delivery Method:** {$order->getDeliveryMethodLabel()}")
-                    ->line("**Total:** ₦" . number_format($order->grand_total, 2))
-                    ->line("**Estimated Delivery:** " . $order->delivery_window)
-                    ->action('View Your Order', url('/account/orders/' . $order->id))
-                    ->line("If you have any questions, please contact our support team.");
-        }
 
-        // If this is an internal staff email, CC admins/superadmins
-        if ($isInternal) {
             foreach (NotificationRecipients::adminUsers() as $admin) {
                 if ($admin->id !== $notifiable->id) {
                     $message->cc($admin->email, $admin->name);
                 }
             }
+        } else {
+            $order->loadMissing('items.product', 'items.variant.image', 'items.variant.images', 'pickupStation');
+            $message->view('emails.order-placed', ['order' => $order]);
         }
 
         return $message;

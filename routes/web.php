@@ -81,6 +81,8 @@ Route::name('shop.')->group(function () {
 
         // Refund requests
         Route::post('/account/orders/{order}/refund', [ShopRefundController::class, 'store'])->name('refund.store');
+        Route::post('/account/orders/{order}/refund/{refundRequest}/evidence', [ShopRefundController::class, 'uploadEvidence'])->name('refund.evidence');
+        Route::post('/account/orders/{order}/refund/{refundRequest}/cancel', [ShopRefundController::class, 'cancel'])->name('refund.cancel');
 
         Route::get('/account/profile', [AccountController::class, 'profile'])->name('account.profile');
         Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
@@ -164,6 +166,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/pending-confirmation', [OrderController::class, 'pendingConfirmation'])->name('orders.pending-confirmation')->middleware('permission:update_order_status');
         Route::post('orders/{order}/processing', [OrderController::class, 'processing'])->name('orders.processing')->middleware('permission:update_order_status');
         Route::post('orders/{order}/ship', [OrderController::class, 'ship'])->name('orders.ship')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/shipping-to-station', [OrderController::class, 'shippingToStation'])->name('orders.shipping-to-station')->middleware('permission:update_order_status');
         Route::post('orders/{order}/ready-for-pickup', [OrderController::class, 'readyForPickup'])->name('orders.ready-for-pickup')->middleware('permission:update_order_status');
         Route::post('orders/{order}/deliver', [OrderController::class, 'deliver'])->name('orders.deliver')->middleware('permission:update_order_status');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel')->middleware('permission:update_order_status');
@@ -217,10 +220,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('pickup-stations/{pickupStation}/payouts', [PickupStationController::class, 'payouts'])
             ->name('pickup-stations.payouts');
 
+        // Station management routes
+        Route::post('pickup-stations/{pickupStation}/toggle-availability', [PickupStationController::class, 'toggleAvailability'])
+            ->name('pickup-stations.toggle-availability')->middleware('permission:manage_settings');
+        Route::post('pickup-stations/{pickupStation}/set-unavailable', [PickupStationController::class, 'setUnavailable'])
+            ->name('pickup-stations.set-unavailable')->middleware('permission:manage_settings');
+        Route::get('pickup-stations/{pickupStation}/items', [PickupStationController::class, 'items'])
+            ->name('pickup-stations.items')->middleware('permission:manage_settings');
+        Route::post('orders/{order}/reassign-station', [PickupStationController::class, 'reassignOrder'])
+            ->name('orders.reassign-station')->middleware('permission:manage_settings');
+
         Route::get('refunds',                                  [AdminRefundController::class, 'index'])->name('refunds.index');
         Route::get('refunds/{refundRequest}',                  [AdminRefundController::class, 'show'])->name('refunds.show');
+        Route::post('refunds/{refundRequest}/request-evidence',[AdminRefundController::class, 'requestEvidence'])->name('refunds.request-evidence');
         Route::post('refunds/{refundRequest}/approve',         [AdminRefundController::class, 'approve'])->name('refunds.approve');
         Route::post('refunds/{refundRequest}/reject',          [AdminRefundController::class, 'reject'])->name('refunds.reject');
+        Route::post('refunds/{refundRequest}/mark-received',   [AdminRefundController::class, 'markReceived'])->name('refunds.mark-received');
+        Route::post('refunds/{refundRequest}/inspect',         [AdminRefundController::class, 'inspect'])->name('refunds.inspect');
+        Route::post('refunds/{refundRequest}/process-refund',  [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund');
     });
 });
 
@@ -248,5 +265,18 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         Route::post('/orders/{order}/initiate-payment',      [PickupPortalController::class, 'initiatePayment'])->name('initiate-payment');
         Route::post('/orders/{order}/query-payment',         [PickupPortalController::class, 'queryPayment'])->name('query-payment');
         Route::post('/orders/{order}/record-payment',        [PickupPortalController::class, 'recordPayment'])->name('record-payment');
+
+        // Item-level pickup status routes
+        Route::post('/items/{item}/received', [PickupPortalController::class, 'markReceived'])->name('items.received');
+        Route::post('/items/{item}/ready',    [PickupPortalController::class, 'markReady'])->name('items.ready');
+        Route::post('/items/{item}/picked-up', [PickupPortalController::class, 'markPickedUp'])->name('items.picked-up');
+
+        // Bulk actions
+        Route::post('/bulk/received', [PickupPortalController::class, 'bulkMarkReceived'])->name('bulk.received');
+        Route::post('/bulk/ready',    [PickupPortalController::class, 'bulkMarkReady'])->name('bulk.ready');
+
+        // Picked up DataTable + export
+        Route::get('/picked-up/data', [PickupPortalController::class, 'pickedUpData'])->name('picked-up.data');
+        Route::get('/picked-up/export', [PickupPortalController::class, 'pickedUpExport'])->name('picked-up.export');
     });
 });

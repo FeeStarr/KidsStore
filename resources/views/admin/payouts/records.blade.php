@@ -43,11 +43,9 @@
             @php $index = ($payouts->firstItem() ?? 0) + $loop->index; @endphp
             <tr>
                 <td>{{ $index }}</td>
-                <td>
-                    {{ $p->reference }}
-                </td>
+                <td>{{ $p->reference }}</td>
                 <td>{{ $p->station->name ?? '—' }}</td>
-                <td class="text-end">₦{{ number_format($p->amount,2) }}</td>
+                <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
                 <td>{{ $p->created_at->toDateString() }}</td>
                 <td>
                     @if($p->is_reversed)
@@ -58,30 +56,57 @@
                 </td>
                 <td>{{ Str::limit($p->note ?? '', 80) }}</td>
                 <td class="text-end">
-                    <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#payout-{{ $p->id }}">Show</a>
+                    <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#payout-{{ $p->id }}">
+                        <i class="bi bi-eye me-1"></i>Details
+                    </a>
                     @if(! $p->is_reversed)
-                        <form method="post" action="{{ route('admin.pickup-payouts.reverse', $p) }}" style="display:inline-block">@csrf
-                            <button class="btn btn-sm btn-outline-danger ms-2" onclick="return confirm('Reverse payout {{ $p->reference }}? This will mark related order fees unpaid.')">Reverse</button>
+                        <form method="post" action="{{ route('admin.pickup-payouts.reverse', $p) }}" style="display:inline-block">
+                            @csrf
+                            <button class="btn btn-sm btn-outline-danger ms-1" onclick="return confirm('Reverse payout {{ $p->reference }}? This will mark related item fees unpaid.')">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reverse
+                            </button>
                         </form>
                     @endif
                 </td>
             </tr>
             <tr class="collapse" id="payout-{{ $p->id }}">
                 <td colspan="8">
-                    <table class="table table-sm mb-0">
-                        <thead><tr><th>Order</th><th class="text-end">Fee</th></tr></thead>
-                        <tbody>
-                        @foreach($p->items as $it)
-                            <tr>
-                                <td>{{ $it->order?->reference ?? 'Order #'.$it->order_id }}</td>
-                                <td class="text-end">₦{{ number_format($it->fee_amount,2) }}</td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                    <div class="small text-muted mt-2">
+                    <div class="p-2">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Product</th>
+                                    <th>Variant</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Commission (10%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($p->items as $it)
+                                    @php
+                                        // Find the specific order item that generated this fee
+                                        $orderItem = \App\Models\OrderItem::where('order_id', $it->order_id)
+                                            ->where('pickup_status', 'picked_up')
+                                            ->first();
+                                    @endphp
+                                    <tr>
+                                        <td>{{ $it->order?->reference ?? 'Order #' . $it->order_id }}</td>
+                                        <td>{{ $orderItem?->product?->name ?? '—' }}</td>
+                                        <td class="text-muted small">{{ $orderItem?->variant?->options_label ?? '—' }}</td>
+                                        <td class="text-center">{{ $orderItem?->quantity ?? '—' }}</td>
+                                        <td class="text-end">{{ $orderItem ? '₦' . number_format($orderItem->unit_price, 2) : '—' }}</td>
+                                        <td class="text-end fw-bold">₦{{ number_format($it->fee_amount, 2) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                         @if($p->is_reversed)
-                            Reversed by: {{ $p->reversedBy?->name ?? '—' }} at {{ $p->reversed_at?->toDateTimeString() ?? '—' }}
+                            <div class="small text-muted mt-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Reversed by: {{ $p->reversedBy?->name ?? '—' }} at {{ $p->reversed_at?->toDateTimeString() ?? '—' }}
+                            </div>
                         @endif
                     </div>
                 </td>
@@ -92,5 +117,4 @@
 
     <div class="mt-3">{{ $payouts->links() }}</div>
 </div></div>
-
 @endsection

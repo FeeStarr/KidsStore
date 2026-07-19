@@ -20,7 +20,6 @@ class RefundController extends Controller
 
     public function store(Request $request, Order $order): RedirectResponse
     {
-        // Only the order owner
         abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
 
         $data = $request->validate([
@@ -29,7 +28,7 @@ class RefundController extends Controller
             'quantity'       => ['required_if:scope,item', 'nullable', 'integer', 'min:1'],
             'reason'         => ['required', 'string', Rule::in(array_keys(RefundRequest::REASONS))],
             'details'        => ['nullable', 'string', 'max:1000'],
-            'evidence'       => ['nullable', 'file', 'image', 'max:5120'], // 5 MB
+            'evidence'       => ['nullable', 'file', 'image', 'max:5120'],
         ]);
 
         $item     = null;
@@ -56,6 +55,44 @@ class RefundController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Refund request submitted. We will review it within 2–3 business days.');
+        return back()->with('success', 'Return request submitted. We will review it shortly.');
+    }
+
+    public function uploadEvidence(Request $request, Order $order, RefundRequest $refundRequest): RedirectResponse
+    {
+        abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
+        abort_unless((int) $refundRequest->order_id === (int) $order->id, 404);
+
+        $data = $request->validate([
+            'evidence' => ['nullable', 'file', 'image', 'max:5120'],
+            'details'  => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $this->refunds->uploadEvidence(
+                $refundRequest,
+                $request->hasFile('evidence') ? $request->file('evidence') : null,
+                null,
+                $data['details'] ?? null
+            );
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Evidence uploaded. Your return request is now under review.');
+    }
+
+    public function cancel(Request $request, Order $order, RefundRequest $refundRequest): RedirectResponse
+    {
+        abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
+        abort_unless((int) $refundRequest->order_id === (int) $order->id, 404);
+
+        try {
+            $this->refunds->cancel($refundRequest, Auth::user());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Return request cancelled.');
     }
 }

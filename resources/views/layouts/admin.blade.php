@@ -52,7 +52,7 @@
                     <a href="{{ route('admin.pickup-payouts.index') }}" class="{{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
                     <a href="{{ route('admin.refunds.index') }}" class="{{ str_starts_with($r ?? '', 'admin.refunds') ? 'active':'' }}">
                         <i class="bi bi-arrow-counterclockwise"></i> Refunds
-                        @php($pendingRefunds = \App\Models\RefundRequest::where('status','pending')->count())
+                        @php($pendingRefunds = \App\Models\RefundRequest::whereIn('status', ['requested', 'pending_review', 'awaiting_evidence'])->count())
                         @if($pendingRefunds > 0)
                             <span class="badge bg-danger ms-1">{{ $pendingRefunds }}</span>
                         @endif

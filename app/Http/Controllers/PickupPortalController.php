@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\PickupStation;
 use App\Services\OPayService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
+use App\Services\PickupStationService;
 use App\Models\Payment;
 use App\Models\PickupPayout;
 use App\Models\PickupPayoutItem;
@@ -20,8 +22,12 @@ use Illuminate\Support\Str;
 
 class PickupPortalController extends Controller
 {
-    public function __construct(private OrderService $orders, private OPayService $opay, private PaymentService $payments)
-    {
+    public function __construct(
+        private OrderService $orders,
+        private OPayService $opay,
+        private PaymentService $payments,
+        private PickupStationService $pickupService
+    ) {
     }
 
     /** Show login form */
@@ -39,7 +45,6 @@ class PickupPortalController extends Controller
             'pin'               => ['required', 'string'],
         ]);
 
-        // Max 5 PIN attempts per station+IP per minute
         $throttleKey = 'portal-login:' . $data['pickup_station_id'] . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
@@ -72,74 +77,101 @@ class PickupPortalController extends Controller
         return redirect()->route('pickup-portal.login');
     }
 
-    /** Dashboard — orders for this station */
+    /** Dashboard — items for this station grouped by status */
     public function dashboard(Request $request): View|RedirectResponse
     {
         if (! session('portal_station_id')) {
             return redirect()->route('pickup-portal.login');
         }
 
-        $stationId  = (int) session('portal_station_id');
-        $filter     = $request->input('filter', 'ready');
+        $stationId = (int) session('portal_station_id');
+        $station = PickupStation::findOrFail($stationId);
+        $filter = $request->input('filter', 'pending');
 
-        $query = Order::with(['items.product', 'items.variant', 'customer'])
-            ->where('pickup_station_id', $stationId)
-            ->where('delivery_method', 'pickup');
+        $itemsByStatus = $this->pickupService->getItemsByStatus($stationId);
+        $counts = [
+            'pending' => $itemsByStatus['pending']->count(),
+            'received' => $itemsByStatus['received']->count(),
+            'ready' => $itemsByStatus['ready']->count(),
+            'picked_up' => $itemsByStatus['picked_up']->count(),
+        ];
 
-        if ($filter === 'ready') {
-            $query->where('status', 'ready for pick up');
-        } else {
-            $query->whereIn('status', ['ready for pick up', 'delivered', 'processing', 'confirmed']);
-        }
+        $currentItems = $itemsByStatus[$filter] ?? collect();
 
-        $orders     = $query->orderByDesc('order_date')->get();
-        $readyCount = Order::where('pickup_station_id', $stationId)
-            ->where('status', 'ready for pick up')
-            ->count();
-
-        return view('pickup-portal.dashboard', compact('orders', 'filter', 'readyCount'));
+        return view('pickup-portal.dashboard', compact('station', 'filter', 'currentItems', 'counts'));
     }
 
-    /** Data endpoint for DataTables on dashboard */
+    /** AJAX data endpoint for dashboard items */
     public function dashboardData(Request $request)
+    {
+        if (! session('portal_station_id')) {
+            return response()->json(['error' => 'Not authenticated.'], 401);
+        }
+
+        $stationId = (int) session('portal_station_id');
+        $filter = $request->input('filter', 'pending');
+        $itemsByStatus = $this->pickupService->getItemsByStatus($stationId);
+        $items = $itemsByStatus[$filter] ?? collect();
+
+        return response()->json([
+            'data' => $items->map(fn ($item) => [
+                'id' => $item->id,
+                'order_ref' => $item->order?->reference,
+                'customer' => $item->order?->customer?->name ?? '—',
+                'product' => $item->product?->name,
+                'variant' => $item->variant?->options_label,
+                'quantity' => $item->quantity,
+                'unit_price' => number_format($item->unit_price, 2),
+                'commission' => number_format($item->commission, 2),
+            ]),
+        ]);
+    }
+
+    /** Data endpoint for DataTables — picked up items */
+    public function pickedUpData(Request $request)
     {
         if (! session('portal_station_id')) return response()->json(['error' => 'Not authenticated.'], 401);
         $stationId = (int) session('portal_station_id');
 
-        $q = Order::with('items')->where('pickup_station_id', $stationId)->where('delivery_method', 'pickup');
+        $q = OrderItem::whereHas('order', function ($q) use ($stationId) {
+            $q->where('pickup_station_id', $stationId);
+        })
+        ->where('pickup_status', 'picked_up')
+        ->with(['order', 'product', 'variant']);
 
-        // filters
-        $status = $request->input('status');
-        if ($status && $status !== 'all') $q->where('status', $status);
-        $payment = $request->input('payment_status');
-        if ($payment && $payment !== 'all') $q->where('payment_status', $payment);
+        // Search
+        $search = $request->input('search.value');
+        if ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->whereHas('product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('order', fn($o) => $o->where('reference', 'like', "%{$search}%"))
+                    ->orWhereHas('variant', fn($v) => $v->where('options_label', 'like', "%{$search}%"));
+            });
+        }
+
+        // Date filter
         $from = $request->input('from');
         $to = $request->input('to');
-        if ($from) $q->whereDate('order_date', '>=', $from);
-        if ($to) $q->whereDate('order_date', '<=', $to);
+        if ($from) $q->whereDate('pickup_status_changed_at', '>=', $from);
+        if ($to) $q->whereDate('pickup_status_changed_at', '<=', $to);
 
         $recordsTotal = $q->count();
-
         $start = (int) $request->input('start', 0);
         $length = (int) $request->input('length', 25);
 
-        $orders = $q->orderByDesc('order_date')->offset($start)->limit($length)->get();
+        $items = $q->orderByDesc('pickup_status_changed_at')->offset($start)->limit($length)->get();
 
-        $data = $orders->map(function($o){
+        $data = $items->map(function($item) {
             return [
-                'id' => $o->id,
-                'reference' => $o->reference,
-                'order_date' => $o->order_date?->toDateString(),
-                'customer' => $o->customer?->name,
-                'grand_total' => (float) $o->grand_total,
-                'status' => $o->status,
-                'payment_status' => $o->payment_status,
-                'items' => $o->items->map(fn($it)=> [
-                    'product' => $it->product?->name,
-                    'variant' => $it->variant?->options_label,
-                    'quantity' => $it->quantity,
-                    'line_total' => (float) $it->line_total,
-                ])->values()->all(),
+                'id' => $item->id,
+                'order_reference' => $item->order?->reference,
+                'customer' => $item->order?->customer?->name ?? '—',
+                'product' => $item->product?->name,
+                'variant' => $item->variant?->options_label ?? '—',
+                'quantity' => $item->quantity,
+                'line_total' => number_format($item->line_total, 2),
+                'commission' => number_format($item->commission, 2),
+                'picked_up_at' => $item->pickup_status_changed_at?->format('M d, Y H:i'),
             ];
         })->values();
 
@@ -151,61 +183,187 @@ class PickupPortalController extends Controller
         ]);
     }
 
-    /** Payments list for this station */
-    public function payments(Request $request): View|RedirectResponse
+    /** Export picked up items as CSV */
+    public function pickedUpExport(Request $request)
     {
         if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
         $stationId = (int) session('portal_station_id');
 
-        $payments = Payment::with('order')->whereHas('order', fn($q)=> $q->where('pickup_station_id', $stationId))->orderByDesc('payment_date')->get();
+        $items = OrderItem::whereHas('order', function ($q) use ($stationId) {
+            $q->where('pickup_station_id', $stationId);
+        })
+        ->where('pickup_status', 'picked_up')
+        ->with(['order', 'product', 'variant'])
+        ->orderByDesc('pickup_status_changed_at')
+        ->get();
 
-        return view('pickup-portal.payments', compact('payments'));
+        $filename = 'picked_up_items_' . now()->format('Ymd_His') . '.csv';
+
+        $callback = function () use ($items) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Order', 'Customer', 'Product', 'Variant', 'Qty', 'Line Total', 'Commission (10%)', 'Picked Up At']);
+
+            foreach ($items as $item) {
+                fputcsv($handle, [
+                    $item->order?->reference,
+                    $item->order?->customer?->name ?? '—',
+                    $item->product?->name,
+                    $item->variant?->options_label ?? '—',
+                    $item->quantity,
+                    number_format($item->line_total, 2),
+                    number_format($item->commission, 2),
+                    $item->pickup_status_changed_at?->format('Y-m-d H:i'),
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 
-    /** Deliveries list (orders for station) */
-    public function deliveries(Request $request): View|RedirectResponse
+    /** Mark an item as received */
+    public function markReceived(Request $request, OrderItem $item): RedirectResponse
     {
-        if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        try {
+            $this->pickupService->markReceived($item, (int) session('portal_station_id'));
+            return back()->with('success', 'Item marked as received.');
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** Mark an item as ready for pickup */
+    public function markReady(Request $request, OrderItem $item): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        try {
+            $this->pickupService->markReady($item, (int) session('portal_station_id'));
+            return back()->with('success', 'Item marked as ready for pickup.');
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** Mark an item as picked up by customer */
+    public function markPickedUp(Request $request, OrderItem $item): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        try {
+            $this->pickupService->markPickedUp($item, (int) session('portal_station_id'));
+            return back()->with('success', 'Item marked as picked up. Commission recorded.');
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** Mark multiple items as received (bulk action) */
+    public function bulkMarkReceived(Request $request): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $data = $request->validate([
+            'item_ids' => ['required', 'array'],
+            'item_ids.*' => ['integer', 'exists:order_items,id'],
+        ]);
+
         $stationId = (int) session('portal_station_id');
+        $success = 0;
+        $errors = [];
 
-        $orders = Order::with('customer','items')->where('pickup_station_id', $stationId)
-            ->where('delivery_method','pickup')
-            ->whereIn('status', ['ready for pick up','processing','confirmed'])
-            ->orderByDesc('order_date')->get();
+        foreach ($data['item_ids'] as $itemId) {
+            try {
+                $item = OrderItem::findOrFail($itemId);
+                $this->pickupService->markReceived($item, $stationId);
+                $success++;
+            } catch (\RuntimeException $e) {
+                $errors[] = "Item #{$itemId}: {$e->getMessage()}";
+            }
+        }
 
-        return view('pickup-portal.deliveries', compact('orders'));
+        $message = "{$success} item(s) marked as received.";
+        if ($errors) {
+            $message .= ' Errors: ' . implode(' ', $errors);
+        }
+
+        return back()->with($success > 0 ? 'success' : 'error', $message);
+    }
+
+    /** Mark multiple items as ready (bulk action) */
+    public function bulkMarkReady(Request $request): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $data = $request->validate([
+            'item_ids' => ['required', 'array'],
+            'item_ids.*' => ['integer', 'exists:order_items,id'],
+        ]);
+
+        $stationId = (int) session('portal_station_id');
+        $success = 0;
+        $errors = [];
+
+        foreach ($data['item_ids'] as $itemId) {
+            try {
+                $item = OrderItem::findOrFail($itemId);
+                $this->pickupService->markReady($item, $stationId);
+                $success++;
+            } catch (\RuntimeException $e) {
+                $errors[] = "Item #{$itemId}: {$e->getMessage()}";
+            }
+        }
+
+        $message = "{$success} item(s) marked as ready.";
+        if ($errors) {
+            $message .= ' Errors: ' . implode(' ', $errors);
+        }
+
+        return back()->with($success > 0 ? 'success' : 'error', $message);
     }
 
     /** Payouts page for station */
-    public function payouts(Request $request)
+    public function payouts(Request $request): View|RedirectResponse
     {
         if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
         $stationId = (int) session('portal_station_id');
 
-        $status = $request->input('status', 'paid');
+        $status = $request->input('status', 'summary');
         $from = $request->input('from');
         $to = $request->input('to');
 
-        if ($status === 'pending') {
-            // pending orders with unpaid items
-            $pending = Order::with('items')->where('pickup_station_id', $stationId)
-                ->where('delivery_method','pickup')
-                ->whereHas('items', fn($q)=> $q->where('pickup_station_fee_paid', false));
+        $payoutSummary = $this->pickupService->getPayoutSummary($stationId);
 
-            if ($from) $pending->whereDate('order_date','>=',$from);
-            if ($to) $pending->whereDate('order_date','<=',$to);
+        // Get payout history
+        $payoutQuery = PickupPayout::with(['items', 'station'])
+            ->where('pickup_station_id', $stationId);
 
-            $pendingOrders = $pending->orderByDesc('order_date')->get()->map(fn($o)=> [
-                'order' => $o,
-                'fee_amount' => round($o->pickup_station_fee_total ?: 0, 2),
-            ]);
-
-            return view('pickup-portal.payouts', ['pendingOrders' => $pendingOrders, 'status' => $status, 'from' => $from, 'to' => $to]);
+        if ($status === 'paid') {
+            $payoutQuery->where('is_reversed', false);
+        } elseif ($status === 'reversed') {
+            $payoutQuery->where('is_reversed', true);
         }
 
-        // for paid/reversed/all, pass an empty pendingOrders collection and let DataTable fetch via payoutsData
-        $pendingOrders = collect();
-        return view('pickup-portal.payouts', compact('pendingOrders','status','from','to'));
+        if ($from) $payoutQuery->whereDate('created_at', '>=', $from);
+        if ($to) $payoutQuery->whereDate('created_at', '<=', $to);
+
+        $payouts = $payoutQuery->orderByDesc('created_at')->get();
+
+        return view('pickup-portal.payouts', compact('payoutSummary', 'payouts', 'status', 'from', 'to'));
     }
 
     /** Server-side data for payouts DataTable */
@@ -214,10 +372,28 @@ class PickupPortalController extends Controller
         if (! session('portal_station_id')) return response()->json(['error' => 'Not authenticated.'], 401);
         $stationId = (int) session('portal_station_id');
 
-        $q = PickupPayout::with(['items','station'])->where('pickup_station_id', $stationId);
+        $q = PickupPayout::with(['items.order', 'station'])->where('pickup_station_id', $stationId);
+
+        // Status filter
         $status = $request->input('status');
         if ($status === 'reversed') $q->where('is_reversed', true);
         if ($status === 'paid') $q->where('is_reversed', false);
+
+        // Date filters
+        $from = $request->input('from');
+        $to = $request->input('to');
+        if ($from) $q->whereDate('created_at', '>=', $from);
+        if ($to) $q->whereDate('created_at', '<=', $to);
+
+        // Search
+        $search = $request->input('search.value');
+        if ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->where('reference', 'like', "%{$search}%")
+                    ->orWhere('note', 'like', "%{$search}%")
+                    ->orWhereHas('items.order', fn($o) => $o->where('reference', 'like', "%{$search}%"));
+            });
+        }
 
         $recordsTotal = $q->count();
         $start = (int) $request->input('start', 0);
@@ -225,20 +401,17 @@ class PickupPortalController extends Controller
 
         $rows = $q->orderByDesc('created_at')->offset($start)->limit($length)->get();
 
-        $data = $rows->map(function($p){
+        $data = $rows->map(function($p) {
             return [
                 'id' => $p->id,
                 'reference' => $p->reference,
-                'date' => $p->created_at?->toDateString(),
-                'amount' => (float) $p->amount,
-                'is_reversed' => (bool) $p->is_reversed,
-                'note' => $p->note,
-                'items' => $p->items->map(fn($it)=> [
-                    'order_id' => $it->order_id,
-                    'order_reference' => $it->order?->reference,
-                    'order_amount' => $it->order?->grand_total,
-                    'fee_amount' => $it->fee_amount,
-                ])->values()->all(),
+                'date' => $p->created_at?->format('M d, Y'),
+                'amount' => '₦' . number_format($p->amount, 2),
+                'status' => $p->is_reversed ? 'Reversed' : 'Paid',
+                'status_class' => $p->is_reversed ? 'bg-danger' : 'bg-success',
+                'note' => $p->note ?? '—',
+                'orders' => $p->items->pluck('order.reference')->filter()->implode(', ') ?: '—',
+                'order_count' => $p->items->count(),
             ];
         })->values();
 
@@ -251,7 +424,7 @@ class PickupPortalController extends Controller
     }
 
     /** Mark selected orders as paid and create a pickup payout (portal) */
-    public function markPaid(Request $request)
+    public function markPaid(Request $request): RedirectResponse
     {
         if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
         $stationId = (int) session('portal_station_id');
@@ -286,19 +459,38 @@ class PickupPortalController extends Controller
                 'order_id' => $o->id,
                 'fee_amount' => round($o->pickup_station_fee_total ?: 0, 2),
             ]);
-
-            // mark all items as paid
-            DB::table('order_items')->where('order_id', $o->id)->update([
-                'pickup_station_fee_paid' => true,
-                'pickup_station_fee_paid_at' => now(),
-            ]);
         }
 
-        return back()->with('success','Marked selected orders as paid and created payout record.');
+        return back()->with('success','Payout record created successfully.');
+    }
+
+    /** Payments list for this station */
+    public function payments(Request $request): View|RedirectResponse
+    {
+        if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
+        $stationId = (int) session('portal_station_id');
+
+        $payments = Payment::with('order')->whereHas('order', fn($q)=> $q->where('pickup_station_id', $stationId))->orderByDesc('payment_date')->get();
+
+        return view('pickup-portal.payments', compact('payments'));
+    }
+
+    /** Deliveries list (orders for station) */
+    public function deliveries(Request $request): View|RedirectResponse
+    {
+        if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
+        $stationId = (int) session('portal_station_id');
+
+        $orders = Order::with('customer','items')->where('pickup_station_id', $stationId)
+            ->where('delivery_method','pickup')
+            ->whereIn('status', ['ready for pick up','processing','confirmed'])
+            ->orderByDesc('order_date')->get();
+
+        return view('pickup-portal.deliveries', compact('orders'));
     }
 
     /** Record a payment (cash/transfer) at the station */
-    public function recordPayment(Request $request, Order $order)
+    public function recordPayment(Request $request, Order $order): RedirectResponse
     {
         if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
         if ((int)$order->pickup_station_id !== (int) session('portal_station_id')) abort(403);
@@ -309,7 +501,6 @@ class PickupPortalController extends Controller
             'note' => ['nullable','string'],
         ]);
 
-        // create Payment via PaymentService
         $payment = $this->payments->record($order, [
             'payment_date' => now()->toDateString(),
             'amount' => (float) $data['amount'],
@@ -322,7 +513,6 @@ class PickupPortalController extends Controller
 
     /**
      * Agent initiates OPay bank transfer for a customer paying at the station.
-     * Returns JSON with the virtual account details.
      */
     public function initiatePayment(Request $request, Order $order): JsonResponse
     {
@@ -385,7 +575,6 @@ class PickupPortalController extends Controller
             ]);
         }
 
-        // Throttle: minimum 15 s between queries
         if ($transaction->last_queried_at &&
             now()->diffInSeconds($transaction->last_queried_at) < 15) {
             return response()->json([
@@ -410,12 +599,12 @@ class PickupPortalController extends Controller
     }
 
     /** Staff confirms customer has collected the order */
-    public function confirmPickup(Request $request, Order $order): RedirectResponse    {
+    public function confirmPickup(Request $request, Order $order): RedirectResponse
+    {
         if (! session('portal_station_id')) {
             return redirect()->route('pickup-portal.login');
         }
 
-        // Security: ensure the order belongs to the logged-in station
         if ((int) $order->pickup_station_id !== (int) session('portal_station_id')) {
             abort(403, 'This order does not belong to your station.');
         }

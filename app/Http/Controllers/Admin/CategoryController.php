@@ -44,7 +44,15 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $data = $this->validated($request, $category);
+
+        $wasActive = $category->is_active;
         $category->update($data);
+
+        // Cascade deactivation: when parent is deactivated, deactivate all children
+        if ($wasActive && ! $category->is_active) {
+            $category->children()->where('is_active', true)->update(['is_active' => false]);
+        }
+
         return redirect()->route('admin.categories.index')->with('success', 'Category updated.');
     }
 

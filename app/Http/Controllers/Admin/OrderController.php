@@ -83,6 +83,13 @@ class OrderController extends Controller
         return back()->with('success', 'Order marked as shipped.');
     }
 
+    public function shippingToStation(Order $order): RedirectResponse
+    {
+        $this->orders->markShippingToStation($order);
+
+        return back()->with('success', 'Order marked as shipping to station.');
+    }
+
     public function readyForPickup(Order $order): RedirectResponse
     {
         $this->orders->markReadyForPickup($order);
@@ -137,5 +144,12 @@ class OrderController extends Controller
         ]);
 
         return back()->with('success', 'Courier information saved.');
+    }
+
+    public function markPaid(Order $order): RedirectResponse
+    {
+        $this->orders->recordPayment($order, (float) $order->grand_total);
+
+        return back()->with('success', 'Order marked as paid.');
     }
 }

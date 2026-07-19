@@ -8,8 +8,6 @@ use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Throwable;
 
 class InventoryController extends Controller
@@ -43,13 +41,10 @@ class InventoryController extends Controller
     public function adjust(Request $request, Inventory $inventory): RedirectResponse
     {
         $data = $request->validate([
-            'direction' => ['required', Rule::in(['increase', 'decrease'])],
             'quantity'  => ['required', 'integer', 'min:1'],
             'reason'    => ['required', 'string', 'max:120'],
             'note'      => ['nullable', 'string', 'max:500'],
         ]);
-
-        $delta = $data['direction'] === 'increase' ? $data['quantity'] : -$data['quantity'];
 
         $variant = $inventory->variant;
         if (! $variant) {
@@ -59,7 +54,7 @@ class InventoryController extends Controller
         try {
             $this->inventory->adjustStock(
                 $variant,
-                $delta,
+                -$data['quantity'],
                 $data['reason'],
                 $data['note'] ?? null
             );
@@ -67,6 +62,6 @@ class InventoryController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Stock adjusted: '.($delta > 0 ? '+' : '').$delta.' for '.$variant->display_label.'.');
+        return back()->with('success', 'Stock decreased by '.$data['quantity'].' for '.$variant->display_label.'.');
     }
 }

@@ -35,26 +35,30 @@ class OrderStatusNotification extends Notification
         $status = $order->getStatusLabel();
 
         $subject = match ($order->status) {
-            'confirmed'       => "Order {$order->reference} confirmed",
-            'processing'      => "Order {$order->reference} is being processed",
-            'out for delivery'=> "Order {$order->reference} is on its way",
-            'ready for pick up' => "Order {$order->reference} is ready for pick up",
-            'delivered'       => "Order {$order->reference} has been delivered",
-            'cancelled'       => "Order {$order->reference} has been cancelled",
-            default           => "Update on your order {$order->reference}",
+            'confirmed'              => "Order {$order->reference} confirmed",
+            'processing'             => "Order {$order->reference} is being processed",
+            'shipping to station'    => "Order {$order->reference} is on its way to pickup station",
+            'out for delivery'       => "Order {$order->reference} is on its way",
+            'ready for pick up'      => "Order {$order->reference} is ready for pick up",
+            'delivered'              => "Order {$order->reference} has been delivered",
+            'cancelled'              => "Order {$order->reference} has been cancelled",
+            default                  => "Update on your order {$order->reference}",
         };
 
         $intro = match ($order->status) {
-            'confirmed'         => 'Your order has been confirmed and will be processed shortly.',
-            'processing'        => 'Your order is now being packed and prepared for dispatch.',
-            'out for delivery'  => "Your order is on its way! " .
-                                   ($order->courier_name ? "It's being delivered by **{$order->courier_name}**" .
-                                   ($order->tracking_number ? " (Tracking: {$order->tracking_number})" : '') . '.' : ''),
-            'ready for pick up' => "Your order is ready to be collected from **{$order->pickupStation?->name}**." .
-                                   ($order->pickupStation?->instructions ? "\n\n{$order->pickupStation->instructions}" : ''),
-            'delivered'         => 'Your order has been delivered. We hope you love your purchase!',
-            'cancelled'         => 'Your order has been cancelled. If you paid online, a refund will be processed within 5–7 working days.',
-            default             => "Your order status has been updated to **{$status}**.",
+            'confirmed'              => 'Your order has been confirmed and will be processed shortly.',
+            'processing'             => 'Your order is now being packed and prepared for dispatch.',
+            'shipping to station'    => "Your order is being shipped to **{$order->pickupStation?->name}**." .
+                                        ($order->pickupStation?->address ? "\n\nStation address: {$order->pickupStation->address}" : '') .
+                                        "\n\nEstimated arrival: " . $order->delivery_window,
+            'out for delivery'       => "Your order is on its way! " .
+                                        ($order->courier_name ? "It's being delivered by **{$order->courier_name}**" .
+                                        ($order->tracking_number ? " (Tracking: {$order->tracking_number})" : '') . '.' : ''),
+            'ready for pick up'      => "Your order is ready to be collected from **{$order->pickupStation?->name}**." .
+                                        ($order->pickupStation?->instructions ? "\n\n{$order->pickupStation->instructions}" : ''),
+            'delivered'              => 'Your order has been delivered. We hope you love your purchase!',
+            'cancelled'              => 'Your order has been cancelled. If you paid online, a refund will be processed within 5–7 working days.',
+            default                  => "Your order status has been updated to **{$status}**.",
         };
 
         $message = (new MailMessage)
