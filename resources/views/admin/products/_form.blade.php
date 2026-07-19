@@ -174,6 +174,15 @@
                         </select>
                         <input type="hidden" name="is_active" id="productIsActive" value="{{ old('status', $product->status ?? (($product->is_active ?? true) ? 'active' : 'inactive')) === 'active' ? 1 : 0 }}">
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="is_returnable" value="1" class="form-check-input"
+                                   role="switch" id="isReturnable"
+                                   {{ old('is_returnable', $product->is_returnable ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="isReturnable">Returnable</label>
+                        </div>
+                        <div class="form-text">Disable to prevent customers from requesting refunds on this product.</div>
+                    </div>
                 </div>
             </div>
 

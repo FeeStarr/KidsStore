@@ -110,6 +110,9 @@
 
     <div class="col-md-6">
         <h2 class="mb-1">{{ $product->name }}</h2>
+        @if(!($product->is_returnable ?? true))
+            <div class="mb-2"><span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable item</span></div>
+        @endif
         <div class="text-muted small mb-2">
             @if($productBrand) Brand: {{ $productBrand }} @endif
         </div>
@@ -177,11 +180,9 @@
                 @if($stock <= 0)
                     <span class="text-danger">Out of stock</span>
                 @elseif($remaining <= 0)
-                    <span class="text-warning">All {{ $stock }} in cart</span>
-                @elseif($inCart > 0)
-                    <span class="text-success">{{ $remaining }} left</span>
+                    <span class="text-warning">All in cart</span>
                 @else
-                    <span class="text-success">{{ $stock }} in stock</span>
+                    <span class="text-success">In stock</span>
                 @endif
             </small>
         </form>
@@ -189,16 +190,15 @@
             <div class="alert alert-light border small">This product has no variants yet. Please check back later.</div>
         @endif
 
-        @if((float) \App\Models\Setting::get('shipping_fee', 0) > 0)
-            <div class="mb-3 small text-muted" data-pdp="shipping-fee">
-                <i class="bi bi-truck me-1"></i>
-                Shipping: &#8358;{{ number_format((float) \App\Models\Setting::get('shipping_fee', 0), 2) }} per item
-            </div>
-        @endif
-
-        <div class="row g-2 mb-3 small text-muted">
-            <div class="col-12 col-sm-4"><i class="bi bi-shield-check me-1"></i>Secure Checkout</div>
-            <div class="col-12 col-sm-4"><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</div>
+        <div class="d-flex flex-wrap gap-3 mb-3 small text-muted align-items-center">
+            @if((float) \App\Models\Setting::get('shipping_fee', 0) > 0)
+                <span data-pdp="shipping-fee">
+                    <i class="bi bi-truck me-1"></i>
+                    Shipping: &#8358;{{ number_format((float) \App\Models\Setting::get('shipping_fee', 0), 2) }} per item
+                </span>
+            @endif
+            <span><i class="bi bi-shield-check me-1"></i>Secure Checkout</span>
+            <span><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</span>
         </div>
     </div>
 </div>
@@ -482,16 +482,13 @@
     function applyStockState(inCart, stockQty) {
         const remaining = stockQty - inCart;
 
-        // "N left" / "N in stock" / "Out of stock" label.
         if (stockEl) {
             if (stockQty <= 0) {
                 stockEl.innerHTML = '<span class="text-danger">Out of stock</span>';
             } else if (remaining <= 0) {
-                stockEl.innerHTML = '<span class="text-warning">All ' + stockQty + ' in cart</span>';
-            } else if (inCart > 0) {
-                stockEl.innerHTML = '<span class="text-success">' + remaining + ' left</span>';
+                stockEl.innerHTML = '<span class="text-warning">All in cart</span>';
             } else {
-                stockEl.innerHTML = '<span class="text-success">' + stockQty + ' in stock</span>';
+                stockEl.innerHTML = '<span class="text-success">In stock</span>';
             }
         }
 

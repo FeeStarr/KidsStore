@@ -4,8 +4,8 @@
     <h3 class="mb-0">Pickup Stations</h3>
     <div class="d-flex gap-2">
         <a href="{{ route('admin.pickup-stations.create') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg"></i> Add Station
-    </a>
+            <i class="bi bi-plus-lg"></i> Add Station
+        </a>
         <form method="post" action="{{ route('admin.pickup-stations.apply-shipping-fee') }}" class="d-flex">
             @csrf
             <input type="number" step="0.01" min="0" name="fee" class="form-control form-control-sm" placeholder="Apply fee to all">
@@ -31,7 +31,8 @@
                 <th>Phone</th>
                 <th>Fee %</th>
                 <th>Status</th>
-                <th style="width:140px"></th>
+                <th>Availability</th>
+                <th style="width:180px"></th>
             </tr>
         </thead>
         <tbody>
@@ -49,10 +50,31 @@
                             <span class="badge text-bg-secondary">Inactive</span>
                         @endif
                     </td>
+                    <td>
+                        @if($s->is_available)
+                            <span class="badge text-bg-success">Available</span>
+                        @else
+                            <span class="badge text-bg-danger" title="{{ $s->unavailability_reason }}">
+                                Unavailable
+                            </span>
+                            @if($s->unavailability_reason)
+                                <div class="small text-muted">{{ Str::limit($s->unavailability_reason, 50) }}</div>
+                            @endif
+                        @endif
+                    </td>
                     <td class="text-end">
+                        <a href="{{ route('admin.pickup-stations.items', $s) }}" class="btn btn-sm btn-outline-info" title="View Items">
+                            <i class="bi bi-box-seam"></i>
+                        </a>
                         <a href="{{ route('admin.pickup-stations.payouts', $s) }}" class="btn btn-sm btn-outline-success" title="Payouts">
                             <i class="bi bi-cash-stack"></i>
                         </a>
+                        <form method="post" action="{{ route('admin.pickup-stations.toggle-availability', $s) }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-{{ $s->is_available ? 'warning' : 'success' }}" title="{{ $s->is_available ? 'Mark Unavailable' : 'Mark Available' }}">
+                                <i class="bi bi-{{ $s->is_available ? 'pause-circle' : 'play-circle' }}"></i>
+                            </button>
+                        </form>
                         <a href="{{ route('admin.pickup-stations.edit', $s) }}" class="btn btn-sm btn-outline-secondary">
                             <i class="bi bi-pencil"></i>
                         </a>
@@ -65,7 +87,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-muted text-center py-4">No pickup stations yet. <a href="{{ route('admin.pickup-stations.create') }}">Add one</a>.</td></tr>
+                <tr><td colspan="8" class="text-muted text-center py-4">No pickup stations yet. <a href="{{ route('admin.pickup-stations.create') }}">Add one</a>.</td></tr>
             @endforelse
         </tbody>
     </table>

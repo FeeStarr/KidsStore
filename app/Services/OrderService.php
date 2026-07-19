@@ -37,7 +37,7 @@ class OrderService
      */
     public function create(array $data): Order
     {
-        return DB::transaction(function () use ($data) {
+        $order = DB::transaction(function () use ($data) {
             $order = Order::create([
                 'reference'              => $data['reference'] ?? $this->generateReference(),
                 'customer_id'            => $data['customer_id'] ?? null,
@@ -59,8 +59,8 @@ class OrderService
 
             $this->recalculateTotals($order);
 
-            // Decrease inventory for confirmed/processing/out for delivery/ready/delivered orders.
-            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+            // Decrease inventory for confirmed/processing/shipping to station/out for delivery/ready/delivered orders.
+            if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->applyInventoryDecrease($order);
             }
 
@@ -83,7 +83,7 @@ class OrderService
                 throw new RuntimeException('Cannot confirm a cancelled order.');
             }
 
-            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+            if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 return $order;
             }
 
@@ -130,11 +130,25 @@ class OrderService
         return $order->fresh();
     }
 
-    public function markReadyForPickup(Order $order): Order
+    /**
+     * Admin marks order as shipping to pickup station.
+     */
+    public function markShippingToStation(Order $order): Order
     {
         if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
             $this->confirm($order);
         }
+        $prev = $order->status;
+        $order->update(['status' => 'shipping to station']);
+        $this->notifyStatusChange($order->fresh(), $prev);
+        return $order->fresh();
+    }
+
+    /**
+     * Pickup station marks order as ready for customer pickup.
+     */
+    public function markReadyForPickup(Order $order): Order
+    {
         $prev = $order->status;
         $order->update(['status' => 'ready for pick up']);
         $this->notifyStatusChange($order->fresh(), $prev);
@@ -160,7 +174,7 @@ class OrderService
         $result = DB::transaction(function () use ($order) {
             $prev = $order->status;
 
-            if (in_array($order->status, ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+            if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
             }
             $order->update(['status' => 'cancelled']);
@@ -351,7 +365,7 @@ class OrderService
     private function notifyStatusChange(Order $order, string $previousStatus): void
     {
         // Only notify customer on meaningful status changes
-        $notifyStatuses = ['confirmed', 'processing', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled'];
+        $notifyStatuses = ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled'];
         if (! in_array($order->status, $notifyStatuses, true)) {
             return;
         }

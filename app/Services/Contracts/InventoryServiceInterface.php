@@ -31,4 +31,9 @@ interface InventoryServiceInterface
      * Current quantity of a variant.
      */
     public function currentQuantity(ProductVariant $variant): int;
+
+    /**
+     * Restore stock from a customer return.
+     */
+    public function restoreFromReturn(ProductVariant $variant, int $quantity, string $referenceType, int $referenceId, ?string $note = null): InventoryMovement;
 }

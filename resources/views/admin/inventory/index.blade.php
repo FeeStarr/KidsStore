@@ -56,7 +56,7 @@
                         <button class="btn btn-sm btn-outline-primary" title="Save reorder level"><i class="bi bi-save"></i></button>
                     </form>
                     <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#adjust-{{ $inv->id }}">
-                        <i class="bi bi-sliders"></i> Adjust
+                        <i class="bi bi-sliders"></i> Decrease
                     </button>
                 </div>
 
@@ -65,22 +65,15 @@
                         <form class="modal-content" method="post" action="{{ route('admin.inventory.adjust', $inv) }}">
                             @csrf
                             <div class="modal-header">
-                                <h5 class="modal-title"><i class="bi bi-sliders text-warning"></i> Adjust Stock — {{ $v?->display_label ?? $inv->product?->name }}</h5>
+                                <h5 class="modal-title"><i class="bi bi-dash-circle text-warning"></i> Decrease Stock — {{ $v?->display_label ?? $inv->product?->name }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <p class="text-muted small mb-3">Current quantity on hand: <strong>{{ $inv->current_quantity }}</strong></p>
                                 <div class="row g-3">
-                                    <div class="col-md-5">
-                                        <label class="form-label">Direction</label>
-                                        <select name="direction" class="form-select" required>
-                                            <option value="increase">Increase (+)</option>
-                                            <option value="decrease">Decrease (−)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-7">
-                                        <label class="form-label">Quantity</label>
-                                        <input type="number" name="quantity" min="1" class="form-control" required>
+                                    <div class="col-12">
+                                        <label class="form-label">Quantity to remove</label>
+                                        <input type="number" name="quantity" min="1" max="{{ $inv->current_quantity }}" class="form-control" required>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">Reason</label>
@@ -90,8 +83,6 @@
                                             <option>Damaged / breakage</option>
                                             <option>Lost / theft</option>
                                             <option>Returned to supplier</option>
-                                            <option>Customer return (restock)</option>
-                                            <option>Initial stock load</option>
                                             <option>Other</option>
                                         </select>
                                     </div>
@@ -103,7 +94,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button class="btn btn-warning"><i class="bi bi-check2-circle"></i> Apply Adjustment</button>
+                                <button class="btn btn-warning"><i class="bi bi-check2-circle"></i> Apply Decrease</button>
                             </div>
                         </form>
                     </div>
@@ -114,7 +105,7 @@
     </tbody>
 </table>
 </div></div>
-<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Stock changes via <strong>Purchases</strong> (in) and <strong>Orders</strong> (out). Use <strong>Adjust</strong> for stock-take corrections, damages, or returns — every adjustment is logged with a reason.</p>
+<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Stock increases only through <strong>Purchases</strong>. Stock decreases through <strong>Orders</strong>. Use <strong>Decrease</strong> for corrections, damages, or write-offs — every adjustment is logged with a reason.</p>
 
 @push('scripts')
 <script>

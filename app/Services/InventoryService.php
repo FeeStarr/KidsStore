@@ -118,11 +118,34 @@ class InventoryService implements InventoryServiceInterface
         return (int) ($variant->inventory()->value('quantity') ?? 0);
     }
 
+    public function restoreFromReturn(
+        ProductVariant $variant,
+        int $quantity,
+        string $referenceType,
+        int $referenceId,
+        ?string $note = null
+    ): InventoryMovement {
+        if ($quantity <= 0) {
+            throw new InvalidArgumentException('Return quantity must be positive.');
+        }
+
+        return DB::transaction(function () use ($variant, $quantity, $referenceType, $referenceId, $note) {
+            $inventory = $this->lockInventory($variant);
+            $inventory->quantity += $quantity;
+            $inventory->save();
+
+            $this->refreshProductStock($variant->product_id);
+
+            return $this->recordMovement($variant, 'return', $quantity, $referenceType, $referenceId, $note);
+        });
+    }
+
     public function adjustStock(ProductVariant $variant, int $delta, string $reason, ?string $note = null): InventoryMovement
     {
-        if ($delta === 0) {
-            throw new InvalidArgumentException('Adjustment delta cannot be zero.');
+        if ($delta >= 0) {
+            throw new InvalidArgumentException('Stock increases are only allowed through purchases.');
         }
+
         $reason = trim($reason);
         if ($reason === '') {
             throw new InvalidArgumentException('A reason is required for stock adjustments.');

@@ -13,6 +13,7 @@ class Order extends Model
     public const STATUS_PENDING_CONFIRMATION = 'pending confirmation';
     public const STATUS_CONFIRMED            = 'confirmed';
     public const STATUS_PROCESSING           = 'processing';
+    public const STATUS_SHIPPING_TO_STATION  = 'shipping to station';
     public const STATUS_OUT_FOR_DELIVERY     = 'out for delivery';
     public const STATUS_READY_FOR_PICKUP     = 'ready for pick up';
     public const STATUS_DELIVERED            = 'delivered';
@@ -97,6 +98,7 @@ class Order extends Model
             self::STATUS_PENDING_CONFIRMATION,
             self::STATUS_CONFIRMED,
             self::STATUS_PROCESSING,
+            self::STATUS_SHIPPING_TO_STATION,
             self::STATUS_OUT_FOR_DELIVERY,
             self::STATUS_READY_FOR_PICKUP,
             self::STATUS_DELIVERED,
@@ -130,6 +132,7 @@ class Order extends Model
             self::STATUS_PENDING_CONFIRMATION => 'Pending Confirmation',
             self::STATUS_CONFIRMED            => 'Confirmed',
             self::STATUS_PROCESSING           => 'Processing',
+            self::STATUS_SHIPPING_TO_STATION  => 'Shipping to Station',
             self::STATUS_OUT_FOR_DELIVERY     => 'Out for Delivery',
             self::STATUS_READY_FOR_PICKUP     => 'Ready for Pick Up',
             self::STATUS_DELIVERED            => 'Delivered',

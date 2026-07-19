@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\RefundRequest;
+use App\Models\ReturnAuditLog;
 use App\Models\User;
 use App\Notifications\RefundStatusNotification;
 use Illuminate\Http\UploadedFile;
@@ -15,17 +16,20 @@ use Illuminate\Support\Facades\Storage;
 class RefundService
 {
     private const EVIDENCE_DIR = 'refund-evidence';
+    private const EVIDENCE_VIDEO_DIR = 'refund-evidence/videos';
 
-    public function __construct(private OPayService $opay)
-    {
+    public function __construct(
+        private OPayService $opay,
+        private InventoryService $inventory,
+    ) {
     }
 
     // ── Customer submits request ──────────────────────────────────────────────
 
     /**
-     * Create a refund request for a full order or a specific item.
+     * Create a return request for a full order or a specific item.
      *
-     * @throws \RuntimeException if outside refund window or already requested
+     * @throws \RuntimeException if validation fails
      */
     public function request(
         Order        $order,
@@ -40,43 +44,51 @@ class RefundService
             throw new \RuntimeException('Refunds can only be requested for delivered orders.');
         }
 
-        // Policy: within 7 days of becoming delivered (we use updated_at as delivery date proxy)
+        // Policy: within return window
         $window = RefundRequest::REFUND_WINDOW_DAYS;
         if ($order->updated_at->diffInDays(now()) > $window) {
-            throw new \RuntimeException("Refund window of {$window} days has passed.");
+            throw new \RuntimeException("Return window of {$window} days has passed.");
         }
 
-        // Policy: no duplicate pending/approved request for the same scope
+        // Policy: non-returnable items cannot be refunded
+        if ($item && $item->product && ! $item->product->is_returnable) {
+            throw new \RuntimeException('This product is not eligible for returns or refunds.');
+        }
+
+        if (! $item) {
+            $allNonReturnable = $order->items()
+                ->with('product')
+                ->get()
+                ->every(fn ($i) => $i->product && ! $i->product->is_returnable);
+            if ($allNonReturnable && $order->items->isNotEmpty()) {
+                throw new \RuntimeException('None of the items in this order are eligible for returns or refunds.');
+            }
+        }
+
+        // Policy: no duplicate active request for the same scope
         $existingQuery = $order->refundRequests()
-            ->whereIn('status', [RefundRequest::STATUS_PENDING, RefundRequest::STATUS_APPROVED]);
+            ->whereIn('status', RefundRequest::ACTIVE_STATUSES);
         if ($item) {
             $existingQuery->where('order_item_id', $item->id);
         } else {
             $existingQuery->whereNull('order_item_id');
         }
         if ($existingQuery->exists()) {
-            throw new \RuntimeException('A refund request for this item is already pending.');
+            throw new \RuntimeException('A return request for this item is already in progress.');
         }
 
         $itemPrice = $item
             ? round((float) $item->unit_price * (1 - (float) $item->discount / 100) * $quantity, 2)
             : (float) $order->amount_paid;
 
-        // Reasons that qualify for shipping fee refund (product issues from our side)
-        $shippingRefundReasons = ['wrong_item', 'damaged', 'not_received'];
-        $includeShipping = in_array($reason, $shippingRefundReasons);
+        $includeShipping = in_array($reason, RefundRequest::SHIPPING_REFUND_REASONS);
 
         if ($item && $includeShipping) {
-            // Item-level refund: add shipping fee for the returned quantity (after discount)
             $shippingRefundBeforeDiscount = (float) $order->shipping_fee * $quantity;
             $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
             $shippingRefund = $shippingRefundBeforeDiscount * (1 - $shippingDiscountPct / 100);
             $amount = round($itemPrice + $shippingRefund, 2);
-        } elseif (! $item && $includeShipping) {
-            // Full order refund: shipping fee is already included in amount_paid
-            $amount = $itemPrice;
         } else {
-            // Changed mind or other: no shipping fee refund
             $amount = $itemPrice;
         }
 
@@ -85,22 +97,104 @@ class RefundService
             $evidencePath = $evidence->store(self::EVIDENCE_DIR, 'public');
         }
 
-        return RefundRequest::create([
+        // Determine initial status based on evidence requirements
+        $evidenceRules = RefundRequest::EVIDENCE_RULES[$reason] ?? [];
+        $photosRequired = ($evidenceRules['photos'] ?? 'optional') === 'required';
+        $commentsRequired = ($evidenceRules['comments'] ?? 'optional') === 'required';
+        $hasEvidence = $evidencePath !== null;
+        $hasComments = trim((string) $details) !== '';
+
+        // If mandatory evidence is missing, set to awaiting_evidence
+        if ($photosRequired && ! $hasEvidence) {
+            $initialStatus = RefundRequest::STATUS_AWAITING_EVIDENCE;
+        } elseif ($commentsRequired && ! $hasComments) {
+            $initialStatus = RefundRequest::STATUS_AWAITING_EVIDENCE;
+        } else {
+            $initialStatus = RefundRequest::STATUS_REQUESTED;
+        }
+
+        $refund = RefundRequest::create([
             'order_id'      => $order->id,
             'order_item_id' => $item?->id,
             'quantity'      => $quantity,
             'amount'        => $amount,
-            'status'        => RefundRequest::STATUS_PENDING,
+            'status'        => $initialStatus,
             'reason'        => $reason,
             'details'       => $details,
             'evidence_path' => $evidencePath,
         ]);
+
+        $this->logAudit($refund, 'requested', null, "Reason: {$reason}", [
+            'scope' => $item ? 'item' : 'full',
+            'quantity' => $quantity,
+            'initial_status' => $initialStatus,
+        ]);
+
+        return $refund;
+    }
+
+    // ── Customer uploads additional evidence ──────────────────────────────────
+
+    /**
+     * Upload additional evidence for a return request that is awaiting evidence.
+     */
+    public function uploadEvidence(
+        RefundRequest $refundRequest,
+        ?UploadedFile $photo = null,
+        ?UploadedFile $video = null,
+        ?string       $details = null
+    ): RefundRequest {
+        if ($refundRequest->status !== RefundRequest::STATUS_AWAITING_EVIDENCE) {
+            throw new \RuntimeException('This request is not awaiting evidence.');
+        }
+
+        $updates = ['status' => RefundRequest::STATUS_REQUESTED];
+
+        if ($photo) {
+            $updates['evidence_path'] = $photo->store(self::EVIDENCE_DIR, 'public');
+        }
+
+        if ($video) {
+            $updates['evidence_video_path'] = $video->store(self::EVIDENCE_VIDEO_DIR, 'public');
+        }
+
+        if ($details !== null) {
+            $updates['details'] = $details;
+        }
+
+        $refundRequest->update($updates);
+        $this->logAudit($refundRequest, 'evidence_uploaded', null, 'Additional evidence uploaded');
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Admin: request evidence ───────────────────────────────────────────────
+
+    /**
+     * Admin requests additional evidence from customer.
+     */
+    public function requestEvidence(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
+    {
+        if (! $refundRequest->isPending()) {
+            throw new \RuntimeException('Only pending requests can have evidence requested.');
+        }
+
+        $refundRequest->update([
+            'status'     => RefundRequest::STATUS_AWAITING_EVIDENCE,
+            'admin_note' => $note,
+        ]);
+
+        $this->logAudit($refundRequest, 'evidence_requested', $admin->id, $note);
+        $this->notifyCustomer($refundRequest->refresh());
+
+        return $refundRequest->refresh();
     }
 
     // ── Admin approves ────────────────────────────────────────────────────────
 
     /**
-     * Approve and process the refund via OPay.
+     * Approve the return request. This moves to approved status.
+     * Stock is NOT restored yet — that happens when the item is received.
      */
     public function approve(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
     {
@@ -108,64 +202,17 @@ class RefundService
             throw new \RuntimeException('Only pending requests can be approved.');
         }
 
-        // Find the original OPay transaction for this order
-        $transaction = $refundRequest->order->paymentTransactions()
-            ->where('status', 'success')
-            ->latest()
-            ->first();
+        $refundRequest->update([
+            'status'      => RefundRequest::STATUS_APPROVED,
+            'admin_note'  => $note,
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+        ]);
 
-        return DB::transaction(function () use ($refundRequest, $admin, $note, $transaction) {
-            $refundRequest->update([
-                'status'      => RefundRequest::STATUS_APPROVED,
-                'admin_note'  => $note,
-                'reviewed_by' => $admin->id,
-                'reviewed_at' => now(),
-            ]);
-
-            // Attempt OPay refund if we have a transaction
-            if ($transaction?->opay_order_no) {
-                try {
-                    $result = $this->opay->refund(
-                        $transaction->opay_order_no,
-                        $refundRequest->amount,
-                        $refundRequest->order->reference . '-R' . $refundRequest->id
-                    );
-
-                    $opayStatus = strtoupper($result['code'] ?? '');
-                    $success    = $opayStatus === '00000';
-
-                    $refundRequest->update([
-                        'status'        => $success ? RefundRequest::STATUS_REFUNDED : RefundRequest::STATUS_FAILED,
-                        'opay_refund_no'=> $result['data']['refundOrderNo'] ?? null,
-                        'opay_payload'  => $result,
-                    ]);
-
-                    // Update order payment status on full refund
-                    if ($success && ! $refundRequest->order_item_id) {
-                        $refundRequest->order->update(['payment_status' => 'refunded']);
-                    }
-                } catch (\Throwable $e) {
-                    Log::error('OPay refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
-                    $refundRequest->update(['status' => RefundRequest::STATUS_FAILED]);
-                }
-            } else {
-                // No OPay transaction (e.g. cash payment) — mark as refunded manually
-                $refundRequest->update([
-                    'status' => RefundRequest::STATUS_REFUNDED,
-                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund — no OPay transaction]',
-                ]);
-                if (! $refundRequest->order_item_id) {
-                    $refundRequest->order->update(['payment_status' => 'refunded']);
-                }
-            }
-
-            return $refundRequest->refresh();
-        });
-
-        // Notify customer outside transaction
+        $this->logAudit($refundRequest, 'approved', $admin->id, $note);
         $this->notifyCustomer($refundRequest->refresh());
 
-        return $refundRequest;
+        return $refundRequest->refresh();
     }
 
     // ── Admin rejects ─────────────────────────────────────────────────────────
@@ -183,9 +230,197 @@ class RefundService
             'reviewed_at' => now(),
         ]);
 
+        $this->logAudit($refundRequest, 'rejected', $admin->id, $note);
         $this->notifyCustomer($refundRequest->refresh());
 
         return $refundRequest->refresh();
+    }
+
+    // ── Admin marks item received ─────────────────────────────────────────────
+
+    /**
+     * Mark the returned item as received. Triggers stock restoration.
+     */
+    public function markReceived(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
+    {
+        $validStatuses = [
+            RefundRequest::STATUS_AWAITING_SHIPMENT,
+            RefundRequest::STATUS_IN_TRANSIT,
+            RefundRequest::STATUS_APPROVED,
+        ];
+        if (! in_array($refundRequest->status, $validStatuses, true)) {
+            throw new \RuntimeException('Cannot mark as received from current status.');
+        }
+
+        $refundRequest->update([
+            'status' => RefundRequest::STATUS_RECEIVED,
+        ]);
+
+        // Restore stock when item is received
+        $this->restoreStock($refundRequest);
+
+        $this->logAudit($refundRequest, 'item_received', $admin->id, $note);
+        $this->notifyCustomer($refundRequest->refresh());
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Admin: complete inspection ────────────────────────────────────────────
+
+    /**
+     * Complete inspection and move to refund approved or replacement approved.
+     */
+    public function inspect(
+        RefundRequest $refundRequest,
+        User          $admin,
+        string        $outcome, // 'refund' or 'replacement'
+        ?string       $notes = null
+    ): RefundRequest {
+        if ($refundRequest->status !== RefundRequest::STATUS_RECEIVED) {
+            throw new \RuntimeException('Item must be received before inspection.');
+        }
+
+        $newStatus = $outcome === 'replacement'
+            ? RefundRequest::STATUS_REPLACEMENT_APPROVED
+            : RefundRequest::STATUS_REFUND_APPROVED;
+
+        $refundRequest->update([
+            'status'           => $newStatus,
+            'inspection_notes' => $notes,
+            'inspected_by'     => $admin->id,
+            'inspected_at'     => now(),
+        ]);
+
+        $this->logAudit($refundRequest, 'inspection_completed', $admin->id, "Outcome: {$outcome}. {$notes}");
+        $this->notifyCustomer($refundRequest->refresh());
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Admin: process refund ─────────────────────────────────────────────────
+
+    /**
+     * Process the actual refund via OPay after inspection approval.
+     */
+    public function processRefund(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_APPROVED) {
+            throw new \RuntimeException('Only inspection-approved refunds can be processed.');
+        }
+
+        $transaction = $refundRequest->order->paymentTransactions()
+            ->where('status', 'success')
+            ->latest()
+            ->first();
+
+        $result = DB::transaction(function () use ($refundRequest, $admin, $note, $transaction) {
+            $refundRequest->update([
+                'status'     => RefundRequest::STATUS_REFUND_PROCESSING,
+                'admin_note' => $note,
+            ]);
+
+            $this->logAudit($refundRequest, 'refund_processing', $admin->id, $note);
+
+            if ($transaction?->opay_order_no) {
+                try {
+                    $opResult = $this->opay->refund(
+                        $transaction->opay_order_no,
+                        $refundRequest->amount,
+                        $refundRequest->order->reference . '-R' . $refundRequest->id
+                    );
+
+                    $opayStatus = strtoupper($opResult['code'] ?? '');
+                    $success = $opayStatus === '00000';
+
+                    $refundRequest->update([
+                        'status'         => $success ? RefundRequest::STATUS_REFUNDED : RefundRequest::STATUS_REFUND_FAILED,
+                        'opay_refund_no' => $opResult['data']['refundOrderNo'] ?? null,
+                        'opay_payload'   => $opResult,
+                    ]);
+
+                    $this->logAudit($refundRequest, $success ? 'refund_completed' : 'refund_failed', $admin->id);
+
+                    if ($success && ! $refundRequest->order_item_id) {
+                        $refundRequest->order->update(['payment_status' => 'refunded']);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('OPay refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+                    $refundRequest->update(['status' => RefundRequest::STATUS_REFUND_FAILED]);
+                    $this->logAudit($refundRequest, 'refund_failed', $admin->id, $e->getMessage());
+                }
+            } else {
+                $refundRequest->update([
+                    'status'     => RefundRequest::STATUS_REFUNDED,
+                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund — no OPay transaction]',
+                ]);
+                $this->logAudit($refundRequest, 'refund_completed', $admin->id, 'Manual refund');
+                if (! $refundRequest->order_item_id) {
+                    $refundRequest->order->update(['payment_status' => 'refunded']);
+                }
+            }
+
+            return $refundRequest->refresh();
+        });
+
+        $this->notifyCustomer($result);
+
+        return $result;
+    }
+
+    // ── Customer cancels ──────────────────────────────────────────────────────
+
+    /**
+     * Customer cancels their return request (only if still pending).
+     */
+    public function cancel(RefundRequest $refundRequest, User $customer): RefundRequest
+    {
+        $cancellableStatuses = [
+            RefundRequest::STATUS_REQUESTED,
+            RefundRequest::STATUS_PENDING_REVIEW,
+            RefundRequest::STATUS_AWAITING_EVIDENCE,
+        ];
+        if (! in_array($refundRequest->status, $cancellableStatuses, true)) {
+            throw new \RuntimeException('This return request cannot be cancelled.');
+        }
+
+        $refundRequest->update(['status' => RefundRequest::STATUS_CANCELLED]);
+        $this->logAudit($refundRequest, 'cancelled', $customer->id, 'Cancelled by customer');
+        $this->notifyCustomer($refundRequest->refresh());
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private function restoreStock(RefundRequest $refundRequest): void
+    {
+        $order = $refundRequest->order;
+        $quantity = $refundRequest->quantity ?? 1;
+
+        if ($refundRequest->order_item_id) {
+            $item = $refundRequest->orderItem;
+            if ($item && $item->variant) {
+                $this->inventory->restoreFromReturn(
+                    $item->variant,
+                    $quantity,
+                    RefundRequest::class,
+                    $refundRequest->id,
+                    "Return: {$refundRequest->reason}"
+                );
+            }
+        } else {
+            foreach ($order->items as $item) {
+                if ($item->variant) {
+                    $this->inventory->restoreFromReturn(
+                        $item->variant,
+                        $item->quantity,
+                        RefundRequest::class,
+                        $refundRequest->id,
+                        "Full order return: {$refundRequest->reason}"
+                    );
+                }
+            }
+        }
     }
 
     private function notifyCustomer(RefundRequest $refundRequest): void
@@ -197,6 +432,21 @@ class RefundService
             }
         } catch (\Throwable $e) {
             Log::error('RefundStatus notification failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+        }
+    }
+
+    private function logAudit(RefundRequest $refundRequest, string $action, ?int $userId, ?string $details = null, ?array $metadata = null): void
+    {
+        try {
+            ReturnAuditLog::create([
+                'refund_request_id' => $refundRequest->id,
+                'action'            => $action,
+                'user_id'           => $userId,
+                'details'           => $details,
+                'metadata'          => $metadata,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Return audit log failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
         }
     }
 }

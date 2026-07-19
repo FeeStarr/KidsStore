@@ -42,6 +42,7 @@ class ProductRequest extends FormRequest
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'discount'      => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active'     => ['nullable', 'boolean'],
+            'is_returnable' => ['nullable', 'boolean'],
 
             'delete_images'   => ['nullable', 'array'],
             'delete_images.*' => ['integer', 'exists:product_images,id'],
@@ -52,6 +53,7 @@ class ProductRequest extends FormRequest
     {
         $this->merge([
             'is_active' => $this->boolean('is_active', true),
+            'is_returnable' => $this->boolean('is_returnable', true),
             'discount'  => $this->input('discount', 0),
             'selling_price' => $this->filled('selling_price') ? $this->input('selling_price') : 0,
             'status' => $this->input('status', $this->boolean('is_active', true) ? 'active' : 'inactive'),

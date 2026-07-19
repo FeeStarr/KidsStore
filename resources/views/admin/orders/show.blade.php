@@ -49,8 +49,18 @@
             </form>
         @endif
 
-        {{-- processing + pickup → ready for pick up --}}
+        {{-- processing + pickup → shipping to station --}}
         @if($s === 'processing' && $isPickup)
+            <form action="{{ route('admin.orders.shipping-to-station', $order) }}" method="post">
+                @csrf
+                <button class="btn btn-info">
+                    <i class="bi bi-truck me-1"></i>Ship to Station
+                </button>
+            </form>
+        @endif
+
+        {{-- shipping to station + pickup → ready for pick up --}}
+        @if($s === 'shipping to station' && $isPickup)
             <form action="{{ route('admin.orders.ready-for-pickup', $order) }}" method="post">
                 @csrf
                 <button class="btn btn-warning">
@@ -72,7 +82,7 @@
         {{-- cancel (any non-terminal state) --}}
         @if(! in_array($s, ['delivered', 'cancelled']))
             <form action="{{ route('admin.orders.cancel', $order) }}" method="post"
-                  data-confirm="This will cancel the order{{ in_array($s, ['confirmed','processing','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
+                  data-confirm="This will cancel the order{{ in_array($s, ['confirmed','processing','shipping to station','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
                   data-confirm-title="Cancel Order?" data-confirm-yes="Yes, cancel">
                 @csrf
                 <button class="btn btn-outline-danger">
@@ -134,19 +144,25 @@
                         @endforeach
                     </dd>
                 @else
-                    @if($order->pickupStation->bank_account_number || $order->pickupStation->bank_name)
+                    @php $stationAccounts = $order->pickupStation->bankAccounts ?? collect(); @endphp
+                    @if($stationAccounts->isNotEmpty())
                         <dt class="col-4">Pickup Payment</dt>
                         <dd class="col-8">
-                            @if($order->pickupStation->bank_name)<div><strong>Bank:</strong> {{ $order->pickupStation->bank_name }}</div>@endif
-                            @if($order->pickupStation->bank_account_name)<div><strong>Account name:</strong> {{ $order->pickupStation->bank_account_name }}</div>@endif
-                            @if($order->pickupStation->bank_account_number)
-                                <div>
-                                    <strong>Account no:</strong>
-                                    <span class="font-monospace">{{ $order->pickupStation->bank_account_number }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $order->pickupStation->bank_account_number }}')">Copy</button>
+                            @foreach($stationAccounts as $ba)
+                                <div class="mb-2">
+                                    @if($ba->bank_name)<div><strong>Bank:</strong> {{ $ba->bank_name }}</div>@endif
+                                    @if($ba->bank_account_name)<div><strong>Account name:</strong> {{ $ba->bank_account_name }}</div>@endif
+                                    @if($ba->bank_account_number)
+                                        <div>
+                                            <strong>Account no:</strong>
+                                            <span class="font-monospace">{{ $ba->bank_account_number }}</span>
+                                            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $ba->bank_account_number }}')">Copy</button>
+                                            @if($ba->is_default)<span class="badge bg-primary ms-2">Default</span>@endif
+                                        </div>
+                                    @endif
+                                    @if($ba->instructions)<div class="text-muted small">{{ $ba->instructions }}</div>@endif
                                 </div>
-                            @endif
-                            @if($order->pickupStation->bank_instructions)<div class="text-muted small">{{ $order->pickupStation->bank_instructions }}</div>@endif
+                            @endforeach
                         </dd>
                     @endif
                 @endif
@@ -276,7 +292,7 @@
             <td>{{ $p->reference }}</td>
             <td>{{ $p->payment_date->format('Y-m-d') }}</td>
             <td>{{ $p->method }}</td>
-            <td>{{ $p->transaction_id ?? 'â€”' }}</td>
+            <td>{{ $p->transaction_id ?? '—' }}</td>
             <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
         </tr>
     @empty

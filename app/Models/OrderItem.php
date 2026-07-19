@@ -11,7 +11,8 @@ class OrderItem extends Model
         'order_id', 'product_id', 'product_variant_id', 'quantity',
         'unit_price', 'landed_unit_cost', 'discount', 'line_total',
         'selected_age_group', 'selected_size',
-        'pickup_station_fee',
+        'pickup_station_fee', 'pickup_station_fee_paid', 'pickup_station_fee_paid_at',
+        'pickup_status', 'pickup_status_changed_at',
     ];
 
     protected $casts = [
@@ -21,6 +22,9 @@ class OrderItem extends Model
         'discount' => 'decimal:2',
         'line_total' => 'decimal:2',
         'pickup_station_fee' => 'decimal:2',
+        'pickup_station_fee_paid' => 'boolean',
+        'pickup_station_fee_paid_at' => 'datetime',
+        'pickup_status_changed_at' => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -36,5 +40,42 @@ class OrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->pickup_status ?? 'pending'));
+    }
+
+    public function isPending(): bool
+    {
+        return $this->pickup_status === 'pending';
+    }
+
+    public function isReceived(): bool
+    {
+        return $this->pickup_status === 'received';
+    }
+
+    public function isReady(): bool
+    {
+        return $this->pickup_status === 'ready for pickup';
+    }
+
+    public function isPickedUp(): bool
+    {
+        return $this->pickup_status === 'picked_up';
+    }
+
+    /**
+     * Commission amount for this item (10% of line_total — discounted price).
+     * Only calculated when item is picked_up.
+     */
+    public function getCommissionAttribute(): float
+    {
+        if (! $this->isPickedUp()) {
+            return 0.0;
+        }
+        return round((float) $this->line_total * 0.10, 2);
     }
 }

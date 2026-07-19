@@ -1,8 +1,8 @@
-@extends('layouts.admin', ['title' => 'Refund Requests'])
+@extends('layouts.admin', ['title' => 'Return Requests'])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Refund Requests
+    <h3 class="mb-0">Return Requests
         @if($pending)
             <span class="badge bg-danger ms-2">{{ $pending }} pending</span>
         @endif
@@ -31,12 +31,15 @@
         @foreach($requests as $r)
             @php
                 $badge = match($r->status) {
-                    'pending'  => 'bg-warning text-dark',
-                    'approved' => 'bg-primary',
-                    'refunded' => 'bg-success',
-                    'rejected' => 'bg-danger',
-                    'failed'   => 'bg-dark',
-                    default    => 'bg-secondary',
+                    'requested', 'pending_review'    => 'bg-warning text-dark',
+                    'awaiting_evidence'              => 'bg-warning text-dark',
+                    'approved', 'awaiting_shipment', 'in_transit' => 'bg-primary',
+                    'received', 'inspection'         => 'bg-secondary',
+                    'refund_approved', 'refund_processing' => 'bg-info',
+                    'refunded', 'completed', 'replacement_delivered' => 'bg-success',
+                    'rejected', 'cancelled'          => 'bg-danger',
+                    'refund_failed'                  => 'bg-dark',
+                    default                          => 'bg-secondary',
                 };
             @endphp
             <tr>
@@ -48,7 +51,7 @@
                 <td class="small">{{ $r->getScopeLabel() }}</td>
                 <td class="small">{{ $r->reason_label }}</td>
                 <td class="text-end">₦{{ number_format($r->amount, 2) }}</td>
-                <td><span class="badge {{ $badge }}">{{ ucfirst($r->status) }}</span></td>
+                <td><span class="badge {{ $badge }}">{{ ucfirst(str_replace('_', ' ', $r->status)) }}</span></td>
                 <td data-order="{{ $r->created_at->timestamp }}" class="small text-muted">
                     {{ $r->created_at->format('M d, Y') }}
                 </td>
@@ -71,8 +74,8 @@ $(function () {
         layout: {
             topStart: {
                 buttons: [
-                    { extend: 'csv',   className: 'btn btn-sm btn-success',   filename: 'refund-requests', exportOptions: { columns: ':not([data-dt-no-export])' } },
-                    { extend: 'excel', className: 'btn btn-sm btn-success',   filename: 'refund-requests', exportOptions: { columns: ':not([data-dt-no-export])' } },
+                    { extend: 'csv',   className: 'btn btn-sm btn-success',   filename: 'return-requests', exportOptions: { columns: ':not([data-dt-no-export])' } },
+                    { extend: 'excel', className: 'btn btn-sm btn-success',   filename: 'return-requests', exportOptions: { columns: ':not([data-dt-no-export])' } },
                     { extend: 'print', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':not([data-dt-no-export])' } }
                 ]
             },
