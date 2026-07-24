@@ -198,7 +198,6 @@
                 </span>
             @endif
             <span><i class="bi bi-shield-check me-1"></i>Secure Checkout</span>
-            <span><i class="bi bi-arrow-counterclockwise me-1"></i>Easy Returns</span>
         </div>
     </div>
 </div>

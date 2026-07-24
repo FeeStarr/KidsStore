@@ -69,8 +69,11 @@
                             <span class="badge bg-danger ms-1">{{ $unreadCount }}</span>
                         @endif
                     </a>
+                    <a href="{{ route('admin.return-policy.edit') }}" class="{{ $r==='admin.return-policy.edit' ? 'active':'' }}"><i class="bi bi-arrow-counterclockwise"></i> Return Policy</a>
+                    <a href="{{ route('admin.privacy-policy.edit') }}" class="{{ $r==='admin.privacy-policy.edit' ? 'active':'' }}"><i class="bi bi-shield-lock"></i> Privacy Policy</a>
                     @if(auth()->user()->hasPermission('manage_settings'))
                         <a href="{{ route('admin.settings.edit') }}" class="{{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
+                        <a href="{{ route('admin.bank-accounts.index') }}" class="{{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
                     @endif
                     <hr class="my-3">
                     <form method="post" action="{{ route('admin.logout') }}" class="px-2">

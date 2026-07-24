@@ -6,7 +6,9 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PickupStation;
 use App\Models\PickupPayout;
+use App\Notifications\OrderReadyForPickupNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PickupStationService
@@ -49,6 +51,9 @@ class PickupStationService
             'pickup_status' => 'ready for pickup',
             'pickup_status_changed_at' => now(),
         ]);
+
+        // Notify customer when their order items are ready for pickup
+        $this->notifyReadyForPickup($item->order);
 
         return $item->fresh();
     }
@@ -122,7 +127,7 @@ class PickupStationService
         $items = OrderItem::whereHas('order', function ($q) use ($stationId) {
             $q->where('pickup_station_id', $stationId);
         })
-        ->with(['order', 'product', 'variant'])
+        ->with(['order.customer', 'order.pickupStation', 'product', 'variant'])
         ->get();
 
         return [
@@ -239,6 +244,35 @@ class PickupStationService
         ]);
 
         return $station->fresh();
+    }
+
+    /**
+     * Notify customer that their order is ready for pickup.
+     * Only sends once per order (deduplicates if multiple items become ready).
+     */
+    private function notifyReadyForPickup(Order $order): void
+    {
+        try {
+            // Only notify if ALL items in the order are ready or already picked up
+            // (so customer gets one notification when the order is fully ready)
+            $pendingItems = $order->items()
+                ->whereIn('pickup_status', ['pending', 'received'])
+                ->count();
+
+            if ($pendingItems > 0) {
+                return; // Not all items ready yet
+            }
+
+            $customer = $order->customer;
+            if ($customer) {
+                $customer->notify(new OrderReadyForPickupNotification($order));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Ready for pickup notification failed', [
+                'error' => $e->getMessage(),
+                'order' => $order->reference,
+            ]);
+        }
     }
 
     /**

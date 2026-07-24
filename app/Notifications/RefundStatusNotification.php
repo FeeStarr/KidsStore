@@ -84,6 +84,11 @@ class RefundStatusNotification extends Notification
                 "Your return request has been **cancelled**.",
                 "If this was a mistake, you can submit a new request within the return window.",
             ],
+            RefundRequest::STATUS_RETURN_COLLECTED => [
+                "Return item collected — {$order->reference}",
+                "The returned item for _{$scope}_ has been **collected at the pickup station**.",
+                "Our team will inspect the item and process your **{$amount}** refund shortly.",
+            ],
             default => [
                 "Return update — {$order->reference}",
                 "Your return request has been updated.",

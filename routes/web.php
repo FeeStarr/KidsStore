@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\PasswordResetController as AdminPasswordResetController;
 use App\Http\Controllers\Admin\AboutController as AdminAboutController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
+use App\Http\Controllers\Admin\ReturnPolicyController as AdminReturnPolicyController;
+use App\Http\Controllers\Admin\PrivacyPolicyController as AdminPrivacyPolicyController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\InventoryController;
@@ -21,6 +23,8 @@ use App\Http\Controllers\PickupPortalController;
 use App\Http\Controllers\OPayController;
 use App\Http\Controllers\Shop\AboutController as ShopAboutController;
 use App\Http\Controllers\Shop\ContactController as ShopContactController;
+use App\Http\Controllers\Shop\ReturnPolicyController as ShopReturnPolicyController;
+use App\Http\Controllers\Shop\PrivacyPolicyController as ShopPrivacyPolicyController;
 use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\AuthController as ShopAuthController;
 use App\Http\Controllers\Shop\PasswordResetController as ShopPasswordResetController;
@@ -41,6 +45,8 @@ Route::name('shop.')->group(function () {
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/about', [ShopAboutController::class, 'show'])->name('about');
     Route::get('/contact', [ShopContactController::class, 'show'])->name('contact');
+    Route::get('/return-policy', [ShopReturnPolicyController::class, 'show'])->name('return-policy');
+    Route::get('/privacy-policy', [ShopPrivacyPolicyController::class, 'show'])->name('privacy-policy');
     Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send');
     Route::get('/shop', [ShopController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('products.show');
@@ -133,6 +139,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('contact/messages', [AdminContactController::class, 'messages'])->name('contact.messages');
         Route::get('contact/messages/{message}', [AdminContactController::class, 'showMessage'])->name('contact.messages.show');
         Route::delete('contact/messages/{message}', [AdminContactController::class, 'destroyMessage'])->name('contact.messages.destroy');
+
+        Route::get('return-policy', [AdminReturnPolicyController::class, 'edit'])->name('return-policy.edit');
+        Route::put('return-policy', [AdminReturnPolicyController::class, 'update'])->name('return-policy.update');
+
+        Route::get('privacy-policy', [AdminPrivacyPolicyController::class, 'edit'])->name('privacy-policy.edit');
+        Route::put('privacy-policy', [AdminPrivacyPolicyController::class, 'update'])->name('privacy-policy.update');
 
         Route::resource('products', ProductController::class)->middleware('permission:manage_products');
         Route::post('products/{product}/images/{imageId}/primary', [ProductController::class, 'setPrimaryImage'])
@@ -278,5 +290,9 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         // Picked up DataTable + export
         Route::get('/picked-up/data', [PickupPortalController::class, 'pickedUpData'])->name('picked-up.data');
         Route::get('/picked-up/export', [PickupPortalController::class, 'pickedUpExport'])->name('picked-up.export');
+
+        // Return collection routes
+        Route::get('/returns/{refundRequest}', [PickupPortalController::class, 'returnDetails'])->name('returns.show');
+        Route::post('/returns/{refundRequest}/collect', [PickupPortalController::class, 'collectReturn'])->name('returns.collect');
     });
 });

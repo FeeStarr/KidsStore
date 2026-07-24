@@ -68,12 +68,25 @@ class CartController extends Controller
             'line_key' => ['nullable', 'string', 'max:120'],
         ]);
 
+        $newQty = (int) $data['quantity'];
+        $variantStock = (int) ($variant->inventory?->quantity ?? 0);
+        $adjusted = false;
+
+        if ($newQty > $variantStock) {
+            $newQty = $variantStock;
+            $adjusted = true;
+        }
+
         if (! empty($data['line_key'])) {
-            $this->cart->updateByLineKey((string) $data['line_key'], (int) $data['quantity']);
+            $this->cart->updateByLineKey((string) $data['line_key'], $newQty);
         } else {
             $selectedAgeGroup = trim((string) ($data['selected_age_group'] ?? '')) ?: null;
             $selectedSize = trim((string) ($data['selected_size'] ?? '')) ?: null;
-            $this->cart->update($variant->id, (int) $data['quantity'], $selectedAgeGroup, $selectedSize);
+            $this->cart->update($variant->id, $newQty, $selectedAgeGroup, $selectedSize);
+        }
+
+        if ($adjusted) {
+            return back()->with('warning', "Only {$variantStock} available in stock. Quantity adjusted to {$variantStock}.");
         }
 
         return back();

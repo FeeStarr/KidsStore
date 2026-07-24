@@ -214,14 +214,22 @@
     $canRefund       = $order->status === 'delivered'
                        && $order->updated_at->diffInDays(now()) <= \App\Models\RefundRequest::REFUND_WINDOW_DAYS;
     $existingRequests = $order->refundRequests ?? collect();
-    $pendingRefund    = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->first();
+    // Check per-item: which items already have an active return request
+    $activeReturnItemIds = $existingRequests
+        ->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])
+        ->pluck('order_item_id')
+        ->filter()
+        ->toArray();
+    $hasAnyActiveReturn = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->isNotEmpty();
+    // Full order return is active if there's a pending request with null order_item_id
+    $fullOrderReturnActive = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->contains('order_item_id', null);
 @endphp
 
 @if($canRefund)
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
-        @if(! $pendingRefund)
+        @if(! $fullOrderReturnActive)
             <button class="btn btn-sm btn-outline-warning" type="button"
                     data-bs-toggle="collapse" data-bs-target="#refund-form">
                 Request a Refund
@@ -293,7 +301,7 @@
     </div>
     @endif
 
-    @if(! $pendingRefund)
+    @if(! $fullOrderReturnActive)
     <div class="collapse" id="refund-form">
         <div class="card-body">
             <form method="post" action="{{ route('shop.refund.store', $order) }}"
@@ -325,19 +333,24 @@
                     </div>
                     @endif
                     @foreach($order->items as $it)
-                        @php $isReturnable = $it->product && $it->product->is_returnable; @endphp
+                        @php
+                            $isReturnable = $it->product && $it->product->is_returnable;
+                            $hasActiveReturn = in_array($it->id, $activeReturnItemIds);
+                        @endphp
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="scope"
+                            <input class="form-check-input scope-item-radio" type="radio" name="scope"
                                    id="scope_item_{{ $it->id }}" value="item"
                                    data-item-id="{{ $it->id }}"
-                                   class="scope-item-radio"
-                                   {{ !$isReturnable ? 'disabled' : '' }}>
+                                   data-item-qty="{{ $it->quantity }}"
+                                   {{ (!$isReturnable || $hasActiveReturn) ? 'disabled' : '' }}>
                             <label class="form-check-label" for="scope_item_{{ $it->id }}">
                                 {{ $it->product?->name }}
                                 @if($it->variant?->options_label) — {{ $it->variant->options_label }}@endif
                                 (×{{ $it->quantity }}) — ₦{{ number_format($it->line_total, 2) }}
                                 @if(!$isReturnable)
                                     <span class="badge bg-secondary ms-1" style="font-size:10px;">Non-returnable</span>
+                                @elseif($hasActiveReturn)
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size:10px;">Return in progress</span>
                                 @endif
                             </label>
                         </div>
@@ -513,9 +526,12 @@
                 itemFields.style.display = '';
                 if (itemIdInput && radio.dataset.itemId) {
                     itemIdInput.value = radio.dataset.itemId;
-                    const match = radio.closest('.form-check')?.querySelector('label')?.textContent?.match(/×(\d+)/);
+                    const maxQty = radio.dataset.itemQty;
                     const qtyInput = document.querySelector('[name="quantity"]');
-                    if (match && qtyInput) qtyInput.max = match[1];
+                    if (maxQty && qtyInput) {
+                        qtyInput.max = maxQty;
+                        if (parseInt(qtyInput.value) > parseInt(maxQty)) qtyInput.value = maxQty;
+                    }
                 }
             } else {
                 itemFields.style.display = 'none';

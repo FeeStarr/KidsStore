@@ -33,10 +33,6 @@
             <div class="mt-2"><strong>Safe & Trusted</strong><br><small class="text-muted">Quality guaranteed</small></div>
         </div>
         <div class="col-6 col-md-3 feat">
-            <i style="background:var(--kid-green);"><i class="bi bi-arrow-repeat"></i></i>
-            <div class="mt-2"><strong>Easy Returns</strong><br><small class="text-muted">No-stress policy</small></div>
-        </div>
-        <div class="col-6 col-md-3 feat">
             <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
             <div class="mt-2"><strong>Kid Approved</strong><br><small class="text-muted">Smiles every time</small></div>
         </div>
@@ -69,7 +65,6 @@
                 <div class="kid-tile {{ $tile }} h-100">
                     <i class="bi {{ $icon }}"></i>
                     <strong>{{ $c->name }}</strong>
-                    <small>{{ $c->products_count }} items</small>
                 </div>
             </a>
         </div>

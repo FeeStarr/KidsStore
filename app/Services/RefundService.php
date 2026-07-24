@@ -4,19 +4,22 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\PickupStation;
 use App\Models\RefundRequest;
 use App\Models\ReturnAuditLog;
 use App\Models\User;
+use App\Notifications\RefundReturnNotification;
 use App\Notifications\RefundStatusNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class RefundService
 {
-    private const EVIDENCE_DIR = 'refund-evidence';
-    private const EVIDENCE_VIDEO_DIR = 'refund-evidence/videos';
+    private const EVIDENCE_DIR = 'evidence/refunds';
+    private const EVIDENCE_VIDEO_DIR = 'evidence/refunds/videos';
 
     public function __construct(
         private OPayService $opay,
@@ -94,7 +97,7 @@ class RefundService
 
         $evidencePath = null;
         if ($evidence) {
-            $evidencePath = $evidence->store(self::EVIDENCE_DIR, 'public');
+            $evidencePath = $this->storeInPublic($evidence, self::EVIDENCE_DIR);
         }
 
         // Determine initial status based on evidence requirements
@@ -130,6 +133,8 @@ class RefundService
             'initial_status' => $initialStatus,
         ]);
 
+        $this->notifyCustomer($refund->refresh());
+
         return $refund;
     }
 
@@ -151,11 +156,11 @@ class RefundService
         $updates = ['status' => RefundRequest::STATUS_REQUESTED];
 
         if ($photo) {
-            $updates['evidence_path'] = $photo->store(self::EVIDENCE_DIR, 'public');
+            $updates['evidence_path'] = $this->storeInPublic($photo, self::EVIDENCE_DIR);
         }
 
         if ($video) {
-            $updates['evidence_video_path'] = $video->store(self::EVIDENCE_VIDEO_DIR, 'public');
+            $updates['evidence_video_path'] = $this->storeInPublic($video, self::EVIDENCE_VIDEO_DIR);
         }
 
         if ($details !== null) {
@@ -164,6 +169,9 @@ class RefundService
 
         $refundRequest->update($updates);
         $this->logAudit($refundRequest, 'evidence_uploaded', null, 'Additional evidence uploaded');
+
+        // Notify admin + super admin + customer care that evidence has been uploaded
+        $this->notifyEvidenceUploaded($refundRequest->refresh());
 
         return $refundRequest->refresh();
     }
@@ -202,15 +210,51 @@ class RefundService
             throw new \RuntimeException('Only pending requests can be approved.');
         }
 
+        $pickupStationId = $refundRequest->order->pickup_station_id;
+
         $refundRequest->update([
-            'status'      => RefundRequest::STATUS_APPROVED,
-            'admin_note'  => $note,
-            'reviewed_by' => $admin->id,
-            'reviewed_at' => now(),
+            'status'            => RefundRequest::STATUS_APPROVED,
+            'admin_note'        => $note,
+            'reviewed_by'       => $admin->id,
+            'reviewed_at'       => now(),
+            'pickup_station_id' => $pickupStationId,
         ]);
 
         $this->logAudit($refundRequest, 'approved', $admin->id, $note);
         $this->notifyCustomer($refundRequest->refresh());
+
+        // Notify the pickup station if the order has one
+        if ($pickupStationId) {
+            $this->notifyPickupStation($refundRequest->refresh());
+        }
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Pickup station collects return ────────────────────────────────────────
+
+    /**
+     * Pickup station marks an approved return as collected from the customer.
+     */
+    public function collectReturn(RefundRequest $refundRequest, int $stationId): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_APPROVED) {
+            throw new \RuntimeException('Only approved returns can be collected.');
+        }
+
+        if ($refundRequest->pickup_station_id !== $stationId) {
+            throw new \RuntimeException('This return is not assigned to your station.');
+        }
+
+        $refundRequest->update([
+            'status'              => RefundRequest::STATUS_RETURN_COLLECTED,
+            'return_collected_at' => now(),
+        ]);
+
+        $this->logAudit($refundRequest, 'return_collected', null, "Collected at station #{$stationId}");
+
+        // Notify admin + super admin + customer care that item has been collected
+        $this->notifyReturnCollected($refundRequest->refresh());
 
         return $refundRequest->refresh();
     }
@@ -435,6 +479,57 @@ class RefundService
         }
     }
 
+    private function notifyPickupStation(RefundRequest $refundRequest): void
+    {
+        try {
+            $station = $refundRequest->pickupStation;
+            if ($station && $station->email) {
+                \Illuminate\Support\Facades\Notification::route('mail', $station->email)
+                    ->notify(new RefundReturnNotification($refundRequest));
+            }
+        } catch (\Throwable $e) {
+            Log::error('RefundReturn notification to station failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+        }
+    }
+
+    private function notifyReturnCollected(RefundRequest $refundRequest): void
+    {
+        try {
+            // Notify admin + super admin + customer care via the existing status notification
+            $admins = \App\Notifications\NotificationRecipients::adminUsers();
+            foreach ($admins as $admin) {
+                $admin->notify(new RefundStatusNotification($refundRequest));
+            }
+
+            // Also notify customer support staff
+            $support = \App\Notifications\NotificationRecipients::customerSupportStaff();
+            foreach ($support as $staff) {
+                $staff->notify(new RefundStatusNotification($refundRequest));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Return collected notification failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+        }
+    }
+
+    private function notifyEvidenceUploaded(RefundRequest $refundRequest): void
+    {
+        try {
+            // Notify admins
+            $admins = \App\Notifications\NotificationRecipients::adminUsers();
+            foreach ($admins as $admin) {
+                $admin->notify(new RefundStatusNotification($refundRequest));
+            }
+
+            // Notify customer support staff
+            $support = \App\Notifications\NotificationRecipients::customerSupportStaff();
+            foreach ($support as $staff) {
+                $staff->notify(new RefundStatusNotification($refundRequest));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Evidence uploaded notification failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+        }
+    }
+
     private function logAudit(RefundRequest $refundRequest, string $action, ?int $userId, ?string $details = null, ?array $metadata = null): void
     {
         try {
@@ -448,5 +543,21 @@ class RefundService
         } catch (\Throwable $e) {
             Log::error('Return audit log failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
         }
+    }
+
+    /**
+     * Store an uploaded file directly in the public directory (bypasses storage symlink issues on nginx).
+     *
+     * @return string Relative path from public/ (e.g. "evidence/refunds/photo.jpg")
+     */
+    private function storeInPublic(UploadedFile $file, string $directory): string
+    {
+        $targetDir = public_path($directory);
+        File::ensureDirectoryExists($targetDir);
+
+        $filename = $file->hashName();
+        $file->move($targetDir, $filename);
+
+        return $directory . '/' . $filename;
     }
 }

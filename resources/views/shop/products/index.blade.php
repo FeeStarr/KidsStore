@@ -24,7 +24,7 @@
                             </a>
                             @if($c->children->count())
                                 <ul class="list-unstyled ms-3">
-                                    @foreach($c->children as $sub)
+                                    @foreach($c->children->filter(fn($sub) => $sub->is_active) as $sub)
                                         <li>
                                             <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category']), ['category' => $sub->id])) }}"
                                                class="small {{ (int) request('category') === $sub->id ? 'fw-bold text-primary' : 'text-muted' }}">
