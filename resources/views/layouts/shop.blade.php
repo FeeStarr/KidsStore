@@ -26,6 +26,9 @@
                 radial-gradient(circle at 50% 100%,rgba(255,111,163,.18), transparent 50%),
                 #fffaf3;
             font-family: 'Quicksand', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         h1, h2, h3, h4, h5, .navbar-brand, .display-1, .display-2, .display-3, .display-4 {
             font-family: 'Fredoka', system-ui, sans-serif;
@@ -149,13 +152,20 @@
   </div>
 </nav>
 
-<main class="container py-4">
+<main class="container py-4" style="flex: 1 0 auto;">
     @yield('content')
 </main>
 
-<footer>
+<footer style="flex-shrink: 0;">
     <div class="container small">
-        &copy; {{ date('Y') }} Kids Store. All prices in &#8358; (NGN).
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>&copy; {{ date('Y') }} Kids Store. All prices in &#8358; (NGN).</span>
+            <div class="d-flex gap-3">
+                <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50">Contact Us</a>
+                <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50">Return Policy</a>
+                <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50">Privacy Policy</a>
+            </div>
+        </div>
     </div>
 </footer>
 

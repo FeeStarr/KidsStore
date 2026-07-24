@@ -33,9 +33,13 @@ class ShopController extends Controller
 
         $activeCategory = null;
         if ($categoryId = $request->integer('category')) {
-            $activeCategory = Category::with('descendants')->find($categoryId);
-            $ids = $activeCategory ? $activeCategory->descendantIds() : [$categoryId];
-            $query->whereIn('category_id', $ids);
+            $activeCategory = Category::with(['children' => fn ($q) => $q->where('is_active', true)])->find($categoryId);
+            if (! $activeCategory || ! $activeCategory->is_active) {
+                $activeCategory = null;
+            } else {
+                $ids = array_merge([$activeCategory->id], $activeCategory->children->pluck('id')->toArray());
+                $query->whereIn('category_id', $ids);
+            }
         }
 
         if ($search = $request->string('q')->toString()) {
@@ -56,7 +60,11 @@ class ShopController extends Controller
         };
 
         $products   = $query->paginate(12)->withQueryString();
-        $categories = Category::with('children')->whereNull('parent_id')->orderBy('name')->get();
+        $categories = Category::with(['children' => fn ($q) => $q->where('is_active', true)])
+            ->whereNull('parent_id')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('shop.products.index', compact('products', 'categories', 'activeCategory'));
     }

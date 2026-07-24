@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 class RefundRequest extends Model
 {
@@ -31,6 +30,7 @@ class RefundRequest extends Model
     public const STATUS_REPLACEMENT_DELIVERED = 'replacement_delivered';
     public const STATUS_COMPLETED           = 'completed';
     public const STATUS_CANCELLED           = 'cancelled';
+    public const STATUS_RETURN_COLLECTED    = 'return_collected';
 
     // Alias for backward compatibility
     public const STATUS_PENDING  = self::STATUS_PENDING_REVIEW;
@@ -55,6 +55,7 @@ class RefundRequest extends Model
         self::STATUS_REPLACEMENT_DELIVERED => 'Replacement Delivered',
         self::STATUS_COMPLETED           => 'Completed',
         self::STATUS_CANCELLED           => 'Cancelled',
+        self::STATUS_RETURN_COLLECTED    => 'Return Collected by Station',
     ];
 
     // ── Return Reasons ────────────────────────────────────────────────────────
@@ -63,7 +64,6 @@ class RefundRequest extends Model
         'wrong_size'           => 'Wrong size',
         'wrong_color'          => 'Wrong color',
         'damaged'              => 'Item arrived damaged',
-        'manufacturing_defect' => 'Manufacturing defect',
         'missing_item'         => 'Missing item',
         'incomplete_order'     => 'Incomplete order',
         'not_as_described'     => 'Product not as described',
@@ -81,7 +81,6 @@ class RefundRequest extends Model
         'wrong_size'           => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'wrong_color'          => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'damaged'              => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
-        'manufacturing_defect' => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'missing_item'         => ['photos' => 'optional',  'video' => 'no',        'comments' => 'required'],
         'incomplete_order'     => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'not_as_described'     => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
@@ -90,7 +89,7 @@ class RefundRequest extends Model
 
     // Reasons that qualify for shipping fee refund
     public const SHIPPING_REFUND_REASONS = [
-        'wrong_item', 'wrong_size', 'wrong_color', 'damaged', 'manufacturing_defect',
+        'wrong_item', 'wrong_size', 'wrong_color', 'damaged',
         'missing_item', 'incomplete_order', 'not_as_described',
     ];
 
@@ -101,22 +100,25 @@ class RefundRequest extends Model
         self::STATUS_AWAITING_EVIDENCE,
         self::STATUS_APPROVED,
         self::STATUS_AWAITING_SHIPMENT,
+        self::STATUS_RETURN_COLLECTED,
     ];
 
     protected $fillable = [
-        'order_id', 'order_item_id', 'quantity', 'amount',
+        'order_id', 'order_item_id', 'pickup_station_id', 'quantity', 'amount',
         'status', 'reason', 'details', 'evidence_path', 'evidence_video_path',
         'admin_note', 'reviewed_by', 'reviewed_at',
         'opay_refund_no', 'opay_payload',
         'inspection_notes', 'inspected_by', 'inspected_at',
+        'return_collected_at',
     ];
 
     protected $casts = [
-        'amount'         => 'decimal:2',
-        'quantity'       => 'integer',
-        'reviewed_at'    => 'datetime',
-        'inspected_at'   => 'datetime',
-        'opay_payload'   => 'array',
+        'amount'              => 'decimal:2',
+        'quantity'            => 'integer',
+        'reviewed_at'         => 'datetime',
+        'inspected_at'        => 'datetime',
+        'return_collected_at' => 'datetime',
+        'opay_payload'        => 'array',
     ];
 
     // ── Relationships ─────────────────────────────────────────────────────────
@@ -129,6 +131,11 @@ class RefundRequest extends Model
     public function orderItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class);
+    }
+
+    public function pickupStation(): BelongsTo
+    {
+        return $this->belongsTo(PickupStation::class);
     }
 
     public function reviewer(): BelongsTo
@@ -161,14 +168,14 @@ class RefundRequest extends Model
     public function getEvidenceUrlAttribute(): ?string
     {
         return $this->evidence_path
-            ? Storage::disk('public')->url($this->evidence_path)
+            ? asset($this->evidence_path)
             : null;
     }
 
     public function getEvidenceVideoUrlAttribute(): ?string
     {
         return $this->evidence_video_path
-            ? Storage::disk('public')->url($this->evidence_video_path)
+            ? asset($this->evidence_video_path)
             : null;
     }
 
@@ -235,5 +242,10 @@ class RefundRequest extends Model
     public function isCancelled(): bool
     {
         return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isReturnCollected(): bool
+    {
+        return $this->status === self::STATUS_RETURN_COLLECTED;
     }
 }

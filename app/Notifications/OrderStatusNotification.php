@@ -45,6 +45,34 @@ class OrderStatusNotification extends Notification
             default                  => "Update on your order {$order->reference}",
         };
 
+        // For delivered status, use the rich HTML template with item thumbnails
+        if ($order->status === 'delivered') {
+            $order->loadMissing('items.product', 'items.variant.image', 'items.variant.images', 'pickupStation');
+
+            $message = (new MailMessage)
+                ->subject($subject)
+                ->view('emails.order-delivered', ['order' => $order]);
+
+            // CC admins + staff
+            foreach (NotificationRecipients::adminUsers() as $admin) {
+                if ($admin->id !== $notifiable->id) {
+                    $message->cc($admin->email, $admin->name);
+                }
+            }
+            foreach (NotificationRecipients::orderProcessingStaff() as $staff) {
+                if ($staff->id !== $notifiable->id) {
+                    $message->cc($staff->email, $staff->name);
+                }
+            }
+            foreach (NotificationRecipients::customerSupportStaff() as $staff) {
+                if ($staff->id !== $notifiable->id) {
+                    $message->cc($staff->email, $staff->name);
+                }
+            }
+
+            return $message;
+        }
+
         $intro = match ($order->status) {
             'confirmed'              => 'Your order has been confirmed and will be processed shortly.',
             'processing'             => 'Your order is now being packed and prepared for dispatch.',
@@ -56,7 +84,6 @@ class OrderStatusNotification extends Notification
                                         ($order->tracking_number ? " (Tracking: {$order->tracking_number})" : '') . '.' : ''),
             'ready for pick up'      => "Your order is ready to be collected from **{$order->pickupStation?->name}**." .
                                         ($order->pickupStation?->instructions ? "\n\n{$order->pickupStation->instructions}" : ''),
-            'delivered'              => 'Your order has been delivered. We hope you love your purchase!',
             'cancelled'              => 'Your order has been cancelled. If you paid online, a refund will be processed within 5–7 working days.',
             default                  => "Your order status has been updated to **{$status}**.",
         };

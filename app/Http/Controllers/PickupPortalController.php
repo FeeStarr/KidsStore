@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankAccount;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PickupStation;
+use App\Models\RefundRequest;
 use App\Services\OPayService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
 use App\Services\PickupStationService;
+use App\Services\RefundService;
 use App\Models\Payment;
 use App\Models\PickupPayout;
 use App\Models\PickupPayoutItem;
@@ -26,7 +29,8 @@ class PickupPortalController extends Controller
         private OrderService $orders,
         private OPayService $opay,
         private PaymentService $payments,
-        private PickupStationService $pickupService
+        private PickupStationService $pickupService,
+        private RefundService $refunds
     ) {
     }
 
@@ -96,9 +100,38 @@ class PickupPortalController extends Controller
             'picked_up' => $itemsByStatus['picked_up']->count(),
         ];
 
-        $currentItems = $itemsByStatus[$filter] ?? collect();
+        // Returns assigned to this station awaiting collection
+        $pendingReturns = collect();
+        try {
+            $pendingReturns = RefundRequest::where('pickup_station_id', $stationId)
+                ->where('status', RefundRequest::STATUS_APPROVED)
+                ->with(['order', 'orderItem.product', 'orderItem.variant', 'order.customer'])
+                ->latest()
+                ->get();
+        } catch (\Throwable $e) {
+            // pickup_station_id column may not exist yet
+        }
 
-        return view('pickup-portal.dashboard', compact('station', 'filter', 'currentItems', 'counts'));
+        $counts['returns'] = $pendingReturns->count();
+
+        // Bank account for transfer payments
+        $bankAccount = null;
+        try {
+            $bankAccount = BankAccount::where('is_active', true)
+                ->where('is_default', true)
+                ->first();
+            if (! $bankAccount) {
+                $bankAccount = BankAccount::where('is_active', true)->first();
+            }
+        } catch (\Throwable $e) {
+            // bank_accounts table may not exist
+        }
+
+        $currentItems = $filter === 'returns'
+            ? $pendingReturns
+            : ($itemsByStatus[$filter] ?? collect());
+
+        return view('pickup-portal.dashboard', compact('station', 'filter', 'currentItems', 'counts', 'bankAccount'));
     }
 
     /** AJAX data endpoint for dashboard items */
@@ -616,5 +649,43 @@ class PickupPortalController extends Controller
         $this->orders->markDelivered($order);
 
         return back()->with('success', "Order {$order->reference} confirmed as collected.");
+    }
+
+    /** Show return details for the station */
+    public function returnDetails(RefundRequest $refundRequest): View|RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        if ($refundRequest->pickup_station_id !== $stationId) {
+            abort(403, 'This return is not assigned to your station.');
+        }
+
+        $refundRequest->load([
+            'order', 'orderItem.product', 'orderItem.variant', 'order.customer',
+        ]);
+
+        return view('pickup-portal.return-details', ['refundRequest' => $refundRequest]);
+    }
+
+    /** Station marks a return as collected from customer */
+    public function collectReturn(Request $request, RefundRequest $refundRequest): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        try {
+            $this->refunds->collectReturn($refundRequest, $stationId);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Return item collected. Admin has been notified.');
     }
 }
