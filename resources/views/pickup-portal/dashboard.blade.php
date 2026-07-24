@@ -245,7 +245,7 @@
                                 data-customer="{{ $order->customer?->name ?? 'Customer' }}">
                             <i class="bi bi-bank me-1"></i>Pay by Transfer
                         </button>
-                        <form method="POST" action="{{ route('pickup-portal.orders.record-payment', $order) }}" class="d-inline" id="cash-form-{{ $order->id }}">
+                        <form method="POST" action="{{ route('pickup-portal.record-payment', $order) }}" class="d-inline" id="cash-form-{{ $order->id }}">
                             @csrf
                             <input type="hidden" name="amount" value="{{ $balance }}">
                             <input type="hidden" name="method" value="cash">
