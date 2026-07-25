@@ -139,14 +139,6 @@
         <p>{{ $product->description }}</p>
 
 
-        @if($defaultVariant)
-            <div id="variantLabel" class="mb-2 fw-semibold small">
-                @if($defaultVariant->options_label && $defaultVariant->options_label !== 'Default')
-                    {{ $defaultVariant->options_label }}
-                @endif
-            </div>
-        @endif
-
         @if($variants->count() > 1)
             {{-- Color thumbnails --}}
             <div id="variantPicker" class="d-flex flex-wrap gap-2 mb-2">
@@ -396,13 +388,6 @@
     function applyVariant(v) {
         if (!form) return;
         form.action = cartUrlTemplate.replace('__V__', v.id);
-
-        // Update variant label
-        const variantLabel = document.getElementById('variantLabel');
-        if (variantLabel) {
-            variantLabel.textContent = v.options_label || '';
-            variantLabel.style.display = v.options_label ? '' : 'none';
-        }
 
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
