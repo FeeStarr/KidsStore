@@ -111,7 +111,7 @@
     <div class="col-md-6">
         <h2 class="mb-1">{{ $product->name }}</h2>
         @if(!($product->is_returnable ?? true))
-            <div class="mb-2"><span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable item</span></div>
+            <div class="mb-2"><span class="badge bg-warning text-dark fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable item</span></div>
         @endif
         <div class="text-muted small mb-2">
             @if($productBrand) Brand: {{ $productBrand }} @endif
