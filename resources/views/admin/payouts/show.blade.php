@@ -15,21 +15,21 @@
     <div class="card-body">
         <div class="row text-center">
             <div class="col-md-3">
-                <div class="border rounded p-3">
+                <div class="border rounded p-3 bg-success bg-opacity-10">
                     <div class="small text-muted">Total Earned</div>
                     <div class="fs-4 fw-bold text-success">₦{{ number_format($payoutSummary['total_earned'], 2) }}</div>
                     <div class="small text-muted">{{ $payoutSummary['item_count'] }} item(s) picked up</div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="border rounded p-3">
+                <div class="border rounded p-3 bg-primary bg-opacity-10">
                     <div class="small text-muted">Total Paid Out</div>
                     <div class="fs-4 fw-bold text-primary">₦{{ number_format($payoutSummary['total_paid_out'], 2) }}</div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="border rounded p-3">
-                    <div class="small text-muted">Balance Due</div>
+                <div class="border rounded p-3 {{ $payoutSummary['balance_due'] > 0 ? 'bg-warning bg-opacity-10' : 'bg-success bg-opacity-10' }}">
+                    <div class="small text-muted">Balance Due (Pending)</div>
                     <div class="fs-4 fw-bold {{ $payoutSummary['balance_due'] > 0 ? 'text-warning' : 'text-success' }}">
                         ₦{{ number_format($payoutSummary['balance_due'], 2) }}
                     </div>
@@ -62,13 +62,24 @@
             </div>
 
             @foreach($itemsByOrder as $orderId => $orderData)
-                @php $order = $orderData['order']; @endphp
-                <div class="card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                @php
+                    $order = $orderData['order'];
+                    $allPaid = $orderData['items']->every(fn($i) => $i->pickup_station_fee_paid);
+                    $anyUnpaid = $orderData['items']->some(fn($i) => ! $i->pickup_station_fee_paid);
+                @endphp
+                <div class="card mb-3 {{ $allPaid ? 'border-success' : ($anyUnpaid ? 'border-warning' : '') }}">
+                    <div class="card-header d-flex justify-content-between align-items-center {{ $allPaid ? 'bg-success bg-opacity-10' : ($anyUnpaid ? 'bg-warning bg-opacity-10' : '') }}">
                         <div>
-                            <input type="checkbox" name="order_ids[]" value="{{ $order->id }}">
+                            @if($anyUnpaid)
+                                <input type="checkbox" name="order_ids[]" value="{{ $order->id }}">
+                            @endif
                             <strong class="ms-2">{{ $order->reference }}</strong>
                             <span class="small text-muted ms-2">{{ $order->order_date?->format('M d, Y') }}</span>
+                            @if($allPaid)
+                                <span class="badge bg-success ms-2"><i class="bi bi-check-circle me-1"></i>Paid</span>
+                            @else
+                                <span class="badge bg-warning text-dark ms-2"><i class="bi bi-clock me-1"></i>Pending</span>
+                            @endif
                         </div>
                         <div class="fw-bold text-success">
                             Commission: ₦{{ number_format($orderData['commission'], 2) }}
@@ -89,7 +100,7 @@
                             </thead>
                             <tbody>
                                 @foreach($orderData['items'] as $item)
-                                    <tr>
+                                    <tr class="{{ $item->pickup_station_fee_paid ? 'table-success bg-opacity-10' : '' }}">
                                         <td>{{ $item->product?->name }}</td>
                                         <td class="text-muted small">{{ $item->variant?->options_label }}</td>
                                         <td class="text-center">{{ $item->quantity }}</td>

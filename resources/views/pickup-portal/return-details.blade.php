@@ -31,14 +31,6 @@
                         <td>{{ $refundRequest->order?->customer?->name ?? 'N/A' }}</td>
                     </tr>
                     <tr>
-                        <td class="text-muted">Customer Phone</td>
-                        <td>{{ $refundRequest->order?->customer?->phone ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-muted">Customer Email</td>
-                        <td>{{ $refundRequest->order?->customer?->email ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
                         <td class="text-muted">Return Reason</td>
                         <td><span class="badge bg-warning text-dark">{{ $refundRequest->reason_label }}</span></td>
                     </tr>
