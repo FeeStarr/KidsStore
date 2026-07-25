@@ -140,6 +140,11 @@
 
 
         @if($variants->count() > 1)
+            {{-- Selected variant label --}}
+            <div id="variantLabel" class="mb-2 fw-semibold small" style="display:none">
+                {{ $defaultVariant?->options_label }}
+            </div>
+
             {{-- Color thumbnails --}}
             <div id="variantPicker" class="d-flex flex-wrap gap-2 mb-2">
                 @foreach($thumbVariants as $colorName => $colorVars)
@@ -309,6 +314,13 @@
     function applyVariant(v) {
         if (!form) return;
         form.action = cartUrlTemplate.replace('__V__', v.id);
+
+        // Update variant label
+        const variantLabel = document.getElementById('variantLabel');
+        if (variantLabel) {
+            variantLabel.textContent = v.options_label || '';
+            variantLabel.style.display = v.options_label ? '' : 'none';
+        }
 
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
