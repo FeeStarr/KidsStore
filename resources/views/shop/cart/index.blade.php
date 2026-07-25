@@ -16,7 +16,7 @@
         @php
             $variant = $line->variant;
             $img = $variant->image ?? $line->product->primaryImage;
-            $optsLabel = $variant->options_label;
+            $optsLabel = collect([$variant->colorRef?->name, $variant->sizeRef?->name, $variant->ageRange?->name])->filter()->implode(' / ');
         @endphp
         <tr>
             <td style="width:80px">
