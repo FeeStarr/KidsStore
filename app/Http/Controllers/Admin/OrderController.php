@@ -152,4 +152,40 @@ class OrderController extends Controller
 
         return back()->with('success', 'Order marked as paid.');
     }
+
+    public function updateStatus(Request $request, Order $order): RedirectResponse
+    {
+        $request->validate([
+            'status' => ['required', 'string', 'in:' . implode(',', $order->getAvailableStatuses())],
+        ]);
+
+        $newStatus = $request->status;
+        $current = $order->status;
+
+        if ($newStatus === $current) {
+            return back()->with('info', 'Order is already ' . $order->getStatusLabel() . '.');
+        }
+
+        $methodMap = [
+            'ordered'              => null,
+            'pending confirmation' => 'markPendingConfirmation',
+            'confirmed'            => 'confirm',
+            'processing'           => 'markProcessing',
+            'shipping to station'  => 'markShippingToStation',
+            'out for delivery'     => 'markShipped',
+            'ready for pick up'    => 'markReadyForPickup',
+            'delivered'            => 'markDelivered',
+            'cancelled'            => 'cancel',
+        ];
+
+        $method = $methodMap[$newStatus] ?? null;
+
+        if ($method && method_exists($this->orders, $method)) {
+            $this->orders->{$method}($order);
+        } else {
+            $order->update(['status' => $newStatus]);
+        }
+
+        return back()->with('success', 'Order status updated to ' . ucfirst($newStatus) . '.');
+    }
 }
