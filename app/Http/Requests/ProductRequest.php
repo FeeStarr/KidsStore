@@ -52,11 +52,11 @@ class ProductRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'is_active' => $this->boolean('is_active', true),
+            'is_active' => $this->boolean('is_active', false),
             'is_returnable' => $this->boolean('is_returnable', false),
             'discount'  => $this->input('discount', 0),
             'selling_price' => $this->filled('selling_price') ? $this->input('selling_price') : 0,
-            'status' => $this->input('status', $this->boolean('is_active', true) ? 'active' : 'inactive'),
+            'status' => $this->input('status', $this->boolean('is_active', false) ? 'active' : 'inactive'),
         ]);
 
         if ($this->has('variants') && is_array($this->input('variants'))) {
