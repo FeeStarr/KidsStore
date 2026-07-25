@@ -168,6 +168,8 @@
             {{-- Age + Size pickers (rendered by JS) --}}
             <div id="agePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
             <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
+            {{-- Custom options pickers (rendered by JS) --}}
+            <div id="customOptionPickers" class="d-flex flex-wrap flex-column gap-1 mb-2"></div>
         @endif
 
         @if($defaultVariant)
@@ -225,41 +227,76 @@
     let selectedAge   = null;
     let selectedSize  = null;
 
+    // Detect custom option keys (anything in `options` that isn't color/age/size)
+    const standardKeys = ['color', 'age', 'size', 'color_id', 'size_id', 'age_range_id'];
+    const customOptionKeys = [];
+    variantsData.forEach(v => {
+        if (v.options && typeof v.options === 'object') {
+            Object.keys(v.options).forEach(k => {
+                if (!customOptionKeys.includes(k)) customOptionKeys.push(k);
+            });
+        }
+    });
+    const selectedCustom = {};
+    customOptionKeys.forEach(k => { selectedCustom[k] = null; });
+
     // ── Helpers ─────────────────────────────────────────────────────────────
-    function variantsForColor(color) {
-        return variantsData.filter(v => (v.color ?? null) === color);
+    function variantsForFilters(filters) {
+        return variantsData.filter(v => {
+            for (const [key, val] of Object.entries(filters)) {
+                if (val === null || val === undefined || val === '') continue;
+                if (key === 'color' && (v.color ?? null) !== val) return false;
+                if (key === 'age' && (v.age ?? null) !== val) return false;
+                if (key === 'size' && (v.size ?? null) !== val) return false;
+                if (!standardKeys.includes(key) && (!v.options || v.options[key] !== val)) return false;
+            }
+            return true;
+        });
     }
-    function variantsForColorAge(color, age) {
-        return variantsForColor(color).filter(v => (v.age ?? null) === age);
+
+    function uniqueValues(variants, key) {
+        if (key === 'color') return [...new Set(variants.map(v => v.color).filter(Boolean))];
+        if (key === 'age')   return [...new Set(variants.map(v => v.age).filter(Boolean))];
+        if (key === 'size')  return [...new Set(variants.map(v => v.size).filter(Boolean))];
+        return [...new Set(variants.map(v => v.options?.[key]).filter(Boolean))];
     }
-    function findVariant(color, age, size) {
-        return variantsData.find(v =>
-            (v.color ?? null) === color &&
-            (v.age   ?? null) === age &&
-            (v.size  ?? null) === size
-        ) ?? null;
+
+    function buildFilters() {
+        const f = { color: selectedColor, age: selectedAge, size: selectedSize };
+        customOptionKeys.forEach(k => { f[k] = selectedCustom[k]; });
+        return f;
     }
-    function uniqueAges(variants)  { return [...new Set(variants.map(v => v.age).filter(Boolean))]; }
-    function uniqueSizes(variants) { return [...new Set(variants.map(v => v.size).filter(Boolean))]; }
+
+    function findVariant(filters) {
+        return variantsData.find(v => {
+            if ((v.color ?? null) !== (filters.color ?? null)) return false;
+            if ((v.age ?? null) !== (filters.age ?? null)) return false;
+            if ((v.size ?? null) !== (filters.size ?? null)) return false;
+            for (const k of customOptionKeys) {
+                if ((v.options?.[k] ?? null) !== (filters[k] ?? null)) return false;
+            }
+            return true;
+        }) ?? null;
+    }
 
     // ── DOM refs ─────────────────────────────────────────────────────────────
-    const form         = document.getElementById('addToCartForm');
-    const agePickerEl  = document.getElementById('agePicker');
-    const sizePickerEl = document.getElementById('sizePicker');
+    const form              = document.getElementById('addToCartForm');
+    const agePickerEl       = document.getElementById('agePicker');
+    const sizePickerEl      = document.getElementById('sizePicker');
+    const customPickersEl   = document.getElementById('customOptionPickers');
 
     // ── Render pickers ───────────────────────────────────────────────────────
-    function renderPills(container, items, active, onClick) {
+    function renderPills(container, items, active, onClick, label) {
         if (!container) return;
         container.innerHTML = '';
         if (!items.length) { container.style.display = 'none'; return; }
         container.style.display = '';
 
-        // Label above the pills
         const wrap = document.createElement('div');
         wrap.className = 'w-100 mb-1';
         const lbl = document.createElement('small');
         lbl.className = 'text-muted';
-        lbl.textContent = container === agePickerEl ? 'Age range:' : 'Size:';
+        lbl.textContent = label;
         wrap.appendChild(lbl);
         container.appendChild(wrap);
 
@@ -274,41 +311,83 @@
     }
 
     function renderAgePicker() {
-        const colorVars = variantsForColor(selectedColor);
-        const ages      = uniqueAges(colorVars);
-        if (!selectedAge || !ages.includes(selectedAge)) {
-            selectedAge = ages[0] ?? null;
-        }
+        const filtered = variantsForFilters({ color: selectedColor });
+        const ages = uniqueValues(filtered, 'age');
+        if (!selectedAge || !ages.includes(selectedAge)) selectedAge = ages[0] ?? null;
         renderPills(agePickerEl, ages, selectedAge, age => {
             selectedAge = age;
             selectedSize = null;
-            renderSizePicker();
+            customOptionKeys.forEach(k => { selectedCustom[k] = null; });
+            renderDependentPickers();
             resolveAndSelect();
-        });
+        }, 'Age range:');
     }
 
     function renderSizePicker() {
-        const filtered = selectedAge
-            ? variantsForColorAge(selectedColor, selectedAge)
-            : variantsForColor(selectedColor);
-        const sizes = uniqueSizes(filtered);
-        if (!selectedSize || !sizes.includes(selectedSize)) {
-            selectedSize = sizes[0] ?? null;
-        }
+        const filtered = variantsForFilters({ color: selectedColor, age: selectedAge });
+        const sizes = uniqueValues(filtered, 'size');
+        if (!selectedSize || !sizes.includes(selectedSize)) selectedSize = sizes[0] ?? null;
         renderPills(sizePickerEl, sizes, selectedSize, size => {
             selectedSize = size;
+            customOptionKeys.forEach(k => { selectedCustom[k] = null; });
+            renderDependentPickers();
             resolveAndSelect();
+        }, 'Size:');
+    }
+
+    function renderCustomPickers() {
+        if (!customPickersEl) return;
+        customPickersEl.innerHTML = '';
+
+        const baseFilters = { color: selectedColor, age: selectedAge, size: selectedSize };
+
+        customOptionKeys.forEach(key => {
+            const filtered = variantsForFilters(baseFilters);
+            const values = uniqueValues(filtered, key);
+            if (!values.length) return;
+
+            if (!selectedCustom[key] || !values.includes(selectedCustom[key])) {
+                selectedCustom[key] = values[0] ?? null;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'd-flex flex-wrap gap-1 align-items-center';
+
+            const label = document.createElement('small');
+            label.className = 'text-muted me-2';
+            label.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) + ':';
+            row.appendChild(label);
+
+            values.forEach(val => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-sm rounded-pill ' + (val === selectedCustom[key] ? 'btn-primary text-white fw-bold border-0 shadow-sm' : 'btn-outline-secondary');
+                btn.textContent = val;
+                btn.addEventListener('click', () => {
+                    selectedCustom[key] = val;
+                    renderCustomPickers();
+                    resolveAndSelect();
+                });
+                row.appendChild(btn);
+            });
+
+            customPickersEl.appendChild(row);
         });
     }
 
-    function resolveAndSelect() {
-        // Re-render pickers to highlight active selections
+    function renderDependentPickers() {
         renderAgePicker();
         renderSizePicker();
+        renderCustomPickers();
+    }
 
-        const v = findVariant(selectedColor, selectedAge, selectedSize)
-            ?? variantsForColorAge(selectedColor, selectedAge)?.[0]
-            ?? variantsForColor(selectedColor)?.[0]
+    function resolveAndSelect() {
+        renderDependentPickers();
+
+        const filters = buildFilters();
+        const v = findVariant(filters)
+            ?? variantsForFilters({ color: selectedColor, age: selectedAge })?.[0]
+            ?? variantsForFilters({ color: selectedColor })?.[0]
             ?? variantsData[0];
         if (v) applyVariant(v);
     }
