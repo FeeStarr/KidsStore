@@ -11,9 +11,9 @@
 
         {{-- Status dropdown — jump to any status --}}
         @if(! in_array($s, ['delivered', 'cancelled']))
-            <form action="{{ route('admin.orders.update-status', $order) }}" method="post" class="d-flex gap-1">
+            <form action="{{ route('admin.orders.update-status', $order) }}" method="post" class="d-flex gap-1" id="statusJumpForm">
                 @csrf
-                <select name="status" class="form-select form-select-sm" style="width:auto" onchange="if(this.value && confirm('Update order status to {{ "'"+'" }}' + this.options[this.selectedIndex].text + '{{ "'"+'" }}?')) this.form.submit(); else this.selectedIndex=0;">
+                <select name="status" class="form-select form-select-sm" style="width:auto" id="statusJumpSelect">
                     <option value="" disabled selected>Jump to status...</option>
                     @foreach($allStatuses as $st)
                         @if($st !== $s)
@@ -425,3 +425,15 @@
 @endif
 
 @endsection
+
+@push('scripts')
+<script>
+document.getElementById('statusJumpSelect')?.addEventListener('change', function() {
+    if (this.value && confirm('Update order status to "' + this.options[this.selectedIndex].text + '"?')) {
+        this.form.submit();
+    } else {
+        this.selectedIndex = 0;
+    }
+});
+</script>
+@endpush
