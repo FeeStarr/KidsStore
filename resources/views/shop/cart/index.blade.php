@@ -28,7 +28,9 @@
                 <a href="{{ route('shop.products.show', $line->product) }}" class="text-decoration-none text-dark">
                     <strong>{{ $line->product->name }}</strong>
                 </a>
-
+                @if($optsLabel)
+                    <div class="small text-muted">{{ $optsLabel }}</div>
+                @endif
                 @if(!empty($line->age_group))
                     <div class="small text-muted">Age Range: {{ $line->age_group }}</div>
                 @endif
