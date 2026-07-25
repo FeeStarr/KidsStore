@@ -162,6 +162,8 @@
             <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
             {{-- Custom options pickers (rendered by JS) --}}
             <div id="customOptionPickers" class="d-flex flex-wrap flex-column gap-1 mb-2"></div>
+            {{-- Selected options summary --}}
+            <div id="selectedOptions" class="d-flex flex-wrap gap-1 mb-2"></div>
         @endif
 
         @if($defaultVariant)
@@ -388,6 +390,23 @@
     function applyVariant(v) {
         if (!form) return;
         form.action = cartUrlTemplate.replace('__V__', v.id);
+
+        // Update selected options badges
+        const selectedEl = document.getElementById('selectedOptions');
+        if (selectedEl) {
+            const badges = [];
+            if (v.color) badges.push(v.color);
+            if (v.age) badges.push(v.age);
+            if (v.size) badges.push(v.size);
+            if (v.options && typeof v.options === 'object') {
+                Object.entries(v.options).forEach(([k, val]) => {
+                    if (val) badges.push(val);
+                });
+            }
+            selectedEl.innerHTML = badges.map(b =>
+                '<span class="badge bg-light text-dark border fw-normal">' + b + '</span>'
+            ).join('');
+        }
 
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
