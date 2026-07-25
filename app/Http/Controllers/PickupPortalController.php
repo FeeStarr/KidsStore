@@ -505,6 +505,14 @@ class PickupPortalController extends Controller
                 'order_item_id' => $item->id,
                 'fee_amount' => $item->commission,
             ]);
+
+            $item->update([
+                'pickup_station_fee_paid' => true,
+                'pickup_station_fee_paid_at' => now(),
+            ]);
+
+            // Refresh order-level fee total
+            $this->pickupService->refreshOrderFeeTotal($item->order);
         }
 
         return back()->with('success', "Payout record created for ₦" . number_format($total, 2) . " ({$itemsToMarkPaid->count()} items).");

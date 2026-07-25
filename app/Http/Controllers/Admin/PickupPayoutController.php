@@ -111,13 +111,22 @@ class PickupPayoutController extends Controller
             'note' => $data['note'] ?? null,
         ]);
 
-        // Create payout items for each picked_up item
+        // Create payout items for each picked_up item and mark as paid
         foreach ($itemsToMarkPaid as $item) {
             \App\Models\PickupPayoutItem::create([
                 'pickup_payout_id' => $payout->id,
                 'order_id' => $item->order_id,
+                'order_item_id' => $item->id,
                 'fee_amount' => $item->commission,
             ]);
+
+            $item->update([
+                'pickup_station_fee_paid' => true,
+                'pickup_station_fee_paid_at' => now(),
+            ]);
+
+            // Refresh order-level fee total
+            $this->pickupService->refreshOrderFeeTotal($item->order);
         }
 
         return back()->with('success', "Payout record created for ₦" . number_format($total, 2) . " ({$itemsToMarkPaid->count()} items).");
