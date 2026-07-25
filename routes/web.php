@@ -295,5 +295,8 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         // Return collection routes
         Route::get('/returns/{refundRequest}', [PickupPortalController::class, 'returnDetails'])->name('returns.show');
         Route::post('/returns/{refundRequest}/collect', [PickupPortalController::class, 'collectReturn'])->name('returns.collect');
+
+        // Reminder route
+        Route::post('/orders/{order}/send-reminder', [PickupPortalController::class, 'sendReminder'])->name('send-reminder');
     });
 });

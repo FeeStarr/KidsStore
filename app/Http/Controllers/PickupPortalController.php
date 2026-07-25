@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PickupStation;
 use App\Models\RefundRequest;
+use App\Notifications\PickupReminderNotification;
 use App\Services\OPayService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
@@ -470,31 +471,43 @@ class PickupPortalController extends Controller
 
         $orderIds = $data['order_ids'];
 
-        $orders = Order::with('items')->whereIn('id', $orderIds)->where('pickup_station_id', $stationId)->get();
+        $orders = Order::with('items.variant.product')->whereIn('id', $orderIds)->where('pickup_station_id', $stationId)->get();
         if ($orders->isEmpty()) return back()->with('error','No matching orders found.');
 
         $total = 0;
+        $itemsToMarkPaid = collect();
+
         foreach ($orders as $o) {
-            $total += round($o->pickup_station_fee_total ?: 0, 2);
+            $pickedUpItems = $o->items->where('pickup_status', 'picked_up');
+            foreach ($pickedUpItems as $item) {
+                $commission = $item->commission;
+                $total += $commission;
+                $itemsToMarkPaid->push($item);
+            }
+        }
+
+        if ($total <= 0) {
+            return back()->with('error', 'No picked-up items found for the selected orders.');
         }
 
         $payout = PickupPayout::create([
             'pickup_station_id' => $stationId,
-            'amount' => $total,
+            'amount' => round($total, 2),
             'created_by' => null,
             'reference' => 'PP-'.Str::upper(substr((string) Str::uuid(), 0, 8)),
             'note' => $data['note'] ?? null,
         ]);
 
-        foreach ($orders as $o) {
+        foreach ($itemsToMarkPaid as $item) {
             PickupPayoutItem::create([
                 'pickup_payout_id' => $payout->id,
-                'order_id' => $o->id,
-                'fee_amount' => round($o->pickup_station_fee_total ?: 0, 2),
+                'order_id' => $item->order_id,
+                'order_item_id' => $item->id,
+                'fee_amount' => $item->commission,
             ]);
         }
 
-        return back()->with('success','Payout record created successfully.');
+        return back()->with('success', "Payout record created for ₦" . number_format($total, 2) . " ({$itemsToMarkPaid->count()} items).");
     }
 
     /** Payments list for this station */
@@ -687,5 +700,30 @@ class PickupPortalController extends Controller
         }
 
         return back()->with('success', 'Return item collected. Admin has been notified.');
+    }
+
+    /** Send a pickup reminder email to the customer */
+    public function sendReminder(Order $order): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        if ((int) $order->pickup_station_id !== $stationId) {
+            abort(403, 'This order does not belong to your station.');
+        }
+
+        if (! $order->customer) {
+            return back()->with('error', 'No customer associated with this order.');
+        }
+
+        try {
+            $order->customer->notify(new PickupReminderNotification($order));
+            return back()->with('success', 'Pickup reminder sent to ' . $order->customer->name . '.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Failed to send reminder: ' . $e->getMessage());
+        }
     }
 }

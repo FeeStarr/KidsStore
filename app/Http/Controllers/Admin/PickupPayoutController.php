@@ -193,6 +193,8 @@ class PickupPayoutController extends Controller
     {
         if ($pickupPayout->is_reversed) return back()->with('error', 'Payout already reversed.');
 
+        $affectedOrderIds = collect();
+
         foreach ($pickupPayout->items as $it) {
             if ($it->order_id) {
                 \App\Models\OrderItem::where('order_id', $it->order_id)
@@ -201,6 +203,15 @@ class PickupPayoutController extends Controller
                         'pickup_station_fee_paid' => false,
                         'pickup_station_fee_paid_at' => null,
                     ]);
+                $affectedOrderIds->push($it->order_id);
+            }
+        }
+
+        // Recalculate pickup_station_fee_total for affected orders
+        foreach ($affectedOrderIds->unique() as $orderId) {
+            $order = \App\Models\Order::find($orderId);
+            if ($order) {
+                $this->pickupService->refreshOrderFeeTotal($order);
             }
         }
 
