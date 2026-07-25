@@ -139,12 +139,15 @@
         <p>{{ $product->description }}</p>
 
 
-        @if($variants->count() > 1)
-            {{-- Selected variant label --}}
-            <div id="variantLabel" class="mb-2 fw-semibold small" style="display:none">
-                {{ $defaultVariant?->options_label }}
+        @if($defaultVariant)
+            <div id="variantLabel" class="mb-2 fw-semibold small">
+                @if($defaultVariant->options_label && $defaultVariant->options_label !== 'Default')
+                    {{ $defaultVariant->options_label }}
+                @endif
             </div>
+        @endif
 
+        @if($variants->count() > 1)
             {{-- Color thumbnails --}}
             <div id="variantPicker" class="d-flex flex-wrap gap-2 mb-2">
                 @foreach($thumbVariants as $colorName => $colorVars)
