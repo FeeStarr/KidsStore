@@ -70,7 +70,7 @@ class CheckoutController extends Controller
         $order = $this->orders->create([
             'customer_id'       => $customer->id,
             'order_date'        => now()->toDateString(),
-            'status'            => 'ordered',
+            'status'            => 'confirmed',
             'delivery_method'   => $data['delivery_method'],
             'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
             'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,

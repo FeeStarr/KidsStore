@@ -42,7 +42,7 @@ class OrderService
                 'reference'              => $data['reference'] ?? $this->generateReference(),
                 'customer_id'            => $data['customer_id'] ?? null,
                 'order_date'             => $data['order_date'],
-                'status'                 => $data['status'] ?? 'ordered',
+                'status'                 => $data['status'] ?? 'confirmed',
                 'delivery_method'        => $data['delivery_method'] ?? 'delivery',
                 'pickup_station_id'      => $data['pickup_station_id'] ?? null,
                 'delivery_address'       => $data['delivery_address'] ?? null,
@@ -110,7 +110,7 @@ class OrderService
 
     public function markProcessing(Order $order): Order
     {
-        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
+        if (in_array($order->status, ['ordered', 'pending confirmation'], true)) {
             $this->confirm($order);
         }
         $prev = $order->status;
@@ -121,7 +121,7 @@ class OrderService
 
     public function markShipped(Order $order): Order
     {
-        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
+        if (in_array($order->status, ['ordered', 'pending confirmation'], true)) {
             $this->confirm($order);
         }
         $prev = $order->status;
@@ -135,7 +135,7 @@ class OrderService
      */
     public function markShippingToStation(Order $order): Order
     {
-        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
+        if (in_array($order->status, ['ordered', 'pending confirmation'], true)) {
             $this->confirm($order);
         }
         $prev = $order->status;
@@ -157,7 +157,7 @@ class OrderService
 
     public function markDelivered(Order $order): Order
     {
-        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed'], true)) {
+        if (in_array($order->status, ['ordered', 'pending confirmation'], true)) {
             $this->confirm($order);
         }
         $prev = $order->status;

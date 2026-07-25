@@ -182,6 +182,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/ready-for-pickup', [OrderController::class, 'readyForPickup'])->name('orders.ready-for-pickup')->middleware('permission:update_order_status');
         Route::post('orders/{order}/deliver', [OrderController::class, 'deliver'])->name('orders.deliver')->middleware('permission:update_order_status');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status')->middleware('permission:update_order_status');
 
         Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store')->middleware('permission:manage_orders');
         Route::patch('orders/{order}/delivery-date', [OrderController::class, 'updateDeliveryDate'])->name('orders.delivery-date.update')->middleware('permission:manage_orders');

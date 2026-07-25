@@ -1,35 +1,30 @@
 @extends('layouts.admin', ['title' => 'Order '.$order->reference])
 @section('content')
-<div class="d-flex justify-content-between mb-3">
+    <div class="d-flex justify-content-between mb-3">
     <h3>Order {{ $order->reference }}</h3>
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
         @php
             $s        = $order->status;
             $isPickup = $order->isForPickup();
-            $early    = in_array($s, ['ordered', 'pending confirmation']);
+            $allStatuses = $order->getAvailableStatuses();
         @endphp
 
-        {{-- ordered → pending confirmation --}}
-        @if($s === 'ordered')
-            <form action="{{ route('admin.orders.pending-confirmation', $order) }}" method="post">
+        {{-- Status dropdown — jump to any status --}}
+        @if(! in_array($s, ['delivered', 'cancelled']))
+            <form action="{{ route('admin.orders.update-status', $order) }}" method="post" class="d-flex gap-1">
                 @csrf
-                <button class="btn btn-outline-secondary">
-                    <i class="bi bi-hourglass-split me-1"></i>Pending Confirmation
-                </button>
+                <select name="status" class="form-select form-select-sm" style="width:auto" onchange="if(this.value && confirm('Update order status to {{ "'"+'" }}' + this.options[this.selectedIndex].text + '{{ "'"+'" }}?')) this.form.submit(); else this.selectedIndex=0;">
+                    <option value="" disabled selected>Jump to status...</option>
+                    @foreach($allStatuses as $st)
+                        @if($st !== $s)
+                            <option value="{{ $st }}">{{ ucfirst($st) }}</option>
+                        @endif
+                    @endforeach
+                </select>
             </form>
         @endif
 
-        {{-- ordered / pending confirmation → confirmed --}}
-        @if($early)
-            <form action="{{ route('admin.orders.confirm', $order) }}" method="post">
-                @csrf
-                <button class="btn btn-success">
-                    <i class="bi bi-check2-circle me-1"></i>Confirm
-                </button>
-            </form>
-        @endif
-
-        {{-- confirmed → processing --}}
+        {{-- Quick action buttons (next logical step) --}}
         @if($s === 'confirmed')
             <form action="{{ route('admin.orders.processing', $order) }}" method="post">
                 @csrf
@@ -39,7 +34,6 @@
             </form>
         @endif
 
-        {{-- processing + delivery → out for delivery --}}
         @if($s === 'processing' && ! $isPickup)
             <form action="{{ route('admin.orders.ship', $order) }}" method="post">
                 @csrf
@@ -49,7 +43,6 @@
             </form>
         @endif
 
-        {{-- processing + pickup → shipping to station --}}
         @if($s === 'processing' && $isPickup)
             <form action="{{ route('admin.orders.shipping-to-station', $order) }}" method="post">
                 @csrf
@@ -59,7 +52,6 @@
             </form>
         @endif
 
-        {{-- shipping to station + pickup → ready for pick up --}}
         @if($s === 'shipping to station' && $isPickup)
             <form action="{{ route('admin.orders.ready-for-pickup', $order) }}" method="post">
                 @csrf
@@ -69,7 +61,6 @@
             </form>
         @endif
 
-        {{-- out for delivery / ready for pick up → delivered --}}
         @if(in_array($s, ['out for delivery', 'ready for pick up']))
             <form action="{{ route('admin.orders.deliver', $order) }}" method="post">
                 @csrf
@@ -82,7 +73,7 @@
         {{-- cancel (any non-terminal state) --}}
         @if(! in_array($s, ['delivered', 'cancelled']))
             <form action="{{ route('admin.orders.cancel', $order) }}" method="post"
-                  data-confirm="This will cancel the order{{ in_array($s, ['confirmed','processing','shipping to station','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
+                  data-confirm="This will cancel the order{{ in_array($s, ['processing','shipping to station','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
                   data-confirm-title="Cancel Order?" data-confirm-yes="Yes, cancel">
                 @csrf
                 <button class="btn btn-outline-danger">
