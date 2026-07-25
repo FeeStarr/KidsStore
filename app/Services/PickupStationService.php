@@ -81,8 +81,6 @@ class PickupStationService
             $item->update([
                 'pickup_status' => 'picked_up',
                 'pickup_status_changed_at' => now(),
-                'pickup_station_fee_paid' => true,
-                'pickup_station_fee_paid_at' => now(),
             ]);
 
             // Update order's pickup_station_fee_total
