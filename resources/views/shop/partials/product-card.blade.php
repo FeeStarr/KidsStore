@@ -40,7 +40,7 @@
             <div class="small text-muted">{{ $product->category?->name }}</div>
             <h6 class="mb-1">{{ $product->name }}</h6>
             @if(!($product->is_returnable ?? true))
-                <span class="badge bg-warning-subtle text-warning" style="font-size:10px;"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable</span>
+                <span class="badge bg-warning text-dark fw-semibold" style="font-size:10px;"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable</span>
             @endif
             @if($reviewsCount > 0 && $avgRating > 0)
                 <div class="small text-muted mb-1">&#9733; {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
