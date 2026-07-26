@@ -43,6 +43,39 @@
 @endif
 
 @if($filter === 'picked_up')
+    {{-- Commission Summary Cards --}}
+    @if($commissionSummary)
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-success">
+                <div class="card-body text-center py-2">
+                    <div class="small text-muted">Total Earned</div>
+                    <div class="fs-4 fw-bold text-success">₦{{ number_format($commissionSummary['total_earned'], 2) }}</div>
+                    <div class="small text-muted">{{ $counts['picked_up'] }} item(s) picked up</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-primary">
+                <div class="card-body text-center py-2">
+                    <div class="small text-muted">Total Paid</div>
+                    <div class="fs-4 fw-bold text-primary">₦{{ number_format($commissionSummary['total_paid'], 2) }}</div>
+                    <div class="small text-muted">{{ $commissionSummary['paid_count'] }} item(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-warning">
+                <div class="card-body text-center py-2">
+                    <div class="small text-muted">Total Pending</div>
+                    <div class="fs-4 fw-bold text-warning">₦{{ number_format($commissionSummary['total_pending'], 2) }}</div>
+                    <div class="small text-muted">{{ $commissionSummary['pending_count'] }} item(s)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Picked Up Tab — DataTable --}}
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -68,16 +101,14 @@
                         <th class="text-center">Qty</th>
                         <th class="text-end">Line Total</th>
                         <th class="text-end">Commission (10%)</th>
+                        <th class="text-center">Status</th>
                         <th>Picked Up At</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
                 <tfoot>
                     <tr class="table-light fw-bold">
-                        <td colspan="6" class="text-end">Total Commission:</td>
-                        <td class="text-end" id="total-line-total">—</td>
-                        <td class="text-end text-success" id="total-commission">—</td>
-                        <td></td>
+                        <td colspan="10" class="text-end text-muted small">Showing {{ $counts['picked_up'] }} picked up item(s) total</td>
                     </tr>
                 </tfoot>
             </table>
@@ -192,8 +223,16 @@
                             <span class="badge bg-warning text-dark ms-2"><i class="bi bi-exclamation-circle me-1"></i>Unpaid — ₦{{ number_format($balance, 2) }} remaining</span>
                         @endif
                     </div>
-                    <div class="small">
-                        Customer: {{ $order->customer?->name ?? '—' }}
+                    <div class="small d-flex gap-2 align-items-center">
+                        <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        @if($order->customer)
+                            <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-info py-0" title="Send pickup reminder to customer">
+                                    <i class="bi bi-bell me-1"></i>Remind
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -286,8 +325,16 @@
                         <strong><i class="bi bi-arrow-counterclockwise me-1"></i>Return — {{ $order->reference }}</strong>
                         <span class="small text-muted ms-2">Approved {{ $rr->reviewed_at?->format('M d, Y') }}</span>
                     </div>
-                    <div class="small">
-                        Customer: {{ $order->customer?->name ?? '—' }}
+                    <div class="small d-flex gap-2 align-items-center">
+                        <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        @if($order->customer)
+                            <form method="POST" action="{{ route('pickup-portal.send-return-reminder', $rr) }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-info py-0" title="Send return reminder to customer">
+                                    <i class="bi bi-bell me-1"></i>Remind
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body">
@@ -373,9 +420,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Picked Up DataTable
     if (document.querySelector('#picked-up-table')) {
-        let totalLineTotal = 0;
-        let totalCommission = 0;
-
         const table = $('#picked-up-table').DataTable({
             processing: true,
             serverSide: true,
@@ -395,23 +439,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 { data: 'quantity', className: 'text-center' },
                 { data: 'line_total', className: 'text-end' },
                 { data: 'commission', className: 'text-end text-success fw-bold' },
+                { data: 'status', className: 'text-center', render: function(data, type, row) { return '<span class="badge ' + row.status_class + '">' + data + '</span>'; }, orderable: false },
                 { data: 'picked_up_at' }
             ],
-            order: [[8, 'desc']],
+            order: [[9, 'desc']],
             pageLength: 25,
-            drawCallback: function(settings) {
-                const api = this.api();
-                let lineTotal = 0;
-                let commission = 0;
-                api.column(6, { page: 'current' }).data().each(function(val) {
-                    lineTotal += parseFloat(val.replace(/[₦,]/g, '')) || 0;
-                });
-                api.column(7, { page: 'current' }).data().each(function(val) {
-                    commission += parseFloat(val.replace(/[₦,]/g, '')) || 0;
-                });
-                $('#total-line-total').text('₦' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}));
-                $('#total-commission').text('₦' + commission.toLocaleString(undefined, {minimumFractionDigits: 2}));
-            }
         });
 
         // Filter button

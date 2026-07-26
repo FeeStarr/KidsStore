@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\PickupStation;
 use App\Models\RefundRequest;
 use App\Notifications\PickupReminderNotification;
+use App\Notifications\ReturnReminderNotification;
 use App\Services\OPayService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
@@ -132,7 +133,32 @@ class PickupPortalController extends Controller
             ? $pendingReturns
             : ($itemsByStatus[$filter] ?? collect());
 
-        return view('pickup-portal.dashboard', compact('station', 'filter', 'currentItems', 'counts', 'bankAccount'));
+        // Commission summary for picked-up tab
+        $commissionSummary = null;
+        if ($filter === 'picked_up') {
+            $pickedUpItems = $itemsByStatus['picked_up'];
+            $totalEarned = 0;
+            $totalPaid = 0;
+            $totalPending = 0;
+            foreach ($pickedUpItems as $item) {
+                $comm = $item->commission;
+                $totalEarned += $comm;
+                if ($item->pickup_station_fee_paid) {
+                    $totalPaid += $comm;
+                } else {
+                    $totalPending += $comm;
+                }
+            }
+            $commissionSummary = [
+                'total_earned' => round($totalEarned, 2),
+                'total_paid' => round($totalPaid, 2),
+                'total_pending' => round($totalPending, 2),
+                'paid_count' => $pickedUpItems->where('pickup_station_fee_paid', true)->count(),
+                'pending_count' => $pickedUpItems->where('pickup_station_fee_paid', false)->count(),
+            ];
+        }
+
+        return view('pickup-portal.dashboard', compact('station', 'filter', 'currentItems', 'counts', 'bankAccount', 'commissionSummary'));
     }
 
     /** AJAX data endpoint for dashboard items */
@@ -205,6 +231,9 @@ class PickupPortalController extends Controller
                 'quantity' => $item->quantity,
                 'line_total' => number_format($item->line_total, 2),
                 'commission' => number_format($item->commission, 2),
+                'is_paid' => $item->pickup_station_fee_paid,
+                'status' => $item->pickup_station_fee_paid ? 'Paid' : 'Pending',
+                'status_class' => $item->pickup_station_fee_paid ? 'bg-success' : 'bg-warning text-dark',
                 'picked_up_at' => $item->pickup_status_changed_at?->format('M d, Y H:i'),
             ];
         })->values();
@@ -235,7 +264,7 @@ class PickupPortalController extends Controller
 
         $callback = function () use ($items) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Order', 'Customer', 'Product', 'Variant', 'Qty', 'Line Total', 'Commission (10%)', 'Picked Up At']);
+            fputcsv($handle, ['Order', 'Customer', 'Product', 'Variant', 'Qty', 'Line Total', 'Commission (10%)', 'Status', 'Picked Up At']);
 
             foreach ($items as $item) {
                 fputcsv($handle, [
@@ -246,6 +275,7 @@ class PickupPortalController extends Controller
                     $item->quantity,
                     number_format($item->line_total, 2),
                     number_format($item->commission, 2),
+                    $item->pickup_station_fee_paid ? 'Paid' : 'Pending',
                     $item->pickup_status_changed_at?->format('Y-m-d H:i'),
                 ]);
             }
@@ -376,28 +406,9 @@ class PickupPortalController extends Controller
         if (! session('portal_station_id')) return redirect()->route('pickup-portal.login');
         $stationId = (int) session('portal_station_id');
 
-        $status = $request->input('status', 'summary');
-        $from = $request->input('from');
-        $to = $request->input('to');
-
         $payoutSummary = $this->pickupService->getPayoutSummary($stationId);
 
-        // Get payout history
-        $payoutQuery = PickupPayout::with(['items', 'station'])
-            ->where('pickup_station_id', $stationId);
-
-        if ($status === 'paid') {
-            $payoutQuery->where('is_reversed', false);
-        } elseif ($status === 'reversed') {
-            $payoutQuery->where('is_reversed', true);
-        }
-
-        if ($from) $payoutQuery->whereDate('created_at', '>=', $from);
-        if ($to) $payoutQuery->whereDate('created_at', '<=', $to);
-
-        $payouts = $payoutQuery->orderByDesc('created_at')->get();
-
-        return view('pickup-portal.payouts', compact('payoutSummary', 'payouts', 'status', 'from', 'to'));
+        return view('pickup-portal.payouts', compact('payoutSummary'));
     }
 
     /** Server-side data for payouts DataTable */
@@ -406,7 +417,9 @@ class PickupPortalController extends Controller
         if (! session('portal_station_id')) return response()->json(['error' => 'Not authenticated.'], 401);
         $stationId = (int) session('portal_station_id');
 
-        $q = PickupPayout::with(['items.order', 'station'])->where('pickup_station_id', $stationId);
+        $q = PickupPayout::select('id', 'reference', 'amount', 'note', 'created_at', 'is_reversed')
+            ->where('pickup_station_id', $stationId)
+            ->with(['items.orderItem.product', 'items.orderItem.variant', 'items.order']);
 
         // Status filter
         $status = $request->input('status');
@@ -425,17 +438,24 @@ class PickupPortalController extends Controller
             $q->where(function ($sub) use ($search) {
                 $sub->where('reference', 'like', "%{$search}%")
                     ->orWhere('note', 'like', "%{$search}%")
+                    ->orWhereHas('items.orderItem.product', fn($p) => $p->where('name', 'like', "%{$search}%"))
                     ->orWhereHas('items.order', fn($o) => $o->where('reference', 'like', "%{$search}%"));
             });
         }
 
-        $recordsTotal = $q->count();
+        $recordsTotal = PickupPayout::where('pickup_station_id', $stationId)->count();
+        $recordsFiltered = (clone $q)->count();
         $start = (int) $request->input('start', 0);
         $length = (int) $request->input('length', 25);
 
         $rows = $q->orderByDesc('created_at')->offset($start)->limit($length)->get();
 
         $data = $rows->map(function($p) {
+            $items = $p->items;
+            $itemCount = $items->count();
+            $orderRefs = $items->pluck('order.reference')->filter()->unique()->values();
+            $productNames = $items->pluck('orderItem.product.name')->filter()->unique()->take(3)->implode(', ');
+
             return [
                 'id' => $p->id,
                 'reference' => $p->reference,
@@ -444,15 +464,22 @@ class PickupPortalController extends Controller
                 'status' => $p->is_reversed ? 'Reversed' : 'Paid',
                 'status_class' => $p->is_reversed ? 'bg-danger' : 'bg-success',
                 'note' => $p->note ?? '—',
-                'orders' => $p->items->pluck('order.reference')->filter()->implode(', ') ?: '—',
-                'order_count' => $p->items->count(),
+                'orders' => $orderRefs->implode(', ') ?: '—',
+                'item_count' => $itemCount,
+                'products' => $productNames . ($itemCount > 3 ? ' +' . ($itemCount - 3) . ' more' : ''),
+                'items_detail' => $items->map(fn($it) => [
+                    'product' => $it->orderItem?->product?->name ?? '—',
+                    'variant' => $it->orderItem?->variant?->options_label ?? '—',
+                    'fee' => '₦' . number_format($it->fee_amount, 2),
+                    'order' => $it->order?->reference ?? '—',
+                ])->values(),
             ];
         })->values();
 
         return response()->json([
             'draw' => (int) $request->input('draw', 0),
             'recordsTotal' => $recordsTotal,
-            'recordsFiltered' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
             'data' => $data,
         ]);
     }
@@ -478,7 +505,7 @@ class PickupPortalController extends Controller
         $itemsToMarkPaid = collect();
 
         foreach ($orders as $o) {
-            $pickedUpItems = $o->items->where('pickup_status', 'picked_up');
+            $pickedUpItems = $o->items->where('pickup_status', 'picked_up')->where('pickup_station_fee_paid', false);
             foreach ($pickedUpItems as $item) {
                 $commission = $item->commission;
                 $total += $commission;
@@ -510,9 +537,13 @@ class PickupPortalController extends Controller
                 'pickup_station_fee_paid' => true,
                 'pickup_station_fee_paid_at' => now(),
             ]);
+        }
 
-            // Refresh order-level fee total
-            $this->pickupService->refreshOrderFeeTotal($item->order);
+        // Refresh order-level fee total once per affected order
+        $affectedOrderIds = $itemsToMarkPaid->pluck('order_id')->unique();
+        foreach ($affectedOrderIds as $oid) {
+            $order = Order::find($oid);
+            if ($order) $this->pickupService->refreshOrderFeeTotal($order);
         }
 
         return back()->with('success', "Payout record created for ₦" . number_format($total, 2) . " ({$itemsToMarkPaid->count()} items).");
@@ -730,6 +761,33 @@ class PickupPortalController extends Controller
         try {
             $order->customer->notify(new PickupReminderNotification($order));
             return back()->with('success', 'Pickup reminder sent to ' . $order->customer->name . '.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Failed to send reminder: ' . $e->getMessage());
+        }
+    }
+
+    /** Send a return reminder email to the customer */
+    public function sendReturnReminder(RefundRequest $return): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        if ((int) $return->pickup_station_id !== $stationId) {
+            abort(403, 'This return does not belong to your station.');
+        }
+
+        $customer = $return->order?->customer;
+
+        if (! $customer) {
+            return back()->with('error', 'No customer associated with this return.');
+        }
+
+        try {
+            $customer->notify(new ReturnReminderNotification($return));
+            return back()->with('success', 'Return reminder sent to ' . $customer->name . '.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Failed to send reminder: ' . $e->getMessage());
         }
