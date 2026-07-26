@@ -22,7 +22,7 @@ class CheckoutController extends Controller
             return redirect()->route('shop.cart.index')->with('error', 'Your cart is empty.');
         }
 
-        $pickupStations = PickupStation::where('is_active', true)->orderBy('name')->get();
+        $pickupStations = PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get();
 
         return view('shop.checkout.show', [
             'items'          => $this->cart->items(),
