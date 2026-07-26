@@ -226,6 +226,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('pickup-payouts/records', [App\Http\Controllers\Admin\PickupPayoutController::class, 'records'])->name('pickup-payouts.records');
         Route::get('pickup-payouts/records/export', [App\Http\Controllers\Admin\PickupPayoutController::class, 'export'])->name('pickup-payouts.export');
         Route::get('pickup-payouts/{pickupStation}', [App\Http\Controllers\Admin\PickupPayoutController::class, 'show'])->name('pickup-payouts.show');
+        Route::get('pickup-payouts/{pickupStation}/data', [App\Http\Controllers\Admin\PickupPayoutController::class, 'showData'])->name('pickup-payouts.show-data');
         Route::post('pickup-payouts/{pickupStation}/mark-paid', [App\Http\Controllers\Admin\PickupPayoutController::class, 'markPaid'])->name('pickup-payouts.mark-paid');
         Route::post('pickup-payouts/{pickupPayout}/reverse', [App\Http\Controllers\Admin\PickupPayoutController::class, 'reverse'])->name('pickup-payouts.reverse');
         Route::resource('suppliers', SupplierController::class)->except(['show']);
@@ -240,6 +241,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('pickup-stations.set-unavailable')->middleware('permission:manage_settings');
         Route::get('pickup-stations/{pickupStation}/items', [PickupStationController::class, 'items'])
             ->name('pickup-stations.items')->middleware('permission:manage_settings');
+        Route::get('pickup-stations/{pickupStation}/items/data', [PickupStationController::class, 'itemsData'])
+            ->name('pickup-stations.items.data')->middleware('permission:manage_settings');
         Route::post('orders/{order}/reassign-station', [PickupStationController::class, 'reassignOrder'])
             ->name('orders.reassign-station')->middleware('permission:manage_settings');
 
@@ -296,7 +299,8 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         Route::get('/returns/{refundRequest}', [PickupPortalController::class, 'returnDetails'])->name('returns.show');
         Route::post('/returns/{refundRequest}/collect', [PickupPortalController::class, 'collectReturn'])->name('returns.collect');
 
-        // Reminder route
+        // Reminder routes
         Route::post('/orders/{order}/send-reminder', [PickupPortalController::class, 'sendReminder'])->name('send-reminder');
+        Route::post('/returns/{return}/send-reminder', [PickupPortalController::class, 'sendReturnReminder'])->name('send-return-reminder');
     });
 });
