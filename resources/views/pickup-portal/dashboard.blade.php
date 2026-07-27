@@ -45,6 +45,20 @@
     </div>
 @endif
 
+@if(request('payment_confirmed'))
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle me-2"></i><strong>Payment Confirmed!</strong> You can now release the order to the customer.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
+@if(request('payment_rejected'))
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-x-circle me-2"></i><strong>Payment Not Verified.</strong> Please ask the customer to retry or try a different payment method.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 @if($filter === 'picked_up')
     {{-- Commission Summary Cards --}}
     @if($commissionSummary)
@@ -218,6 +232,11 @@
                 $balance = ($order->grand_total ?? 0) - ($order->amount_paid ?? 0);
                 $pendingVerification = $order->latestPendingVerification();
                 $stationAccount = $order->pickupStation?->defaultBankAccount();
+                if (! $stationAccount) {
+                    $stationAccount = \App\Models\BankAccount::where('is_active', true)
+                        ->orderByDesc('is_default')
+                        ->first();
+                }
             @endphp
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -646,7 +665,9 @@ setInterval(updateCountdowns, 1000);
             .then(function(data) {
                 if (data.payment_status !== lastStatus[orderId]) {
                     clearInterval(pollers[orderId]);
-                    location.reload();
+                    var param = data.payment_status === 'paid' ? 'payment_confirmed=1' : 'payment_rejected=1';
+                    var sep = window.location.search ? '&' : '?';
+                    window.location.search = window.location.search + sep + param;
                 }
             })
             .catch(function() {});
@@ -660,6 +681,9 @@ setInterval(updateCountdowns, 1000);
 @php
     $portalStation = \App\Models\PickupStation::find(session('portal_station_id'));
     $portalAccounts = $portalStation ? $portalStation->bankAccounts()->orderByDesc('is_default')->get() : collect();
+    if ($portalAccounts->isEmpty()) {
+        $portalAccounts = \App\Models\BankAccount::where('is_active', true)->orderByDesc('is_default')->get();
+    }
 @endphp
 <div class="modal fade" id="accountDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

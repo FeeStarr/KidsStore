@@ -41,22 +41,15 @@ class OrderPlacedNotification extends Notification
         $message = (new MailMessage)
             ->subject($subject);
 
-        if ($isInternal) {
-            $message->greeting("New order from {$order->customer?->name}")
-                    ->line("A new order **{$order->reference}** has been placed.")
-                    ->line("**Customer:** {$order->customer?->name} ({$order->customer?->email})")
-                    ->line("**Delivery:** {$order->getDeliveryMethodLabel()}")
-                    ->line("**Total:** ₦" . number_format($order->grand_total, 2))
-                    ->action('View Order', url('/admin/orders/' . $order->id));
+        $order->loadMissing('items.product', 'items.variant.image', 'items.variant.images', 'pickupStation');
+        $message->view('emails.order-placed', ['order' => $order, 'isInternal' => $isInternal]);
 
+        if ($isInternal) {
             foreach (NotificationRecipients::adminUsers() as $admin) {
                 if ($admin->id !== $notifiable->id) {
                     $message->cc($admin->email, $admin->name);
                 }
             }
-        } else {
-            $order->loadMissing('items.product', 'items.variant.image', 'items.variant.images', 'pickupStation');
-            $message->view('emails.order-placed', ['order' => $order]);
         }
 
         return $message;
