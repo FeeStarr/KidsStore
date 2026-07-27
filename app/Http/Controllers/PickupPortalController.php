@@ -792,4 +792,34 @@ class PickupPortalController extends Controller
             return back()->with('error', 'Failed to send reminder: ' . $e->getMessage());
         }
     }
+
+    /** Submit payment for admin verification */
+    public function submitPaymentVerification(Order $order): RedirectResponse
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        if ((int) $order->pickup_station_id !== $stationId) {
+            abort(403, 'This order does not belong to your station.');
+        }
+
+        $data = request()->validate([
+            'station_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            app(\App\Services\PaymentVerificationService::class)->submit(
+                $order,
+                $stationId,
+                $data['station_note'] ?? null,
+            );
+
+            return back()->with('success', 'Payment submitted for verification. Admin will review shortly.');
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
 }

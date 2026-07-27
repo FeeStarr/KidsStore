@@ -210,7 +210,11 @@
             @php
                 $order = $items->first()->order;
                 $isPaid = $order->payment_status === 'paid';
+                $isVerificationPending = $order->payment_status === 'verification_pending';
+                $isVerificationFailed = $order->payment_status === 'verification_failed';
                 $balance = ($order->grand_total ?? 0) - ($order->amount_paid ?? 0);
+                $pendingVerification = $order->latestPendingVerification();
+                $stationAccount = $order->pickupStation?->defaultBankAccount();
             @endphp
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -219,6 +223,12 @@
                         <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y') }}</span>
                         @if($isPaid)
                             <span class="badge bg-success ms-2"><i class="bi bi-check-circle me-1"></i>Paid</span>
+                        @elseif($isVerificationPending)
+                            <span class="badge bg-info text-dark ms-2" id="verify-badge-{{ $order->id }}">
+                                <i class="bi bi-clock-history me-1"></i>Verification Pending
+                            </span>
+                        @elseif($isVerificationFailed)
+                            <span class="badge bg-danger ms-2"><i class="bi bi-x-circle me-1"></i>Verification Failed</span>
                         @else
                             <span class="badge bg-warning text-dark ms-2"><i class="bi bi-exclamation-circle me-1"></i>Unpaid — ₦{{ number_format($balance, 2) }} remaining</span>
                         @endif
@@ -275,30 +285,100 @@
                         </tbody>
                     </table>
                 </div>
-                {{-- Order-level actions for unpaid orders --}}
+                {{-- Footer: payment actions --}}
                 @if(! $isPaid)
                 <div class="card-footer bg-light">
-                    <div class="d-flex gap-2 align-items-center flex-wrap">
-                        <span class="small text-muted me-1">Collect payment:</span>
-                        <button type="button" class="btn btn-sm btn-outline-primary"
-                                data-bs-toggle="modal" data-bs-target="#transferModal"
-                                data-order-id="{{ $order->id }}"
-                                data-order-ref="{{ $order->reference }}"
-                                data-amount="{{ number_format($balance, 2) }}"
-                                data-amount-raw="{{ $balance }}"
-                                data-customer="{{ $order->customer?->name ?? 'Customer' }}">
-                            <i class="bi bi-bank me-1"></i>Pay by Transfer
-                        </button>
-                        <form method="POST" action="{{ route('pickup-portal.record-payment', $order) }}" class="d-inline" id="cash-form-{{ $order->id }}">
-                            @csrf
-                            <input type="hidden" name="amount" value="{{ $balance }}">
-                            <input type="hidden" name="method" value="cash">
-                            <button type="submit" class="btn btn-sm btn-outline-success"
-                                    onclick="return confirm('Record cash payment of ₦{{ number_format($balance, 2) }}?')">
-                                <i class="bi bi-cash me-1"></i>Cash
-                            </button>
-                        </form>
-                    </div>
+                    {{-- Verification pending: show countdown --}}
+                    @if($isVerificationPending && $pendingVerification)
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <span class="small text-muted"><i class="bi bi-clock-history me-1"></i>Payment submitted for verification</span>
+                            <span class="badge bg-info text-dark" id="countdown-{{ $order->id }}"
+                                  data-submitted-at="{{ $pendingVerification->submitted_at->toIso8601String() }}">
+                                @php echo $pendingVerification->getCountdownDisplay(); @endphp
+                            </span>
+                            <span class="small text-muted">— waiting for admin confirmation</span>
+                        </div>
+
+                    {{-- Verification failed: show retry option --}}
+                    @elseif($isVerificationFailed)
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="small text-danger me-1"><i class="bi bi-exclamation-triangle me-1"></i>Payment not verified</span>
+                            <form method="POST" action="{{ route('pickup-portal.submit-payment', $order) }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Resubmit Payment
+                                </button>
+                            </form>
+                        </div>
+
+                    {{-- Unpaid: show bank details + submit button --}}
+                    @else
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <span class="small text-muted me-1">Collect payment:</span>
+
+                            @if($stationAccount)
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal" data-bs-target="#bankDetailsModal-{{ $order->id }}">
+                                    <i class="bi bi-bank me-1"></i>Show Bank Details
+                                </button>
+                            @endif
+
+                            <form method="POST" action="{{ route('pickup-portal.submit-payment', $order) }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-primary"
+                                        onclick="return confirm('Submit payment for verification? Admin will review within 40 minutes.')">
+                                    <i class="bi bi-send me-1"></i>Payment Submitted
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{{ route('pickup-portal.record-payment', $order) }}" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="amount" value="{{ $balance }}">
+                                <input type="hidden" name="method" value="cash">
+                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                        onclick="return confirm('Record cash payment of ₦{{ number_format($balance, 2) }}?')">
+                                    <i class="bi bi-cash me-1"></i>Cash
+                                </button>
+                            </form>
+                        </div>
+
+                        {{-- Bank Details Modal --}}
+                        @if($stationAccount)
+                        <div class="modal fade" id="bankDetailsModal-{{ $order->id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Bank Transfer Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="small text-muted mb-3">Share these details with the customer for bank transfer.</p>
+                                        <table class="table table-sm mb-0">
+                                            <tr><td class="text-muted" style="width:120px">Bank</td><td><strong>{{ $stationAccount->bank_name }}</strong></td></tr>
+                                            <tr><td class="text-muted">Account Name</td><td>{{ $stationAccount->bank_account_name }}</td></tr>
+                                            <tr>
+                                                <td class="text-muted">Account Number</td>
+                                                <td>
+                                                    <span class="font-monospace fw-bold">{{ $stationAccount->bank_account_number }}</span>
+                                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $stationAccount->bank_account_number }}')">
+                                                        <i class="bi bi-clipboard me-1"></i>Copy
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr><td class="text-muted">Amount</td><td class="fw-bold text-primary">₦{{ number_format($balance, 2) }}</td></tr>
+                                        </table>
+                                        @if($stationAccount->instructions)
+                                            <div class="mt-2 small text-muted"><i class="bi bi-info-circle me-1"></i>{{ $stationAccount->instructions }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+                    @endif
                 </div>
                 @endif
             </div>
@@ -529,6 +609,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
+<script>
+// Countdown timers for payment verification
+function updateCountdowns() {
+    document.querySelectorAll('[id^="countdown-"]').forEach(function(el) {
+        const submittedAt = new Date(el.dataset.submittedAt);
+        const now = new Date();
+        const elapsed = Math.floor((now - submittedAt) / 1000);
+        const remaining = Math.max(0, 2400 - elapsed); // 40 minutes = 2400 seconds
+
+        if (remaining <= 0) {
+            el.textContent = 'Overdue — awaiting admin';
+            el.classList.remove('bg-info');
+            el.classList.add('bg-danger');
+        } else {
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            el.textContent = mins + 'm ' + secs + 's remaining';
+        }
+    });
+}
+updateCountdowns();
+setInterval(updateCountdowns, 1000);
 </script>
 @endpush
 

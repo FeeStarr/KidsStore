@@ -183,6 +183,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/deliver', [OrderController::class, 'deliver'])->name('orders.deliver')->middleware('permission:update_order_status');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel')->middleware('permission:update_order_status');
         Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->name('orders.confirm-payment')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/reject-payment', [OrderController::class, 'rejectPayment'])->name('orders.reject-payment')->middleware('permission:update_order_status');
 
         Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store')->middleware('permission:manage_orders');
         Route::patch('orders/{order}/delivery-date', [OrderController::class, 'updateDeliveryDate'])->name('orders.delivery-date.update')->middleware('permission:manage_orders');
@@ -302,5 +304,8 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         // Reminder routes
         Route::post('/orders/{order}/send-reminder', [PickupPortalController::class, 'sendReminder'])->name('send-reminder');
         Route::post('/returns/{return}/send-reminder', [PickupPortalController::class, 'sendReturnReminder'])->name('send-return-reminder');
+
+        // Payment verification
+        Route::post('/orders/{order}/submit-payment', [PickupPortalController::class, 'submitPaymentVerification'])->name('submit-payment');
     });
 });

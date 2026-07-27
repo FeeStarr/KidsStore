@@ -24,15 +24,14 @@ class PickupPayoutController extends Controller
         $stations = PickupStation::orderBy('name')->get();
 
         $summary = $stations->map(function ($s) {
-            $commission = $this->pickupService->calculateCommission($s->id);
             $payoutSummary = $this->pickupService->getPayoutSummary($s->id);
 
             return [
                 'station' => $s,
-                'total_earned' => $commission['total_commission'],
+                'total_earned' => $payoutSummary['total_earned'],
                 'total_paid_out' => $payoutSummary['total_paid_out'],
                 'balance_due' => $payoutSummary['balance_due'],
-                'item_count' => $commission['item_count'],
+                'item_count' => $payoutSummary['item_count'],
             ];
         });
 
@@ -44,64 +43,98 @@ class PickupPayoutController extends Controller
     {
         $payoutSummary = $this->pickupService->getPayoutSummary($pickupStation->id);
 
-        // Get all picked-up items for this station
-        $pickedUpItems = OrderItem::whereHas('order', function ($q) use ($pickupStation) {
+        return view('admin.payouts.show', compact('pickupStation', 'payoutSummary'));
+    }
+
+    /** DataTable endpoint for station commission breakdown */
+    public function showData(Request $request, PickupStation $pickupStation)
+    {
+        $q = OrderItem::whereHas('order', function ($q) use ($pickupStation) {
             $q->where('pickup_station_id', $pickupStation->id);
         })
         ->where('pickup_status', 'picked_up')
-        ->with(['order', 'product', 'variant'])
-        ->orderByDesc('pickup_status_changed_at')
-        ->get();
+        ->with(['order', 'product', 'variant']);
 
-        // Group by order
-        $itemsByOrder = $pickedUpItems->groupBy('order_id')->map(function ($items, $orderId) {
-            $order = $items->first()->order;
-            $commission = $items->sum(fn($item) => $item->commission);
+        // Filter by paid status
+        $paidStatus = $request->input('paid_status');
+        if ($paidStatus === 'paid') $q->where('pickup_station_fee_paid', true);
+        if ($paidStatus === 'unpaid') $q->where('pickup_station_fee_paid', false);
+
+        // Search
+        $search = $request->input('search.value');
+        if ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->whereHas('product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('order', fn($o) => $o->where('reference', 'like', "%{$search}%"))
+                    ->orWhereHas('variant', fn($v) => $v->where('options_label', 'like', "%{$search}%"));
+            });
+        }
+
+        // Date filter
+        $from = $request->input('from');
+        $to = $request->input('to');
+        if ($from) $q->whereDate('pickup_status_changed_at', '>=', $from);
+        if ($to) $q->whereDate('pickup_status_changed_at', '<=', $to);
+
+        $recordsTotal = OrderItem::whereHas('order', function ($q) use ($pickupStation) {
+            $q->where('pickup_station_id', $pickupStation->id);
+        })->where('pickup_status', 'picked_up')->count();
+
+        $recordsFiltered = (clone $q)->count();
+        $start = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 25);
+
+        $items = $q->orderByDesc('pickup_status_changed_at')->offset($start)->limit($length)->get();
+
+        $data = $items->map(function ($item) {
+            $isPaid = $item->pickup_station_fee_paid;
             return [
-                'order' => $order,
-                'items' => $items,
-                'commission' => round($commission, 2),
+                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '—',
+                'order_date' => $item->order?->order_date?->format('M d, Y'),
+                'product' => e($item->product?->name ?? '—'),
+                'variant' => e($item->variant?->options_label ?? '—'),
+                'quantity' => $item->quantity,
+                'unit_price' => '₦' . number_format($item->unit_price, 2),
+                'line_total' => '₦' . number_format($item->line_total, 2),
+                'commission' => '₦' . number_format($item->commission, 2),
+                'is_paid' => $isPaid,
+                'status' => $isPaid ? 'Paid' : 'Unpaid',
+                'status_class' => $isPaid ? 'bg-success' : 'bg-warning text-dark',
+                'checkbox' => $isPaid ? '' : '<input type="checkbox" name="order_item_ids[]" value="' . $item->id . '" class="form-check-input item-paid-check">',
+                'picked_up_at' => $item->pickup_status_changed_at?->format('M d, Y H:i'),
             ];
-        });
+        })->values();
 
-        return view('admin.payouts.show', compact('pickupStation', 'payoutSummary', 'itemsByOrder'));
+        return response()->json([
+            'draw' => (int) $request->input('draw', 0),
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
     }
 
     /** Mark selected items as paid (bulk) — pays commission on picked_up items */
     public function markPaid(Request $request, PickupStation $pickupStation)
     {
         $data = $request->validate([
-            'order_ids' => ['required', 'array'],
-            'order_ids.*' => ['integer', 'exists:orders,id'],
+            'order_item_ids' => ['required', 'array'],
+            'order_item_ids.*' => ['integer', 'exists:order_items,id'],
             'note' => ['nullable', 'string'],
         ]);
 
-        $orderIds = $data['order_ids'];
+        $orderItemIds = $data['order_item_ids'];
 
-        $orders = \App\Models\Order::with('items')
-            ->whereIn('id', $orderIds)
-            ->where('pickup_station_id', $pickupStation->id)
+        $itemsToMarkPaid = \App\Models\OrderItem::whereIn('id', $orderItemIds)
+            ->where('pickup_status', 'picked_up')
+            ->where('pickup_station_fee_paid', false)
+            ->whereHas('order', fn($q) => $q->where('pickup_station_id', $pickupStation->id))
             ->get();
 
-        if ($orders->isEmpty()) {
-            return back()->with('error', 'No matching orders found for this station.');
+        if ($itemsToMarkPaid->isEmpty()) {
+            return back()->with('error', 'No unpaid picked-up items found for the selected items.');
         }
 
-        $total = 0;
-        $itemsToMarkPaid = collect();
-
-        foreach ($orders as $o) {
-            $pickedUpItems = $o->items->where('pickup_status', 'picked_up');
-            foreach ($pickedUpItems as $item) {
-                $commission = $item->commission;
-                $total += $commission;
-                $itemsToMarkPaid->push($item);
-            }
-        }
-
-        if ($total <= 0) {
-            return back()->with('error', 'No picked-up items found for the selected orders.');
-        }
+        $total = $itemsToMarkPaid->sum(fn($item) => $item->commission);
 
         $payout = \App\Models\PickupPayout::create([
             'pickup_station_id' => $pickupStation->id,
@@ -124,9 +157,13 @@ class PickupPayoutController extends Controller
                 'pickup_station_fee_paid' => true,
                 'pickup_station_fee_paid_at' => now(),
             ]);
+        }
 
-            // Refresh order-level fee total
-            $this->pickupService->refreshOrderFeeTotal($item->order);
+        // Refresh order-level fee total once per affected order
+        $affectedOrderIds = $itemsToMarkPaid->pluck('order_id')->unique();
+        foreach ($affectedOrderIds as $oid) {
+            $order = \App\Models\Order::find($oid);
+            if ($order) $this->pickupService->refreshOrderFeeTotal($order);
         }
 
         return back()->with('success', "Payout record created for ₦" . number_format($total, 2) . " ({$itemsToMarkPaid->count()} items).");
@@ -141,7 +178,7 @@ class PickupPayoutController extends Controller
         $sort = $request->input('sort', 'date');
         $dir = $request->input('dir', 'desc');
 
-        $query = \App\Models\PickupPayout::with(['station', 'items.order', 'reversedBy']);
+        $query = \App\Models\PickupPayout::with(['station', 'items.order', 'items.orderItem.product', 'items.orderItem.variant', 'reversedBy']);
 
         if ($stationId) $query->where('pickup_station_id', $stationId);
         if ($from) $query->whereDate('created_at', '>=', $from);
@@ -205,9 +242,8 @@ class PickupPayoutController extends Controller
         $affectedOrderIds = collect();
 
         foreach ($pickupPayout->items as $it) {
-            if ($it->order_id) {
-                \App\Models\OrderItem::where('order_id', $it->order_id)
-                    ->where('pickup_status', 'picked_up')
+            if ($it->order_item_id) {
+                \App\Models\OrderItem::where('id', $it->order_item_id)
                     ->update([
                         'pickup_station_fee_paid' => false,
                         'pickup_station_fee_paid_at' => null,

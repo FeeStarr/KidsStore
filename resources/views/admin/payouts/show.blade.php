@@ -46,102 +46,147 @@
     </div>
 </div>
 
-{{-- Commission Breakdown by Order --}}
-@if($itemsByOrder->isNotEmpty())
+{{-- Commission Breakdown — DataTable --}}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Picked Up Items — Commission Breakdown</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <select id="paid-status-filter" class="form-select form-select-sm" style="width:130px">
+                <option value="">All Status</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="paid">Paid</option>
+            </select>
+            <input type="date" id="item-from" class="form-control form-control-sm" style="width:150px">
+            <input type="date" id="item-to" class="form-control form-control-sm" style="width:150px">
+            <button id="item-filter" class="btn btn-sm btn-primary">Filter</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.item-paid-check:not(:checked)').forEach(cb => cb.checked = true); updateSelectAllSection()">Select All Unpaid</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('.item-paid-check:checked').forEach(cb => cb.checked = false); updateSelectAllSection()">Deselect All</button>
+        </div>
     </div>
     <div class="card-body">
-        <form method="post" action="{{ route('admin.pickup-payouts.mark-paid', $pickupStation) }}">
+        <form method="post" action="{{ route('admin.pickup-payouts.mark-paid', $pickupStation) }}" id="markPaidForm">
             @csrf
 
-            <div class="mb-3">
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=\'order_ids[]\']:not(:disabled)').forEach(cb => cb.checked = true)">Select All</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.querySelectorAll('input[name=\'order_ids[]\']').forEach(cb => cb.checked = false)">Deselect All</button>
-            </div>
+            <table id="payout-items-table" class="table table-sm" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="width:30px"></th>
+                        <th>Order</th>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Variant</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Line Total</th>
+                        <th class="text-end">Commission (10%)</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr class="table-light fw-bold">
+                        <td colspan="8" class="text-end">Total Commission (page):</td>
+                        <td class="text-end text-success" id="page-commission-total">—</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
 
-            @foreach($itemsByOrder as $orderId => $orderData)
-                @php
-                    $order = $orderData['order'];
-                    $allPaid = $orderData['items']->every(fn($i) => $i->pickup_station_fee_paid);
-                    $anyUnpaid = $orderData['items']->some(fn($i) => ! $i->pickup_station_fee_paid);
-                @endphp
-                <div class="card mb-3 {{ $allPaid ? 'border-success' : ($anyUnpaid ? 'border-warning' : '') }}">
-                    <div class="card-header d-flex justify-content-between align-items-center {{ $allPaid ? 'bg-success bg-opacity-10' : ($anyUnpaid ? 'bg-warning bg-opacity-10' : '') }}">
-                        <div>
-                            @if($anyUnpaid)
-                                <input type="checkbox" name="order_ids[]" value="{{ $order->id }}">
-                            @endif
-                            <strong class="ms-2">{{ $order->reference }}</strong>
-                            <span class="small text-muted ms-2">{{ $order->order_date?->format('M d, Y') }}</span>
-                            @if($allPaid)
-                                <span class="badge bg-success ms-2"><i class="bi bi-check-circle me-1"></i>Paid</span>
-                            @else
-                                <span class="badge bg-warning text-dark ms-2"><i class="bi bi-clock me-1"></i>Pending</span>
-                            @endif
-                        </div>
-                        <div class="fw-bold text-success">
-                            Commission: ₦{{ number_format($orderData['commission'], 2) }}
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Product</th>
-                                    <th>Variant</th>
-                                    <th class="text-center">Qty</th>
-                                    <th class="text-end">Unit Price</th>
-                                    <th class="text-end">Line Total</th>
-                                    <th class="text-end">Commission (10%)</th>
-                                    <th class="text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($orderData['items'] as $item)
-                                    <tr class="{{ $item->pickup_station_fee_paid ? 'table-success bg-opacity-10' : '' }}">
-                                        <td>{{ $item->product?->name }}</td>
-                                        <td class="text-muted small">{{ $item->variant?->options_label }}</td>
-                                        <td class="text-center">{{ $item->quantity }}</td>
-                                        <td class="text-end">₦{{ number_format($item->unit_price, 2) }}</td>
-                                        <td class="text-end">₦{{ number_format($item->line_total, 2) }}</td>
-                                        <td class="text-end text-success fw-bold">₦{{ number_format($item->commission, 2) }}</td>
-                                        <td class="text-center">
-                                            @if($item->pickup_station_fee_paid)
-                                                <span class="badge bg-success">Paid</span>
-                                            @else
-                                                <span class="badge bg-warning text-dark">Unpaid</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @endforeach
-
-            <div class="card mb-3">
-                <div class="card-body">
-                    <label class="form-label">Note (optional)</label>
-                    <textarea name="note" class="form-control" rows="2" placeholder="e.g., Bank transfer reference, payout date"></textarea>
+            <div class="card mb-3 mt-3" id="noteCard" style="display:none">
+                <div class="card-body py-2">
+                    <label class="form-label form-label-sm mb-1">Note (optional)</label>
+                    <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="e.g., Bank transfer reference, payout date"></textarea>
                 </div>
             </div>
 
-            <div class="text-end mt-3">
-                <button class="btn btn-primary">
+            <div class="d-flex justify-content-between align-items-center mt-3" id="markPaidSection" style="display:none">
+                <div class="small text-muted" id="selectedInfo">0 item(s) selected</div>
+                <button type="submit" class="btn btn-primary" id="markPaidBtn">
                     <i class="bi bi-check-circle me-1"></i>Mark Selected as Paid
                 </button>
             </div>
         </form>
     </div>
 </div>
-@else
-<div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i>
-    No picked-up items found for this station yet. Items will appear here once the station marks them as "picked up".
-</div>
-@endif
 
 @endsection
+
+@push('styles')
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+@endpush
+
+@push('scripts')
+<script>
+function updateSelectAllSection() {
+    const checked = document.querySelectorAll('.item-paid-check:checked');
+    const section = document.getElementById('markPaidSection');
+    const noteCard = document.getElementById('noteCard');
+    const info = document.getElementById('selectedInfo');
+    if (checked.length > 0) {
+        section.style.display = 'flex';
+        noteCard.style.display = 'block';
+        info.textContent = checked.length + ' item(s) selected — ₦' + Array.from(checked).reduce((sum, cb) => {
+            return sum + parseFloat(cb.closest('tr').querySelector('.commission-val')?.textContent.replace(/[₦,]/g, '') || 0);
+        }, 0).toFixed(2);
+    } else {
+        section.style.display = 'none';
+        noteCard.style.display = 'none';
+    }
+}
+document.querySelectorAll('.item-paid-check').forEach(cb => {
+    cb.addEventListener('change', updateSelectAllSection);
+});
+document.getElementById('markPaidForm')?.addEventListener('submit', function(e) {
+    const checked = document.querySelectorAll('.item-paid-check:checked');
+    if (checked.length === 0) { e.preventDefault(); return; }
+    if (!confirm('Mark ' + checked.length + ' item(s) as paid?')) { e.preventDefault(); }
+});
+
+// DataTable
+$(function () {
+    var table = $('#payout-items-table').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: '{{ route("admin.pickup-payouts.show-data", $pickupStation) }}',
+            data: function(d) {
+                d.paid_status = document.getElementById('paid-status-filter')?.value || '';
+                d.from = document.getElementById('item-from')?.value || '';
+                d.to = document.getElementById('item-to')?.value || '';
+            }
+        },
+        columns: [
+            { data: 'checkbox', orderable: false, searchable: false, className: 'text-center' },
+            { data: 'order_reference', name: 'order' },
+            { data: 'order_date', name: 'order_date' },
+            { data: 'product', name: 'product' },
+            { data: 'variant', name: 'variant' },
+            { data: 'quantity', className: 'text-center', orderable: false },
+            { data: 'unit_price', className: 'text-end', orderable: false },
+            { data: 'line_total', className: 'text-end', orderable: false },
+            { data: 'commission', className: 'text-end text-success fw-bold commission-val', orderable: false },
+            { data: 'status', className: 'text-center', orderable: false, render: function(data, type, row) {
+                return '<span class="badge ' + row.status_class + '">' + data + '</span>';
+            }}
+        ],
+        order: [[2, 'desc']],
+        pageLength: 25,
+        drawCallback: function() {
+            var api = this.api();
+            var total = 0;
+            api.column(8, { page: 'current' }).data().each(function(val) {
+                total += parseFloat(val.replace(/[₦,]/g, '')) || 0;
+            });
+            $('#page-commission-total').text('₦' + total.toLocaleString(undefined, {minimumFractionDigits: 2}));
+            // Rebind checkboxes after redraw
+            document.querySelectorAll('.item-paid-check').forEach(cb => {
+                cb.removeEventListener('change', updateSelectAllSection);
+                cb.addEventListener('change', updateSelectAllSection);
+            });
+        }
+    });
+
+    $('#item-filter').on('click', function() { table.ajax.reload(); });
+});
+</script>
+@endpush

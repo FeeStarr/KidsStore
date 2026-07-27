@@ -293,7 +293,91 @@
 </table>
 </div>
 
-    @if($order->payment_status !== 'paid')
+    @if($order->payment_status === 'verification_pending')
+        @php $verification = $order->latestPendingVerification(); @endphp
+        <div class="card border-warning mt-2">
+            <div class="card-header bg-warning bg-opacity-10">
+                <i class="bi bi-clock-history me-1"></i>
+                <strong>Payment Verification Pending</strong>
+                @if($verification)
+                    <span class="small text-muted ms-2">Submitted {{ $verification->submitted_at->diffForHumans() }}</span>
+                @endif
+            </div>
+            <div class="card-body">
+                @if($verification)
+                    <div class="small text-muted mb-3">
+                        <div>Station: {{ $verification->station?->name ?? '—' }}</div>
+                        <div>Amount: ₦{{ number_format($order->grand_total, 2) }}</div>
+                        @if($verification->station_note)
+                            <div>Note from station: {{ $verification->station_note }}</div>
+                        @endif
+                    </div>
+                @endif
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#confirmPaymentModal">
+                        <i class="bi bi-check-circle me-1"></i>Confirm Payment
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectPaymentModal">
+                        <i class="bi bi-x-circle me-1"></i>Reject Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Confirm Modal --}}
+        <div class="modal fade" id="confirmPaymentModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('admin.orders.confirm-payment', $order) }}">
+                        @csrf
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">Confirm Payment</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Confirm that <strong>₦{{ number_format($order->grand_total, 2) }}</strong> has been received for order <strong>{{ $order->reference }}</strong>?</p>
+                            <p class="text-muted small">This will set payment status to Paid and notify the station.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Note (optional)</label>
+                                <textarea name="admin_note" class="form-control" rows="2" placeholder="Any notes for the station..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Confirm Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {{-- Reject Modal --}}
+        <div class="modal fade" id="rejectPaymentModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('admin.orders.reject-payment', $order) }}">
+                        @csrf
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Reject Payment</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Reject the payment verification for order <strong>{{ $order->reference }}</strong>?</p>
+                            <p class="text-muted small">This will notify the station that the payment was not verified.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Reason (optional)</label>
+                                <textarea name="admin_note" class="form-control" rows="2" placeholder="Why is this payment being rejected?"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger">Reject Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @elseif($order->payment_status !== 'paid')
         <div class="mt-2">
             <form method="post" action="{{ route('admin.orders.mark-paid', $order) }}">
                 @csrf

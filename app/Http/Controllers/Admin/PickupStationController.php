@@ -162,49 +162,10 @@ class PickupStationController extends Controller
         return back()->with('success', 'Shipping fee of ₦' . number_format((float) $data['fee'], 2) . ' applied to all pickup stations.');
     }
 
-    /** Admin payout report for a specific station */
-    public function payouts(Request $request, PickupStation $pickupStation): View
+    /** Redirect to the accurate payout ledger page */
+    public function payouts(Request $request, PickupStation $pickupStation): \Illuminate\Http\RedirectResponse
     {
-        $period = $request->input('period', 'monthly');
-        $from   = $request->input('from');
-        $to     = $request->input('to');
-
-        $query = Order::where('pickup_station_id', $pickupStation->id)
-            ->where('delivery_method', 'pickup')
-            ->where('status', 'delivered')
-            ->whereNotNull('expected_delivery_date'); // proxy for "has a completed date"
-
-        if ($from) $query->whereDate('updated_at', '>=', $from);
-        if ($to)   $query->whereDate('updated_at', '<=', $to);
-
-        $orders = $query->orderByDesc('updated_at')->get();
-
-        // Aggregate by period
-        $grouped = $orders->groupBy(function ($o) use ($period) {
-            return match ($period) {
-                'daily'   => $o->updated_at->format('Y-m-d'),
-                'weekly'  => $o->updated_at->startOfWeek()->format('Y-m-d') . ' week',
-                default   => $o->updated_at->format('Y-m'),
-            };
-        });
-
-        $feePct    = (float) $pickupStation->fee_pct;
-        $aggregate = $grouped->map(function ($rows) use ($feePct) {
-            $totalSales = $rows->sum('grand_total');
-            return [
-                'orders'      => $rows->count(),
-                'total_sales' => $totalSales,
-                'fee_amount'  => round($totalSales * $feePct / 100, 2),
-            ];
-        });
-
-        $grandTotal    = $orders->sum('grand_total');
-        $totalFee      = round($grandTotal * $feePct / 100, 2);
-
-        return view('admin.pickup_stations.payouts', compact(
-            'pickupStation', 'aggregate', 'grandTotal', 'totalFee',
-            'period', 'from', 'to', 'feePct'
-        ));
+        return redirect()->route('admin.pickup-payouts.show', $pickupStation);
     }
 
     /** Toggle station availability */
@@ -259,5 +220,72 @@ class PickupStationController extends Controller
         $commission = $service->calculateCommission($pickupStation->id);
 
         return view('admin.pickup_stations.items', compact('pickupStation', 'itemsByStatus', 'commission'));
+    }
+
+    /** DataTable endpoint for station items */
+    public function itemsData(Request $request, PickupStation $pickupStation)
+    {
+        $q = \App\Models\OrderItem::whereHas('order', function ($q) use ($pickupStation) {
+            $q->where('pickup_station_id', $pickupStation->id);
+        })
+        ->with(['order.customer', 'product', 'variant']);
+
+        // Filter by status
+        $status = $request->input('status');
+        if ($status && $status !== 'all') {
+            $q->where('pickup_status', $status);
+        }
+
+        // Search
+        $search = $request->input('search.value');
+        if ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->whereHas('product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('order', fn($o) => $o->where('reference', 'like', "%{$search}%"))
+                    ->orWhereHas('order.customer', fn($c) => $c->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('variant', fn($v) => $v->where('options_label', 'like', "%{$search}%"));
+            });
+        }
+
+        // Date filter
+        $from = $request->input('from');
+        $to = $request->input('to');
+        if ($from) $q->whereDate('created_at', '>=', $from);
+        if ($to) $q->whereDate('created_at', '<=', $to);
+
+        $recordsTotal = (clone $q)->count();
+        $start = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 25);
+
+        $items = $q->orderByDesc('pickup_status_changed_at')->offset($start)->limit($length)->get();
+
+        $statusColors = [
+            'pending' => 'secondary',
+            'received' => 'info',
+            'ready for pickup' => 'success',
+            'picked_up' => 'primary',
+        ];
+
+        $data = $items->map(function ($item) use ($statusColors) {
+            $status = $item->pickup_status;
+            $color = $statusColors[$status] ?? 'secondary';
+            return [
+                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '—',
+                'customer' => e($item->order?->customer?->name ?? '—'),
+                'product' => e($item->product?->name ?? '—'),
+                'variant' => e($item->variant?->options_label ?? '—'),
+                'quantity' => $item->quantity,
+                'unit_price' => '₦' . number_format($item->unit_price, 2),
+                'commission' => $status === 'picked_up' ? '<span class="text-success fw-bold">₦' . number_format($item->commission, 2) . '</span>' : '—',
+                'status' => '<span class="badge bg-' . $color . '">' . e(ucwords(str_replace('_', ' ', $status))) . '</span>',
+            ];
+        })->values();
+
+        return response()->json([
+            'draw' => (int) $request->input('draw', 0),
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsTotal,
+            'data' => $data,
+        ]);
     }
 }
