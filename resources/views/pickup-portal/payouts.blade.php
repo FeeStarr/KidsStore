@@ -63,7 +63,6 @@
     <div class="card-body">
         <form method="POST" action="{{ route('pickup-portal.payouts.markPaid') }}" id="markPaidForm">
             @csrf
-            <input type="hidden" name="note" value="">
             @foreach($payoutSummary['items'] as $orderId => $orderData)
                 @php
                     $order = $orderData['order'];
@@ -95,7 +94,6 @@
                         <table class="table table-sm mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width:30px"></th>
                                     <th>Product</th>
                                     <th>Variant</th>
                                     <th class="text-center">Qty</th>
@@ -107,12 +105,6 @@
                             <tbody>
                                 @foreach($orderData['items'] as $item)
                                     <tr class="{{ $item->pickup_station_fee_paid ? 'table-success bg-opacity-10' : '' }}">
-                                        <td>
-                                            @if(! $item->pickup_station_fee_paid)
-                                                <input type="checkbox" name="order_ids[]" value="{{ $orderId }}"
-                                                       class="form-check-input payout-order-check" data-order="{{ $orderId }}" style="visibility:hidden">
-                                            @endif
-                                        </td>
                                         <td>{{ $item->product?->name }}</td>
                                         <td class="text-muted small">{{ $item->variant?->options_label }}</td>
                                         <td class="text-center">{{ $item->quantity }}</td>
@@ -134,6 +126,13 @@
                     </div>
                 </div>
             @endforeach
+
+            <div class="card mb-3 mt-3" id="noteCard" style="display:none">
+                <div class="card-body py-2">
+                    <label class="form-label form-label-sm mb-1">Note (optional)</label>
+                    <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="e.g., Bank transfer reference, payout date"></textarea>
+                </div>
+            </div>
 
             <div class="d-flex justify-content-between align-items-center mt-3" id="markPaidSection" style="display:none !important">
                 <div class="small text-muted" id="selectedInfo">0 order(s) selected</div>
@@ -165,9 +164,10 @@
         <table id="payouts-table" class="table table-sm mb-0" style="width:100%">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:30px"></th>
                     <th>Reference</th>
                     <th>Orders</th>
+                    <th>Items</th>
                     <th>Date</th>
                     <th class="text-end">Amount</th>
                     <th class="text-center">Status</th>
@@ -183,16 +183,25 @@
 
 @push('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <style>
+        .payout-detail-row td { padding: 0 !important; border: none !important; }
+        .payout-detail-row:hover { background: transparent !important; }
+        .payout-detail-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; margin: 8px 12px 12px; padding: 12px; font-size: 0.85rem; }
+        .payout-detail-box table { margin-bottom: 0; }
+        .payout-detail-box th { font-weight: 600; border-bottom: 1px solid #dee2e6; padding: 4px 8px; }
+        .payout-detail-box td { padding: 4px 8px; }
+        .toggle-detail { cursor: pointer; color: #6c757d; font-size: 0.8rem; transition: transform 0.2s; }
+        .toggle-detail.open { transform: rotate(90deg); }
+    </style>
 @endpush
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Select All Unpaid
+    // Select All Unpaid — only header checkboxes
     document.getElementById('selectAllUnpaid')?.addEventListener('click', function() {
         document.querySelectorAll('.payout-order-check:not(:checked)').forEach(cb => {
             cb.checked = true;
-            cb.style.visibility = 'visible';
         });
         updateMarkPaidSection();
     });
@@ -213,15 +222,18 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateMarkPaidSection() {
         const checked = document.querySelectorAll('.payout-order-check:checked');
         const section = document.getElementById('markPaidSection');
+        const noteCard = document.getElementById('noteCard');
         const info = document.getElementById('selectedInfo');
         const btn = document.getElementById('markPaidBtn');
 
         if (checked.length > 0) {
             section.style.display = 'flex';
+            noteCard.style.display = 'block';
             info.textContent = checked.length + ' order(s) selected';
             btn.disabled = false;
         } else {
             section.style.display = 'none';
+            noteCard.style.display = 'none';
             btn.disabled = true;
         }
     }
@@ -252,16 +264,48 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             },
             columns: [
-                { data: null, orderable: false, searchable: false, render: function(data, type, row, meta) { return meta.row + meta.settings._iDisplayStart + 1; } },
+                {
+                    className: 'details-control',
+                    orderable: false,
+                    searchable: false,
+                    data: null,
+                    defaultContent: '<i class="bi bi-chevron-right toggle-detail"></i>'
+                },
                 { data: 'reference' },
                 { data: 'orders', orderable: false, searchable: false },
+                { data: 'item_count', className: 'text-center', render: function(data, type, row) {
+                    return '<span class="badge bg-secondary">' + data + '</span> <span class="small text-muted">' + (row.products || '') + '</span>';
+                }},
                 { data: 'date' },
                 { data: 'amount', className: 'text-end' },
                 { data: 'status', className: 'text-center', render: function(data, type, row) { return '<span class="badge ' + row.status_class + '">' + data + '</span>'; } },
                 { data: 'note' }
             ],
-            order: [[3, 'desc']],
+            order: [[4, 'desc']],
             pageLength: 15,
+        });
+
+        // Expand/collapse detail rows
+        $('#payouts-table tbody').on('click', 'td.details-control', function () {
+            var tr = $(this).closest('tr');
+            var row = table.row(tr);
+            var icon = tr.find('.toggle-detail');
+
+            if (row.child.isShown()) {
+                row.child.hide();
+                icon.removeClass('open');
+            } else {
+                var d = row.data();
+                if (d.items_detail && d.items_detail.length > 0) {
+                    var html = '<div class="payout-detail-box"><table class="table table-sm"><thead><tr><th>Order</th><th>Product</th><th>Variant</th><th class="text-end">Fee</th></tr></thead><tbody>';
+                    d.items_detail.forEach(function(item) {
+                        html += '<tr><td>' + item.order + '</td><td>' + item.product + '</td><td class="text-muted small">' + item.variant + '</td><td class="text-end">' + item.fee + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    row.child(html).show();
+                    icon.addClass('open');
+                }
+            }
         });
 
         document.getElementById('payout-filter')?.addEventListener('click', function() {

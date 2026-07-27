@@ -86,10 +86,7 @@
                             <tbody>
                                 @foreach($p->items as $it)
                                     @php
-                                        // Find the specific order item that generated this fee
-                                        $orderItem = \App\Models\OrderItem::where('order_id', $it->order_id)
-                                            ->where('pickup_status', 'picked_up')
-                                            ->first();
+                                        $orderItem = $it->orderItem;
                                     @endphp
                                     <tr>
                                         <td>{{ $it->order?->reference ?? 'Order #' . $it->order_id }}</td>

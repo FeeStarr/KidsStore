@@ -153,6 +153,48 @@ class OrderController extends Controller
         return back()->with('success', 'Order marked as paid.');
     }
 
+    public function confirmPayment(Order $order): RedirectResponse
+    {
+        $verification = $order->latestPendingVerification();
+
+        if (! $verification) {
+            return back()->with('error', 'No pending verification found for this order.');
+        }
+
+        $data = request()->validate([
+            'admin_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\PaymentVerificationService::class)->confirm(
+            $order,
+            $verification,
+            $data['admin_note'] ?? null,
+        );
+
+        return back()->with('success', 'Payment confirmed. Station can now release the order.');
+    }
+
+    public function rejectPayment(Order $order): RedirectResponse
+    {
+        $verification = $order->latestPendingVerification();
+
+        if (! $verification) {
+            return back()->with('error', 'No pending verification found for this order.');
+        }
+
+        $data = request()->validate([
+            'admin_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\PaymentVerificationService::class)->reject(
+            $order,
+            $verification,
+            $data['admin_note'] ?? null,
+        );
+
+        return back()->with('success', 'Payment rejected. Customer must retry payment.');
+    }
+
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         $request->validate([

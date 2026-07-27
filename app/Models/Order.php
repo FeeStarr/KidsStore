@@ -83,6 +83,24 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function paymentVerifications(): HasMany
+    {
+        return $this->hasMany(PaymentVerification::class);
+    }
+
+    public function latestPendingVerification(): ?PaymentVerification
+    {
+        return $this->paymentVerifications()
+            ->whereIn('status', [PaymentVerification::STATUS_PENDING, PaymentVerification::STATUS_DELAYED])
+            ->latest()
+            ->first();
+    }
+
+    public function isVerificationPending(): bool
+    {
+        return $this->payment_status === 'verification_pending';
+    }
+
     public function getBalanceAttribute(): float
     {
         return (float) $this->total_amount - (float) $this->amount_paid;
