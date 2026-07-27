@@ -7,6 +7,9 @@
         {{ session('portal_station_name') }}
     </h4>
     <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#accountDetailsModal">
+            <i class="bi bi-bank me-1"></i>Account Details
+        </button>
         <a href="{{ route('pickup-portal.dashboard', ['filter' => 'pending']) }}"
            class="btn btn-sm {{ $filter === 'pending' ? 'btn-warning' : 'btn-outline-secondary' }}">
             Pending
@@ -235,14 +238,6 @@
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
-                        @if($order->customer)
-                            <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-outline-info py-0" title="Send pickup reminder to customer">
-                                    <i class="bi bi-bell me-1"></i>Remind
-                                </button>
-                            </form>
-                        @endif
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -633,8 +628,65 @@ function updateCountdowns() {
 }
 updateCountdowns();
 setInterval(updateCountdowns, 1000);
+
+// Auto-refresh when verification is pending so admin confirm/reject shows instantly
+if (document.querySelector('[id^="countdown-"]')) {
+    setInterval(function() { location.reload(); }, 15000);
+}
 </script>
 @endpush
+
+{{-- Account Details Modal --}}
+@php
+    $portalStation = \App\Models\PickupStation::find(session('portal_station_id'));
+    $portalAccounts = $portalStation ? $portalStation->bankAccounts()->orderByDesc('is_default')->get() : collect();
+@endphp
+<div class="modal fade" id="accountDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-bank me-2"></i>Bank Account Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @if($portalAccounts->isEmpty())
+                    <p class="text-muted text-center py-3">No bank accounts configured. Please contact admin.</p>
+                @else
+                    <p class="small text-muted mb-3">Share these details with the customer for payment.</p>
+                    @foreach($portalAccounts as $ba)
+                        <div class="card {{ $ba->is_default ? 'border-primary' : 'border-light' }} mb-2">
+                            <div class="card-body py-2 px-3">
+                                @if($ba->bank_name)
+                                    <div class="small text-muted">Bank</div>
+                                    <div class="fw-semibold">{{ $ba->bank_name }}</div>
+                                @endif
+                                @if($ba->bank_account_name)
+                                    <div class="small text-muted mt-1">Account Name</div>
+                                    <div>{{ $ba->bank_account_name }}</div>
+                                @endif
+                                @if($ba->bank_account_number)
+                                    <div class="small text-muted mt-1">Account Number</div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="font-monospace fw-bold fs-5">{{ $ba->bank_account_number }}</span>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('{{ $ba->bank_account_number }}')">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                @endif
+                                @if($ba->is_default)
+                                    <span class="badge bg-primary mt-1">Default</span>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- Transfer Payment Modal --}}
 <div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
