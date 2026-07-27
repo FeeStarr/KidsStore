@@ -613,7 +613,7 @@ function updateCountdowns() {
         const submittedAt = new Date(el.dataset.submittedAt);
         const now = new Date();
         const elapsed = Math.floor((now - submittedAt) / 1000);
-        const remaining = Math.max(0, 2400 - elapsed); // 40 minutes = 2400 seconds
+        const remaining = Math.max(0, 2400 - elapsed);
 
         if (remaining <= 0) {
             el.textContent = 'Overdue — awaiting admin';
@@ -629,10 +629,30 @@ function updateCountdowns() {
 updateCountdowns();
 setInterval(updateCountdowns, 1000);
 
-// Auto-refresh when verification is pending so admin confirm/reject shows instantly
-if (document.querySelector('[id^="countdown-"]')) {
-    setInterval(function() { location.reload(); }, 15000);
-}
+// AJAX polling — check payment status every 15s, reload on change
+(function() {
+    const pollers = {};
+    const lastStatus = {};
+
+    document.querySelectorAll('[id^="countdown-"]').forEach(function(el) {
+        const orderId = el.id.replace('countdown-', '');
+        lastStatus[orderId] = 'verification_pending';
+
+        pollers[orderId] = setInterval(function() {
+            fetch('{{ route("pickup-portal.payment-status", "__ID__") }}'.replace('__ID__', orderId), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.payment_status !== lastStatus[orderId]) {
+                    clearInterval(pollers[orderId]);
+                    location.reload();
+                }
+            })
+            .catch(function() {});
+        }, 15000);
+    });
+})();
 </script>
 @endpush
 
