@@ -231,12 +231,7 @@
                 $isVerificationFailed = $order->payment_status === 'verification_failed';
                 $balance = ($order->grand_total ?? 0) - ($order->amount_paid ?? 0);
                 $pendingVerification = $order->latestPendingVerification();
-                $stationAccount = $order->pickupStation?->defaultBankAccount();
-                if (! $stationAccount) {
-                    $stationAccount = \App\Models\BankAccount::where('is_active', true)
-                        ->orderByDesc('is_default')
-                        ->first();
-                }
+                $stationAccount = $bankAccount;
             @endphp
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -679,11 +674,7 @@ setInterval(updateCountdowns, 1000);
 
 {{-- Account Details Modal --}}
 @php
-    $portalStation = \App\Models\PickupStation::find(session('portal_station_id'));
-    $portalAccounts = $portalStation ? $portalStation->bankAccounts()->orderByDesc('is_default')->get() : collect();
-    if ($portalAccounts->isEmpty()) {
-        $portalAccounts = \App\Models\BankAccount::where('is_active', true)->orderByDesc('is_default')->get();
-    }
+    $portalAccounts = \App\Models\BankAccount::where('is_active', true)->orderByDesc('is_default')->get();
 @endphp
 <div class="modal fade" id="accountDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
