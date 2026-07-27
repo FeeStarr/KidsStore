@@ -307,5 +307,6 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
 
         // Payment verification
         Route::post('/orders/{order}/submit-payment', [PickupPortalController::class, 'submitPaymentVerification'])->name('submit-payment');
+        Route::get('/orders/{order}/payment-status', [PickupPortalController::class, 'paymentStatus'])->name('payment-status');
     });
 });

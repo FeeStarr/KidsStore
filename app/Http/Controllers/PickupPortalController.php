@@ -822,4 +822,20 @@ class PickupPortalController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+
+    /** AJAX: return current payment status for an order */
+    public function paymentStatus(Order $order): \Illuminate\Http\JsonResponse
+    {
+        if (! session('portal_station_id')) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        if ((int) $order->pickup_station_id !== (int) session('portal_station_id')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        return response()->json([
+            'payment_status' => $order->payment_status,
+        ]);
+    }
 }
