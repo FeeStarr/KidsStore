@@ -13,7 +13,7 @@
     {{-- Header --}}
     <tr>
         <td style="background-color:#2563eb;padding:24px 30px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Order Confirmed</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">{{ ($isInternal ?? false) ? 'New Order Placed' : 'Order Confirmed' }}</h1>
             <p style="margin:6px 0 0;color:#bfdbfe;font-size:14px;">{{ $order->reference }}</p>
         </td>
     </tr>
@@ -21,10 +21,17 @@
     {{-- Greeting --}}
     <tr>
         <td style="padding:28px 30px 0;">
-            <p style="margin:0;font-size:16px;color:#1f2937;">Hello {{ $order->customer?->name ?? 'there' }},</p>
-            <p style="margin:10px 0 0;font-size:14px;color:#4b5563;line-height:1.6;">
-                Thank you for your order! We've received it and will begin processing shortly.
-            </p>
+            @if($isInternal ?? false)
+                <p style="margin:0;font-size:16px;color:#1f2937;">New order from {{ $order->customer?->name ?? 'a customer' }}</p>
+                <p style="margin:10px 0 0;font-size:14px;color:#4b5563;line-height:1.6;">
+                    A new order <strong>{{ $order->reference }}</strong> has been placed. Please review and process.
+                </p>
+            @else
+                <p style="margin:0;font-size:16px;color:#1f2937;">Hello {{ $order->customer?->name ?? 'there' }},</p>
+                <p style="margin:10px 0 0;font-size:14px;color:#4b5563;line-height:1.6;">
+                    Thank you for your order! We've received it and will begin processing shortly.
+                </p>
+            @endif
         </td>
     </tr>
 
@@ -135,7 +142,11 @@
     {{-- CTA --}}
     <tr>
         <td style="padding:24px 30px;text-align:center;">
-            <a href="{{ url('/account/orders/' . $order->id) }}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;">View Your Order</a>
+            @if($isInternal ?? false)
+                <a href="{{ url('/admin/orders/' . $order->id) }}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;">View Order in Admin</a>
+            @else
+                <a href="{{ url('/account/orders/' . $order->id) }}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;">View Your Order</a>
+            @endif
         </td>
     </tr>
 
