@@ -149,16 +149,14 @@
                         <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
                     </label>
                 </div>
-                @if(false)
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now">
+                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now" disabled>
                     <label class="form-check-label" for="pm_pay_now">
                         Pay Now (Bank Transfer)
-                        <span class="badge bg-success ms-1">Instant</span>
+                        <span class="badge bg-secondary ms-1">Coming Soon</span>
                         <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
                     </label>
                 </div>
-                @endif
             </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">
