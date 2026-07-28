@@ -75,7 +75,6 @@
                     — {{ Str::limit($order->delivery_address, 60) }}
                 @endif
             </div>
-                @endif
 
             @if($order->isForDelivery() && $order->courier_name)
                 <div class="mt-2 p-2 bg-light rounded small">
