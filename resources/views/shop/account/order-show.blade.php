@@ -6,6 +6,47 @@
     <a href="{{ route('shop.account.orders.index') }}" class="btn btn-outline-secondary btn-sm">Back to orders</a>
 </div>
 
+@if(session('show_pay_now') && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled']))
+<div class="card border-primary mb-3" id="pay-now-panel">
+    <div class="card-body text-center py-4">
+        <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
+        <p class="text-muted small mb-3">Transfer the exact amount to the virtual account below. Payment is verified automatically.</p>
+        <div id="pay-now-loading">
+            <div class="spinner-border text-primary mb-2" role="status"></div>
+            <div class="small text-muted">Generating your payment account...</div>
+        </div>
+        <div id="pay-now-account" style="display:none">
+            <div class="row g-3 mb-3 justify-content-center">
+                <div class="col-sm-5">
+                    <div class="bg-light rounded p-3">
+                        <div class="small text-muted mb-1">Bank</div>
+                        <div class="fw-bold fs-5" id="pn-bank-name"></div>
+                    </div>
+                </div>
+                <div class="col-sm-5">
+                    <div class="bg-light rounded p-3">
+                        <div class="small text-muted mb-1">Account Number</div>
+                        <div class="fw-bold fs-3 font-monospace" id="pn-account-number"></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="navigator.clipboard.writeText(document.getElementById('pn-account-number').textContent);this.textContent='Copied!'">Copy</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <span class="fw-bold fs-5 text-primary">&#8358;{{ number_format($order->grand_total, 2) }}</span>
+            </div>
+            <div class="small text-muted mb-3">
+                Expires in <strong id="pn-countdown">...</strong>
+            </div>
+            <button id="pn-check-btn" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-arrow-clockwise me-1"></i>I've paid — check now
+            </button>
+            <div id="pn-status" class="small text-muted mt-2"></div>
+        </div>
+        <div id="pay-now-error" style="display:none" class="text-danger small"></div>
+    </div>
+</div>
+@endif
+
 <div class="row g-3 mb-3">
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100"><div class="card-body">
@@ -321,6 +362,93 @@
 <script>
 (function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+    // ── Pay Now panel ──────────────────────────────────────────────────────
+    const payPanel = document.getElementById('pay-now-panel');
+    if (payPanel) {
+        const loading  = document.getElementById('pay-now-loading');
+        const account  = document.getElementById('pay-now-account');
+        const errDiv   = document.getElementById('pay-now-error');
+        const bankName = document.getElementById('pn-bank-name');
+        const acctNum  = document.getElementById('pn-account-number');
+        const countdown = document.getElementById('pn-countdown');
+        const checkBtn = document.getElementById('pn-check-btn');
+        const status   = document.getElementById('pn-status');
+
+        // Auto-initiate payment
+        fetch('{{ route("shop.opay.initiate", $order) }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                loading.style.display = 'none';
+                account.style.display = '';
+                bankName.textContent = data.virtual_bank_name || 'OPay';
+                acctNum.textContent = data.virtual_account_number || '0000000000';
+
+                var seconds = data.seconds_remaining || 0;
+                function tick() {
+                    if (seconds <= 0) { countdown.textContent = 'expired'; return; }
+                    var m = Math.floor(seconds / 60);
+                    var s = seconds % 60;
+                    countdown.textContent = m + ':' + String(s).padStart(2, '0');
+                    seconds--;
+                    setTimeout(tick, 1000);
+                }
+                tick();
+
+                // Auto-poll every 30s
+                setInterval(function() {
+                    if (seconds > 0) checkPayment();
+                }, 30000);
+            } else {
+                loading.style.display = 'none';
+                errDiv.style.display = '';
+                errDiv.textContent = data.message || 'Could not generate payment account.';
+            }
+        })
+        .catch(function() {
+            loading.style.display = 'none';
+            errDiv.style.display = '';
+            errDiv.textContent = 'Network error. Please refresh the page.';
+        });
+
+        // Manual check
+        if (checkBtn) {
+            checkBtn.addEventListener('click', checkPayment);
+        }
+
+        function checkPayment() {
+            if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking...'; }
+            if (status) status.textContent = '';
+
+            fetch('{{ route("shop.opay.query", $order) }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.paid || data.payment_status === 'paid') {
+                    payPanel.innerHTML = '<div class="card-body text-center py-4"><h5 class="text-success"><i class="bi bi-check-circle me-2"></i>Payment Confirmed!</h5><p class="text-muted small">Your payment has been received. Redirecting...</p></div>';
+                    setTimeout(function() { window.location.reload(); }, 2000);
+                    return;
+                }
+                if (status) {
+                    status.textContent = data.throttled
+                        ? 'Please wait before checking again.'
+                        : 'Payment not yet received. Transfer then try again.';
+                }
+            })
+            .catch(function() {
+                if (status) status.textContent = 'Network error.';
+            })
+            .finally(function() {
+                if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>I\'ve paid — check now'; }
+            });
+        }
+    }
 
     // ── Refund form: toggle item fields on scope selection ────────────────────
     document.querySelectorAll('input[type="radio"][name="scope"]').forEach(radio => {

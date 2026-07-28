@@ -45,6 +45,7 @@ class CheckoutController extends Controller
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
             'note'              => ['nullable', 'string', 'max:500'],
             'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
+            'payment_method'    => ['nullable', 'string', 'in:pay_now,pay_at_pickup,transfer'],
         ]);
 
         $customer = Auth::user();
@@ -81,7 +82,13 @@ class CheckoutController extends Controller
 
         $this->cart->clear();
 
-        return redirect()->route('shop.account.orders.show', $order)
+        $redirect = redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: '.$order->reference);
+
+        if (($data['payment_method'] ?? '') === 'pay_now') {
+            $redirect = $redirect->with('show_pay_now', true);
+        }
+
+        return $redirect;
     }
 }

@@ -142,44 +142,29 @@
             </dl>
             <div class="mb-3">
                 <label class="form-label">Payment Method</label>
-                @if(isset($paymentMethods) && $paymentMethods->isNotEmpty())
-                    @foreach($paymentMethods as $pm)
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="payment_method" id="pm_{{ $pm->key }}" value="{{ $pm->key }}" {{ old('payment_method', $paymentMethods->first()->key) === $pm->key ? 'checked' : '' }}>
-                            @if($pm->key === 'transfer')
-                                <label class="form-check-label" for="pm_{{ $pm->key }}">Pay on delivery ({{ $pm->label }}) <span class="badge bg-warning text-dark ms-2">On delivery</span>
-                                    <div class="small text-warning mt-1">You will transfer payment when the order is delivered or ready for pickup.</div>
-                                </label>
-                            @else
-                                <label class="form-check-label" for="pm_{{ $pm->key }}">{{ $pm->label }}</label>
-                            @endif
-                        </div>
-                    @endforeach
-
-                    @if($paymentMethods->contains('key', 'transfer'))
-                        <div class="alert alert-warning mt-3 py-2">
-                            <strong>Note:</strong> Pay on delivery via bank transfer — please be prepared to transfer the order amount when receiving your items.
-                        </div>
-                    @endif
-                @else
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="payment_method" id="pm_transfer" value="transfer" checked>
-                        <label class="form-check-label" for="pm_transfer">Pay on delivery (Bank transfer)</label>
-                    </div>
-                @endif
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now" checked>
+                    <label class="form-check-label" for="pm_pay_now">
+                        Pay Now (Bank Transfer)
+                        <span class="badge bg-success ms-1">Instant</span>
+                        <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_at_pickup" value="pay_at_pickup">
+                    <label class="form-check-label" for="pm_pay_at_pickup">
+                        Pay at Pickup
+                        <span class="badge bg-warning text-dark ms-1">Manual</span>
+                        <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
+                    </label>
+                </div>
+            </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">
                 <i class="bi bi-bag-check me-1"></i> Place Order
             </button>
             <div class="small text-muted mt-2 text-center">
-                @if(isset($paymentMethods) && $paymentMethods->isNotEmpty())
-                    Selected payment methods: {{ $paymentMethods->pluck('label')->join(', ') }}.
-                    @if($paymentMethods->contains('key', 'transfer'))
-                        Pay on delivery is by bank transfer; you will be asked to transfer when receiving the order.
-                    @endif
-                @else
-                    Pay on delivery or after confirmation by our team.
-                @endif
+                Pay Now: Virtual account generated after ordering. Pay at Pickup: Pay when collecting.
             </div>
         </div></div>
     </div>
