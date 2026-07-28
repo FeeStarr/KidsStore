@@ -34,29 +34,6 @@
                     — {{ Str::limit($order->delivery_address, 60) }}
                 @endif
             </div>
-                @if($order->isForPickup() && $order->pickupStation)
-                    @php $accounts = $order->pickupStation->bankAccounts ?? collect(); @endphp
-                    @if($accounts->isNotEmpty())
-                        <div class="mt-3 alert alert-info">
-                            <strong>Payment accounts for this pickup:</strong>
-                            <div class="small mt-1">
-                                @foreach($accounts as $acc)
-                                    <div class="mb-2">
-                                        @if($acc->bank_name)<div><strong>Bank:</strong> {{ $acc->bank_name }}</div>@endif
-                                        @if($acc->bank_account_name)<div><strong>Account name:</strong> {{ $acc->bank_account_name }}</div>@endif
-                                        @if($acc->bank_account_number)
-                                            <div>
-                                                <strong>Account number:</strong>
-                                                <span class="font-monospace">{{ $acc->bank_account_number }}</span>
-                                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="navigator.clipboard.writeText('{{ $acc->bank_account_number }}')">Copy</button>
-                                            </div>
-                                        @endif
-                                        @if($acc->instructions)<div class="text-muted small">{{ $acc->instructions }}</div>@endif
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
                 @endif
 
             @if($order->isForDelivery() && $order->courier_name)
