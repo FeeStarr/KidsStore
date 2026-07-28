@@ -85,6 +85,13 @@ class PickupStationService
 
             // Update order's pickup_station_fee_total
             $this->refreshOrderFeeTotal($item->order);
+
+            // Auto-deliver order when all items are picked up
+            $order = $item->order;
+            $allPickedUp = $order->items()->where('pickup_status', '!=', 'picked_up')->doesntExist();
+            if ($allPickedUp && $order->status === 'ready for pick up') {
+                $order->update(['status' => 'delivered']);
+            }
         });
 
         return $item->fresh();
