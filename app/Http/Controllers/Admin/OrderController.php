@@ -197,6 +197,10 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
+        if (in_array($order->status, ['delivered', 'cancelled'])) {
+            return back()->with('error', 'Cannot change status of a ' . $order->getStatusLabel() . ' order.');
+        }
+
         $request->validate([
             'status' => ['required', 'string', 'in:' . implode(',', $order->getAvailableStatuses())],
         ]);

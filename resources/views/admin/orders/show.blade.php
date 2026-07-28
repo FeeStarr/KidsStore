@@ -90,7 +90,13 @@
             <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '—' }}</dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d') }}</dd>
             <dt class="col-4">Status</dt>
-            <dd class="col-8"><span class="badge text-bg-light">{{ $order->getStatusLabel() }}</span></dd>
+            <dd class="col-8"><span class="badge {{ match($order->status) {
+                'delivered' => 'text-bg-success',
+                'cancelled' => 'text-bg-danger',
+                'ready for pick up' => 'text-bg-warning text-dark',
+                'confirmed' => 'text-bg-primary',
+                default => 'text-bg-secondary'
+            } }}">{{ $order->getStatusLabel() }}</span></dd>
             <dt class="col-4">Delivery</dt>
             <dd class="col-8">
                 {{ $order->getDeliveryMethodLabel() }}

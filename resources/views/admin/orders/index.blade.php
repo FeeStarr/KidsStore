@@ -24,7 +24,13 @@
             <td>{{ $o->reference }}</td>
             <td>{{ $o->order_date->format('Y-m-d') }}</td>
             <td>{{ $o->customer?->name ?? '-' }}</td>
-            <td><span class="badge text-bg-light">{{ $o->getStatusLabel() }}</span></td>
+            <td><span class="badge {{ match($o->status) {
+                'delivered' => 'text-bg-success',
+                'cancelled' => 'text-bg-danger',
+                'ready for pick up' => 'text-bg-warning text-dark',
+                'confirmed' => 'text-bg-primary',
+                default => 'text-bg-secondary'
+            } }}">{{ $o->getStatusLabel() }}</span></td>
             <td><span class="badge text-bg-light">{{ ucfirst($o->payment_status) }}</span></td>
             <td class="text-end">{{ number_format($o->total_amount, 2) }}</td>
             <td class="text-end text-nowrap">
