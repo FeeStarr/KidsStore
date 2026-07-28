@@ -89,7 +89,7 @@ class OrderService
 
             $prev = $order->status;
             $this->applyInventoryDecrease($order);
-            $order->update(['status' => 'confirmed']);
+            $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
 
             $this->notifyStatusChange($order->fresh(), $prev);
 
@@ -114,7 +114,7 @@ class OrderService
             $this->confirm($order);
         }
         $prev = $order->status;
-        $order->update(['status' => 'processing']);
+        $order->update(['status' => 'processing', 'processing_at' => now()]);
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -125,7 +125,7 @@ class OrderService
             $this->confirm($order);
         }
         $prev = $order->status;
-        $order->update(['status' => 'out for delivery']);
+        $order->update(['status' => 'out for delivery', 'shipped_at' => now()]);
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -139,7 +139,7 @@ class OrderService
             $this->confirm($order);
         }
         $prev = $order->status;
-        $order->update(['status' => 'shipping to station']);
+        $order->update(['status' => 'shipping to station', 'shipped_at' => now()]);
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -161,7 +161,7 @@ class OrderService
             $this->confirm($order);
         }
         $prev = $order->status;
-        $order->update(['status' => 'delivered']);
+        $order->update(['status' => 'delivered', 'delivered_at' => now()]);
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -177,7 +177,7 @@ class OrderService
             if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
             }
-            $order->update(['status' => 'cancelled']);
+            $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
             return [$order->fresh(), $prev];
         });
@@ -346,11 +346,16 @@ class OrderService
     private function notifyOrderPlaced(Order $order): void
     {
         try {
-            $order->load('customer', 'items.product', 'pickupStation');
+            $order->load('customer', 'items.product', 'items.variant', 'pickupStation');
 
             // Notify the customer
             if ($order->customer) {
                 $order->customer->notify(new OrderPlacedNotification($order));
+            }
+
+            // Notify admin users
+            foreach (NotificationRecipients::adminUsers() as $admin) {
+                $admin->notify(new OrderPlacedNotification($order));
             }
 
             // Notify customer support staff
@@ -364,17 +369,22 @@ class OrderService
 
     private function notifyStatusChange(Order $order, string $previousStatus): void
     {
-        // Only notify customer on meaningful status changes
+        // Only notify on meaningful status changes
         $notifyStatuses = ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled'];
         if (! in_array($order->status, $notifyStatuses, true)) {
             return;
         }
 
         try {
-            $order->load('customer', 'pickupStation');
+            $order->load('customer', 'items.product', 'items.variant', 'pickupStation');
 
             if ($order->customer) {
                 $order->customer->notify(new OrderStatusNotification($order, $previousStatus));
+            }
+
+            // Notify admin users
+            foreach (NotificationRecipients::adminUsers() as $admin) {
+                $admin->notify(new OrderStatusNotification($order, $previousStatus));
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('OrderStatus notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);

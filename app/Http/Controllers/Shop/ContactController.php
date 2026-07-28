@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Models\ContactPage;
+use App\Notifications\ContactMessageNotification;
+use App\Notifications\NotificationRecipients;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,13 +34,25 @@ class ContactController extends Controller
             ? $data['subject_other']
             : $data['subject_type'];
 
-        ContactMessage::create([
+        $contactMessage = ContactMessage::create([
             'name'    => $data['name'],
             'email'   => $data['email'],
             'subject' => $subject,
             'message' => $data['message'],
         ]);
 
-        return back()->with('success', 'Thanks for reaching out! We\'ll be in touch soon. 🎉');
+        // Notify admin users and support staff
+        try {
+            foreach (NotificationRecipients::adminUsers() as $admin) {
+                $admin->notify(new ContactMessageNotification($contactMessage));
+            }
+            foreach (NotificationRecipients::customerSupportStaff() as $staff) {
+                $staff->notify(new ContactMessageNotification($contactMessage));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Contact message notification failed', ['error' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Thanks for reaching out! We\'ll be in touch soon.');
     }
 }
