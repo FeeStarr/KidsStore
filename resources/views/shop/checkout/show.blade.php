@@ -143,28 +143,29 @@
             <div class="mb-3">
                 <label class="form-label">Payment Method</label>
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now" checked>
+                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_at_pickup" value="pay_at_pickup" checked>
+                    <label class="form-check-label" for="pm_pay_at_pickup">
+                        Pay at Pickup
+                        <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
+                    </label>
+                </div>
+                @if(false)
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now">
                     <label class="form-check-label" for="pm_pay_now">
                         Pay Now (Bank Transfer)
                         <span class="badge bg-success ms-1">Instant</span>
                         <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
                     </label>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_at_pickup" value="pay_at_pickup">
-                    <label class="form-check-label" for="pm_pay_at_pickup">
-                        Pay at Pickup
-                        <span class="badge bg-warning text-dark ms-1">Manual</span>
-                        <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
-                    </label>
-                </div>
+                @endif
             </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">
                 <i class="bi bi-bag-check me-1"></i> Place Order
             </button>
             <div class="small text-muted mt-2 text-center">
-                Pay Now: Virtual account generated after ordering. Pay at Pickup: Pay when collecting.
+                Pay when you collect your order at the pickup station.
             </div>
         </div></div>
     </div>

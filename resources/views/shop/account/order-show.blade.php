@@ -6,7 +6,7 @@
     <a href="{{ route('shop.account.orders.index') }}" class="btn btn-outline-secondary btn-sm">Back to orders</a>
 </div>
 
-@if(session('show_pay_now') && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled']))
+@if(false && session('show_pay_now') && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled']))
 <div class="card border-primary mb-3" id="pay-now-panel">
     <div class="card-body text-center py-4">
         <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>

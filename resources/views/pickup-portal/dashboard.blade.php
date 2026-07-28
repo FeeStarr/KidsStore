@@ -325,10 +325,12 @@
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <span class="small text-muted me-1">Collect payment:</span>
 
+                            @if(false)
                             <button type="button" class="btn btn-sm btn-success"
                                     onclick="portalPayNow({{ $order->id }})">
                                 <i class="bi bi-lightning me-1"></i>Pay Now (OPay)
                             </button>
+                            @endif
 
                             @if($stationAccount)
                                 <button type="button" class="btn btn-sm btn-outline-primary"
