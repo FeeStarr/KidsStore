@@ -244,6 +244,14 @@
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        @if($order->customer)
+                            <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-info py-0" title="Send pickup reminder to customer">
+                                    <i class="bi bi-bell me-1"></i>Remind
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -413,7 +421,7 @@
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
-                        @if($filter === 'pending' && $order->customer)
+                        @if($order->customer)
                             <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
                                 @csrf
                                 <button type="submit" class="btn btn-sm btn-outline-info py-0" title="Send pickup reminder to customer">
