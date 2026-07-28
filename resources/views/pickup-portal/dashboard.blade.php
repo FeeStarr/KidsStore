@@ -325,6 +325,11 @@
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <span class="small text-muted me-1">Collect payment:</span>
 
+                            <button type="button" class="btn btn-sm btn-success"
+                                    onclick="portalPayNow({{ $order->id }})">
+                                <i class="bi bi-lightning me-1"></i>Pay Now (OPay)
+                            </button>
+
                             @if($stationAccount)
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#bankDetailsModal-{{ $order->id }}">
@@ -334,7 +339,7 @@
 
                             <form method="POST" action="{{ route('pickup-portal.submit-payment', $order) }}" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-sm btn-primary"
+                                <button type="submit" class="btn btn-sm btn-outline-warning"
                                         onclick="return confirm('Submit payment for verification? Admin will review within 40 minutes.')">
                                     <i class="bi bi-send me-1"></i>Payment Submitted
                                 </button>
@@ -670,7 +675,159 @@ setInterval(updateCountdowns, 1000);
     });
 })();
 </script>
+
+<script>
+// Portal Pay Now — initiate OPay virtual account for customer
+function portalPayNow(orderId) {
+    var modal = document.getElementById('portalPayNowModal');
+    var loading = document.getElementById('ppn-loading');
+    var account = document.getElementById('ppn-account');
+    var errDiv = document.getElementById('ppn-error');
+    var bankName = document.getElementById('ppn-bank-name');
+    var acctNum = document.getElementById('ppn-account-number');
+    var amountEl = document.getElementById('ppn-amount');
+    var countdown = document.getElementById('ppn-countdown');
+    var checkBtn = document.getElementById('ppn-check-btn');
+    var statusEl = document.getElementById('ppn-status');
+
+    // Reset
+    loading.style.display = '';
+    account.style.display = 'none';
+    errDiv.style.display = 'none';
+    if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check Payment'; }
+
+    var bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+
+    var csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+    fetch('/pickup-portal/orders/' + orderId + '/initiate-payment', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            loading.style.display = 'none';
+            account.style.display = '';
+            bankName.textContent = data.virtual_bank_name || 'OPay';
+            acctNum.textContent = data.virtual_account_number || '0000000000';
+            amountEl.textContent = '\u20A6' + Number(data.amount).toLocaleString(undefined, {minimumFractionDigits: 2});
+
+            var seconds = data.seconds_remaining || 0;
+            function tick() {
+                if (seconds <= 0) { countdown.textContent = 'expired'; return; }
+                var m = Math.floor(seconds / 60);
+                var s = seconds % 60;
+                countdown.textContent = m + ':' + String(s).padStart(2, '0');
+                seconds--;
+                setTimeout(tick, 1000);
+            }
+            tick();
+
+            // Store for check
+            modal.dataset.orderId = orderId;
+            modal.dataset.seconds = seconds;
+
+            // Auto-poll
+            var pollInterval = setInterval(function() {
+                if (seconds > 0) portalCheckPayment(orderId);
+                else clearInterval(pollInterval);
+            }, 30000);
+        } else {
+            loading.style.display = 'none';
+            errDiv.style.display = '';
+            errDiv.textContent = data.message || 'Could not generate payment account.';
+        }
+    })
+    .catch(function() {
+        loading.style.display = 'none';
+        errDiv.style.display = '';
+        errDiv.textContent = 'Network error. Please try again.';
+    });
+
+    if (checkBtn) {
+        checkBtn.onclick = function() { portalCheckPayment(orderId); };
+    }
+}
+
+function portalCheckPayment(orderId) {
+    var checkBtn = document.getElementById('ppn-check-btn');
+    var statusEl = document.getElementById('ppn-status');
+    var csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+    if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking...'; }
+    if (statusEl) statusEl.textContent = '';
+
+    fetch('/pickup-portal/orders/' + orderId + '/query-payment', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.paid || data.payment_status === 'paid') {
+            var modal = document.getElementById('portalPayNowModal');
+            bootstrap.Modal.getInstance(modal).hide();
+            location.reload();
+            return;
+        }
+        if (statusEl) {
+            statusEl.textContent = data.throttled
+                ? 'Please wait before checking again.'
+                : 'Payment not yet received. Customer should transfer the exact amount.';
+        }
+    })
+    .catch(function() {
+        if (statusEl) statusEl.textContent = 'Network error.';
+    })
+    .finally(function() {
+        if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check Payment'; }
+    });
+}
+</script>
 @endpush
+
+{{-- Portal Pay Now Modal --}}
+<div class="modal fade" id="portalPayNowModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-lightning me-2"></i>OPay Bank Transfer</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="ppn-loading">
+                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                    <div class="small text-muted">Generating virtual account...</div>
+                </div>
+                <div id="ppn-account" style="display:none">
+                    <p class="small text-muted mb-3">Share these details with the customer. Transfer must be the exact amount.</p>
+                    <div class="bg-light rounded p-3 mb-3">
+                        <div class="small text-muted mb-1">Bank</div>
+                        <div class="fw-bold fs-5" id="ppn-bank-name"></div>
+                    </div>
+                    <div class="bg-light rounded p-3 mb-3">
+                        <div class="small text-muted mb-1">Account Number</div>
+                        <div class="fw-bold fs-3 font-monospace" id="ppn-account-number"></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1"
+                                onclick="navigator.clipboard.writeText(document.getElementById('ppn-account-number').textContent);this.textContent='Copied!'">Copy</button>
+                    </div>
+                    <div class="mb-2">
+                        <span class="fw-bold fs-5 text-success" id="ppn-amount"></span>
+                    </div>
+                    <div class="small text-muted mb-3">
+                        Expires in <strong id="ppn-countdown">...</strong>
+                    </div>
+                    <button id="ppn-check-btn" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Check Payment
+                    </button>
+                    <div id="ppn-status" class="small text-muted mt-2"></div>
+                </div>
+                <div id="ppn-error" style="display:none" class="text-danger small"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- Account Details Modal --}}
 @php
