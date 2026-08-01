@@ -11,8 +11,11 @@ class PickupReminderNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public readonly Order $order, public readonly ?string $message = null)
-    {
+    public function __construct(
+        public readonly Order $order,
+        public readonly ?string $message = null,
+        public readonly ?string $subject = null,
+    ) {
     }
 
     public function via(object $notifiable): array
@@ -27,25 +30,26 @@ class PickupReminderNotification extends Notification
         $stationName = $station?->name ?? 'our pickup station';
         $stationAddress = $station?->address ?? '';
 
+        $subject = $this->subject ?? "Reminder: Your order is ready for pickup — {$order->reference}";
+
         $mail = (new MailMessage)
-            ->subject("Reminder: Your order is ready for pickup — {$order->reference}")
+            ->subject($subject)
             ->greeting("Hello {$notifiable->name},")
-            ->line("This is a friendly reminder that your order **{$order->reference}** is ready for pickup at **{$stationName}**.");
+            ->line("This is a reminder that your order **{$order->reference}** is ready for pickup at **{$stationName}**.");
 
         if ($stationAddress) {
             $mail->line("**Address:** {$stationAddress}");
         }
 
-        $mail->line("Please collect your order within **7 days** to avoid it being returned.")
-            ->line("Bring a valid ID and your order reference when collecting.")
-            ->action('View Order Details', url('/account/orders/' . $order->id));
-
         if ($this->message) {
-            $mail->line('');
-            $mail->line("**Message from station:** {$this->message}");
+            $mail->line("**{$this->message}**");
+        } else {
+            $mail->line("Please collect your order within **4 days** to avoid it being marked as expired.");
         }
 
-        $mail->line('')
+        $mail->line("Bring a valid ID and your order reference when collecting.")
+            ->action('View Order Details', url('/account/orders/' . $order->id))
+            ->line('')
             ->line("If you have questions, please contact our support team.");
 
         return $mail;

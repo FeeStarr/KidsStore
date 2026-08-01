@@ -27,6 +27,7 @@
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
                 'cancelled' => 'text-bg-danger',
+                'pickup window expired' => 'text-bg-danger',
                 'ready for pick up' => 'text-bg-warning text-dark',
                 'confirmed' => 'text-bg-primary',
                 default => 'text-bg-secondary'

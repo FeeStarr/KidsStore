@@ -222,6 +222,7 @@ class OrderController extends Controller
             'ready for pick up'    => 'markReadyForPickup',
             'delivered'            => 'markDelivered',
             'cancelled'            => 'cancel',
+            'pickup window expired' => 'markPickupWindowExpired',
         ];
 
         $method = $methodMap[$newStatus] ?? null;

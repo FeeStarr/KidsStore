@@ -52,7 +52,14 @@
         <div class="card border-0 shadow-sm h-100"><div class="card-body">
             <h6>Status</h6>
             <p class="mb-1">
-                <span class="badge text-bg-light">{{ $order->getStatusLabel() }}</span>
+                <span class="badge {{ match($order->status) {
+                    'delivered' => 'text-bg-success',
+                    'cancelled' => 'text-bg-danger',
+                    'pickup window expired' => 'text-bg-danger',
+                    'ready for pick up' => 'text-bg-warning text-dark',
+                    'confirmed' => 'text-bg-primary',
+                    default => 'text-bg-secondary'
+                } }}">{{ $order->getStatusLabel() }}</span>
                 &middot;
                 <span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span>
             </p>

@@ -93,6 +93,7 @@
             <dd class="col-8"><span class="badge {{ match($order->status) {
                 'delivered' => 'text-bg-success',
                 'cancelled' => 'text-bg-danger',
+                'pickup window expired' => 'text-bg-danger',
                 'ready for pick up' => 'text-bg-warning text-dark',
                 'confirmed' => 'text-bg-primary',
                 default => 'text-bg-secondary'

@@ -42,6 +42,7 @@ class OrderStatusNotification extends Notification
             'ready for pick up'      => "Order {$order->reference} is ready for pick up",
             'delivered'              => "Order {$order->reference} has been delivered",
             'cancelled'              => "Order {$order->reference} has been cancelled",
+            'pickup window expired'  => "Order {$order->reference} — pickup window expired",
             default                  => "Update on your order {$order->reference}",
         };
 
@@ -83,8 +84,11 @@ class OrderStatusNotification extends Notification
                                         ($order->courier_name ? "It's being delivered by **{$order->courier_name}**" .
                                         ($order->tracking_number ? " (Tracking: {$order->tracking_number})" : '') . '.' : ''),
             'ready for pick up'      => "Your order is ready to be collected from **{$order->pickupStation?->name}**." .
-                                        ($order->pickupStation?->instructions ? "\n\n{$order->pickupStation->instructions}" : ''),
+                                        ($order->pickupStation?->instructions ? "\n\n{$order->pickupStation->instructions}" : '') .
+                                        "\n\nPlease collect within **4 days**.",
             'cancelled'              => 'Your order has been cancelled. If you paid online, a refund will be processed within 5–7 working days.',
+            'pickup window expired'  => "Your order **{$order->reference}** was not collected within the 4-day pickup window." .
+                                        "\n\nPlease contact our support team to arrange collection or discuss a refund.",
             default                  => "Your order status has been updated to **{$status}**.",
         };
 
