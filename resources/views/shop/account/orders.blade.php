@@ -10,7 +10,14 @@
         <tr>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
             <td>{{ $o->order_date->format('M d, Y') }}</td>
-            <td><span class="badge text-bg-light">{{ $o->getStatusLabel() }}</span></td>
+            <td><span class="badge {{ match($o->status) {
+                'delivered' => 'text-bg-success',
+                'cancelled' => 'text-bg-danger',
+                'pickup window expired' => 'text-bg-danger',
+                'ready for pick up' => 'text-bg-warning text-dark',
+                'confirmed' => 'text-bg-primary',
+                default => 'text-bg-secondary'
+            } }}">{{ $o->getStatusLabel() }}</span></td>
             <td><span class="badge text-bg-light">{{ ucfirst($o->payment_status) }}</span></td>
             <td class="text-end">&#8358;{{ number_format($o->total_amount ?: $o->grand_total, 2) }}</td>
             <td class="text-end"><a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a></td>

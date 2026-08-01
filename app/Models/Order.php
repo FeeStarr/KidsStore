@@ -18,6 +18,7 @@ class Order extends Model
     public const STATUS_READY_FOR_PICKUP     = 'ready for pick up';
     public const STATUS_DELIVERED            = 'delivered';
     public const STATUS_CANCELLED            = 'cancelled';
+    public const STATUS_PICKUP_WINDOW_EXPIRED = 'pickup window expired';
 
     // Delivery Method Constants
     public const DELIVERY_METHOD_PICKUP = 'pickup';
@@ -31,7 +32,7 @@ class Order extends Model
         'subtotal', 'discount', 'shipping_fee', 'grand_total', 'amount_paid',
         'note', 'expected_delivery_date',
         'pickup_station_fee_total',
-        'confirmed_at', 'processing_at', 'shipped_at', 'delivered_at', 'cancelled_at',
+        'confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'cancelled_at',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class Order extends Model
         'confirmed_at'            => 'datetime',
         'processing_at'           => 'datetime',
         'shipped_at'              => 'datetime',
+        'ready_for_pickup_at'     => 'datetime',
         'delivered_at'            => 'datetime',
         'cancelled_at'            => 'datetime',
     ];
@@ -127,6 +129,7 @@ class Order extends Model
             self::STATUS_READY_FOR_PICKUP,
             self::STATUS_DELIVERED,
             self::STATUS_CANCELLED,
+            self::STATUS_PICKUP_WINDOW_EXPIRED,
         ];
     }
 
@@ -161,6 +164,7 @@ class Order extends Model
             self::STATUS_READY_FOR_PICKUP     => 'Ready for Pick Up',
             self::STATUS_DELIVERED            => 'Delivered',
             self::STATUS_CANCELLED            => 'Cancelled',
+            self::STATUS_PICKUP_WINDOW_EXPIRED => 'Pickup Window Expired',
             default                           => ucfirst($this->status),
         };
     }
@@ -176,26 +180,53 @@ class Order extends Model
 
     /**
      * Human-readable delivery window shown to customers.
-     * Based on expected_delivery_date ± a couple of days, or order_date + 3–10 days.
+     * Status-specific estimates based on the order lifecycle.
      */
     public function getDeliveryWindowAttribute(): string
     {
-        if ($this->expected_delivery_date) {
-            $earliest = $this->expected_delivery_date->copy()->subDays(1);
-            $latest   = $this->expected_delivery_date->copy()->addDays(1);
-            if ($earliest->format('M Y') === $latest->format('M Y')) {
-                return $earliest->format('M d') . '–' . $latest->format('d, Y');
-            }
-            return $earliest->format('M d') . ' – ' . $latest->format('M d, Y');
+        // Already delivered or cancelled — no estimate needed
+        if (in_array($this->status, ['delivered', 'cancelled', 'pickup window expired'], true)) {
+            return 'N/A';
         }
 
-        // Fallback: 3–10 days from order date
-        $earliest = $this->order_date->copy()->addDays(3);
-        $latest   = $this->order_date->copy()->addDays(10);
+        // Ready for pickup — 4-day collection window
+        if ($this->status === 'ready for pick up') {
+            $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
+            $latest = $readyAt->copy()->addDays(4);
+            return 'Collect by ' . $latest->format('M d, Y');
+        }
+
+        // Use timestamp-based estimates when available
+        $referenceDate = $this->processing_at ?? $this->confirmed_at ?? $this->order_date;
+
+        $estimates = match ($this->status) {
+            'ordered', 'pending confirmation', 'confirmed' =>
+                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(10)],
+            'processing' =>
+                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(5)],
+            'shipping to station', 'out for delivery' =>
+                ['earliest' => $referenceDate->copy()->addDays(1), 'latest' => $referenceDate->copy()->addDays(3)],
+            default =>
+                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(10)],
+        };
+
+        $earliest = $estimates['earliest'];
+        $latest = $estimates['latest'];
+
         if ($earliest->format('M Y') === $latest->format('M Y')) {
             return $earliest->format('M d') . '–' . $latest->format('d, Y');
         }
         return $earliest->format('M d') . ' – ' . $latest->format('M d, Y');
+    }
+
+    /**
+     * Number of days since the order became "ready for pick up".
+     * Used by the pickup reminder scheduler.
+     */
+    public function getPickupDaysElapsed(): int
+    {
+        $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
+        return (int) $readyAt->diffInDays(now());
     }
 
     /**

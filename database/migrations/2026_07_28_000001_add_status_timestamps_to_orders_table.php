@@ -18,8 +18,11 @@ return new class extends Migration
             if (! Schema::hasColumn('orders', 'shipped_at')) {
                 $table->timestamp('shipped_at')->nullable()->after('processing_at');
             }
+            if (! Schema::hasColumn('orders', 'ready_for_pickup_at')) {
+                $table->timestamp('ready_for_pickup_at')->nullable()->after('shipped_at');
+            }
             if (! Schema::hasColumn('orders', 'delivered_at')) {
-                $table->timestamp('delivered_at')->nullable()->after('shipped_at');
+                $table->timestamp('delivered_at')->nullable()->after('ready_for_pickup_at');
             }
             if (! Schema::hasColumn('orders', 'cancelled_at')) {
                 $table->timestamp('cancelled_at')->nullable()->after('delivered_at');
@@ -30,7 +33,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn(['confirmed_at', 'processing_at', 'shipped_at', 'delivered_at', 'cancelled_at']);
+            $table->dropColumn(['confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'cancelled_at']);
         });
     }
 };

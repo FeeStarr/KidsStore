@@ -150,7 +150,7 @@ class OrderService
     public function markReadyForPickup(Order $order): Order
     {
         $prev = $order->status;
-        $order->update(['status' => 'ready for pick up']);
+        $order->update(['status' => 'ready for pick up', 'ready_for_pickup_at' => now()]);
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -162,6 +162,23 @@ class OrderService
         }
         $prev = $order->status;
         $order->update(['status' => 'delivered', 'delivered_at' => now()]);
+        $this->notifyStatusChange($order->fresh(), $prev);
+        return $order->fresh();
+    }
+
+    /**
+     * Mark order as pickup window expired (after 4-day collection window).
+     */
+    public function markPickupWindowExpired(Order $order): Order
+    {
+        $prev = $order->status;
+        $order->update(['status' => 'pickup window expired']);
+
+        // Mark remaining unpicked items as expired too
+        $order->items()
+            ->where('pickup_status', 'ready for pickup')
+            ->update(['pickup_status' => 'expired']);
+
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }
@@ -370,7 +387,7 @@ class OrderService
     private function notifyStatusChange(Order $order, string $previousStatus): void
     {
         // Only notify on meaningful status changes
-        $notifyStatuses = ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled'];
+        $notifyStatuses = ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered', 'cancelled', 'pickup window expired'];
         if (! in_array($order->status, $notifyStatuses, true)) {
             return;
         }
