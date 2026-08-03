@@ -80,7 +80,7 @@
                 @endif
 
                 @if($refundRequest->opay_refund_no)
-                    <dt class="col-5">OPay Refund No.</dt>
+                    <dt class="col-5">Paystack Refund Ref.</dt>
                     <dd class="col-7 font-monospace small">{{ $refundRequest->opay_refund_no }}</dd>
                 @endif
             </dl>
@@ -259,7 +259,7 @@
 @elseif($s === 'refund_approved')
     <div class="card border-success border-2"><div class="card-body">
         <h6 class="text-success mb-3"><i class="bi bi-cash me-1"></i>Process Refund</h6>
-        <p class="small text-muted mb-3">Inspection passed. Process the refund via OPay.</p>
+        <p class="small text-muted mb-3">Inspection passed. Process the refund via Paystack.</p>
         <form method="post" action="{{ route('admin.refunds.process-refund', $refundRequest) }}">
             @csrf
             <div class="mb-3">

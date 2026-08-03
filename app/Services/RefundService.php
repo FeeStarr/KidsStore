@@ -22,7 +22,7 @@ class RefundService
     private const EVIDENCE_VIDEO_DIR = 'evidence/refunds/videos';
 
     public function __construct(
-        private OPayService $opay,
+        private PaystackService $paystack,
         private InventoryService $inventory,
     ) {
     }
@@ -367,18 +367,18 @@ class RefundService
 
             if ($transaction?->opay_order_no) {
                 try {
-                    $opResult = $this->opay->refund(
-                        $transaction->opay_order_no,
+                    $opResult = $this->paystack->refund(
+                        $transaction->reference,
                         $refundRequest->amount,
                         $refundRequest->order->reference . '-R' . $refundRequest->id
                     );
 
-                    $opayStatus = strtoupper($opResult['code'] ?? '');
-                    $success = $opayStatus === '00000';
+                    $paystackStatus = $opResult['status'] ?? false;
+                    $success = $paystackStatus === true;
 
                     $refundRequest->update([
                         'status'         => $success ? RefundRequest::STATUS_REFUNDED : RefundRequest::STATUS_REFUND_FAILED,
-                        'opay_refund_no' => $opResult['data']['refundOrderNo'] ?? null,
+                        'opay_refund_no' => $opResult['data']['refund_reference'] ?? null,
                         'opay_payload'   => $opResult,
                     ]);
 
@@ -388,14 +388,14 @@ class RefundService
                         $refundRequest->order->update(['payment_status' => 'refunded']);
                     }
                 } catch (\Throwable $e) {
-                    Log::error('OPay refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
+                    Log::error('Paystack refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
                     $refundRequest->update(['status' => RefundRequest::STATUS_REFUND_FAILED]);
                     $this->logAudit($refundRequest, 'refund_failed', $admin->id, $e->getMessage());
                 }
             } else {
                 $refundRequest->update([
                     'status'     => RefundRequest::STATUS_REFUNDED,
-                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund — no OPay transaction]',
+                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund — no Paystack transaction]',
                 ]);
                 $this->logAudit($refundRequest, 'refund_completed', $admin->id, 'Manual refund');
                 if (! $refundRequest->order_item_id) {
