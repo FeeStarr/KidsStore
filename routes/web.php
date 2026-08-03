@@ -81,9 +81,9 @@ Route::name('shop.')->group(function () {
         Route::get('/account/orders',          [AccountController::class, 'orders'])->name('account.orders.index');
         Route::get('/account/orders/{order}',  [AccountController::class, 'showOrder'])->name('account.orders.show');
 
-        // OPay payment
-        Route::post('/account/orders/{order}/pay',       [OPayController::class, 'initiate'])->name('opay.initiate');
-        Route::post('/account/orders/{order}/pay/query', [OPayController::class, 'query'])->name('opay.query');
+        // Paystack payment
+        Route::post('/account/orders/{order}/pay',       [PaystackController::class, 'initiate'])->name('paystack.initiate');
+        Route::post('/account/orders/{order}/pay/query', [PaystackController::class, 'query'])->name('paystack.query');
 
         // Refund requests
         Route::post('/account/orders/{order}/refund', [ShopRefundController::class, 'store'])->name('refund.store');
@@ -102,8 +102,8 @@ Route::name('shop.')->group(function () {
     });
 });
 
-// OPay webhook — no auth, no CSRF (exempted in bootstrap/app.php)
-Route::post('/opay/webhook', [OPayController::class, 'webhook'])->name('opay.webhook');
+// Paystack webhook — no auth, no CSRF (exempted in bootstrap/app.php)
+Route::post('/paystack/webhook', [PaystackController::class, 'webhook'])->name('paystack.webhook');
 
 /*
 |--------------------------------------------------------------------------

@@ -9,7 +9,7 @@ use App\Models\PickupStation;
 use App\Models\RefundRequest;
 use App\Notifications\PickupReminderNotification;
 use App\Notifications\ReturnReminderNotification;
-use App\Services\OPayService;
+use App\Services\PaystackService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
 use App\Services\PickupStationService;
@@ -29,7 +29,7 @@ class PickupPortalController extends Controller
 {
     public function __construct(
         private OrderService $orders,
-        private OPayService $opay,
+        private PaystackService $paystack,
         private PaymentService $payments,
         private PickupStationService $pickupService,
         private RefundService $refunds
@@ -597,7 +597,7 @@ class PickupPortalController extends Controller
     }
 
     /**
-     * Agent initiates OPay bank transfer for a customer paying at the station.
+     * Agent initiates Paystack bank transfer for a customer paying at the station.
      */
     public function initiatePayment(Request $request, Order $order): JsonResponse
     {
@@ -618,7 +618,7 @@ class PickupPortalController extends Controller
         }
 
         try {
-            $transaction = $this->opay->initiate($order);
+            $transaction = $this->paystack->initiate($order);
         } catch (\RuntimeException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -635,7 +635,7 @@ class PickupPortalController extends Controller
     }
 
     /**
-     * Agent polls OPay for payment status.
+     * Agent polls Paystack for payment status.
      */
     public function queryPayment(Request $request, Order $order): JsonResponse
     {
@@ -671,7 +671,7 @@ class PickupPortalController extends Controller
             ]);
         }
 
-        $transaction = $this->opay->queryStatus($transaction);
+        $transaction = $this->paystack->queryStatus($transaction);
         $order->refresh();
 
         return response()->json([

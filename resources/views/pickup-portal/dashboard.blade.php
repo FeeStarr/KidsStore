@@ -327,7 +327,7 @@
 
                             <button type="button" class="btn btn-sm btn-secondary" disabled
                                     title="Coming soon">
-                                <i class="bi bi-lightning me-1"></i>Pay Now (OPay)
+                                <i class="bi bi-lightning me-1"></i>Pay Now (Paystack)
                             </button>
 
                             @if($stationAccount)
@@ -677,7 +677,7 @@ setInterval(updateCountdowns, 1000);
 </script>
 
 <script>
-// Portal Pay Now — initiate OPay virtual account for customer
+// Portal Pay Now — initiate Paystack virtual account for customer
 function portalPayNow(orderId) {
     var modal = document.getElementById('portalPayNowModal');
     var loading = document.getElementById('ppn-loading');
@@ -710,7 +710,7 @@ function portalPayNow(orderId) {
         if (data.success) {
             loading.style.display = 'none';
             account.style.display = '';
-            bankName.textContent = data.virtual_bank_name || 'OPay';
+            bankName.textContent = data.virtual_bank_name || 'Paystack';
             acctNum.textContent = data.virtual_account_number || '0000000000';
             amountEl.textContent = '\u20A6' + Number(data.amount).toLocaleString(undefined, {minimumFractionDigits: 2});
 
@@ -792,7 +792,7 @@ function portalCheckPayment(orderId) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-lightning me-2"></i>OPay Bank Transfer</h5>
+                <h5 class="modal-title"><i class="bi bi-lightning me-2"></i>Paystack Bank Transfer</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">

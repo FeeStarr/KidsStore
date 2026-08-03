@@ -143,7 +143,7 @@ class RefundController extends Controller
 
         $msg = $refundRequest->fresh()->status === RefundRequest::STATUS_REFUNDED
             ? 'Refund processed successfully.'
-            : 'Refund processing initiated — check OPay status.';
+            : 'Refund processing initiated — check Paystack status.';
 
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', $msg);
     }

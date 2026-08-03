@@ -382,7 +382,7 @@
         const status   = document.getElementById('pn-status');
 
         // Auto-initiate payment
-        fetch('{{ route("shop.opay.initiate", $order) }}', {
+        fetch('{{ route("shop.paystack.initiate", $order) }}', {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
         })
@@ -391,7 +391,7 @@
             if (data.success) {
                 loading.style.display = 'none';
                 account.style.display = '';
-                bankName.textContent = data.virtual_bank_name || 'OPay';
+                bankName.textContent = data.virtual_bank_name || 'Paystack';
                 acctNum.textContent = data.virtual_account_number || '0000000000';
 
                 var seconds = data.seconds_remaining || 0;
@@ -430,7 +430,7 @@
             if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking...'; }
             if (status) status.textContent = '';
 
-            fetch('{{ route("shop.opay.query", $order) }}', {
+            fetch('{{ route("shop.paystack.query", $order) }}', {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
             })

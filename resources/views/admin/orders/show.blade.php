@@ -395,7 +395,7 @@
 
 @if($order->paymentTransactions->isNotEmpty())
 <div class="card mb-3">
-    <div class="card-header"><i class="bi bi-bank me-1"></i>OPay Bank Transfer Transactions</div>
+    <div class="card-header"><i class="bi bi-bank me-1"></i>Paystack Bank Transfer Transactions</div>
     <table class="table mb-0 table-sm">
         <thead class="table-light">
             <tr>

@@ -29,9 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->redirectGuestsTo(fn () => route('shop.login'));
 
-        // OPay webhook is an unauthenticated server-to-server POST — exempt from CSRF
+        // Paystack webhook is an unauthenticated server-to-server POST — exempt from CSRF
         $middleware->validateCsrfTokens(except: [
-            'opay/webhook',
+            'paystack/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
