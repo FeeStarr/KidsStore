@@ -26,6 +26,7 @@ class ContactMessageNotification extends Notification
 
         return (new MailMessage)
             ->subject("New Contact Message — {$msg->subject}")
+            ->bcc(config('emails.support'))
             ->markdown('emails.contact-message', ['message' => $msg]);
     }
 }

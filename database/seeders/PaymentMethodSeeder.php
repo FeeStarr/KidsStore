@@ -10,11 +10,12 @@ class PaymentMethodSeeder extends Seeder
     public function run(): void
     {
         $methods = [
+            ['key' => 'pay_at_pickup', 'label' => 'Pay at Pickup', 'is_active' => true],
+            ['key' => 'instant_bank_transfer', 'label' => 'Instant Bank Transfer', 'is_active' => true],
             ['key' => 'cash', 'label' => 'Cash', 'is_active' => false],
             ['key' => 'card', 'label' => 'Card', 'is_active' => false],
-            ['key' => 'transfer', 'label' => 'Bank transfer', 'is_active' => true],
-            ['key' => 'mobile', 'label' => 'Mobile money', 'is_active' => false],
-            ['key' => 'other', 'label' => 'Other', 'is_active' => false],
+            ['key' => 'transfer', 'label' => 'Bank Transfer (Manual)', 'is_active' => false],
+            ['key' => 'mobile', 'label' => 'Mobile Money', 'is_active' => false],
         ];
 
         foreach ($methods as $m) {

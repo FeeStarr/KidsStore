@@ -34,6 +34,7 @@ class PickupReminderNotification extends Notification
 
         $mail = (new MailMessage)
             ->subject($subject)
+            ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line("This is a reminder that your order **{$order->reference}** is ready for pickup at **{$stationName}**.");
 
@@ -51,6 +52,14 @@ class PickupReminderNotification extends Notification
             ->action('View Order Details', url('/account/orders/' . $order->id))
             ->line('')
             ->line("If you have questions, please contact our support team.");
+
+        // BCC orders mailbox for record-keeping
+        $mail->bcc(config('emails.orders'));
+
+        // BCC admins
+        foreach (NotificationRecipients::adminUsers() as $admin) {
+            $mail->bcc($admin->email, $admin->name);
+        }
 
         return $mail;
     }

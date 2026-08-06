@@ -166,6 +166,9 @@
                 @endif
             @endif
             <dt class="col-4">Payment</dt><dd class="col-8"><span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span></dd>
+            @if($order->payment_method)
+                <dt class="col-4">Payment Method</dt><dd class="col-8">{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</dd>
+            @endif
             <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '—' }}</dd>
         </dl>
     </div></div></div>
@@ -393,6 +396,90 @@
         </div>
     @endif
 
+    @if($order->payment_status === 'under_review')
+        @php $underReviewTxn = $order->paymentTransactions()->where('status', 'under_review')->latest()->first(); @endphp
+        <div class="card border-warning mt-2">
+            <div class="card-header bg-warning bg-opacity-10">
+                <i class="bi bi-hourglass-split me-1"></i>
+                <strong>Payment Under Review</strong>
+                @if($underReviewTxn)
+                    <span class="small text-muted ms-2">Reference: {{ $underReviewTxn->reference }}</span>
+                @endif
+            </div>
+            <div class="card-body">
+                @if($underReviewTxn && ($underReviewTxn->opay_payload['review_reason'] ?? null))
+                    <div class="small text-muted mb-3">
+                        <div><strong>Reason:</strong> {{ $underReviewTxn->opay_payload['review_reason'] }}</div>
+                        <div><strong>Amount:</strong> ₦{{ number_format($order->grand_total, 2) }}</div>
+                        <div><strong>Customer:</strong> {{ $order->customer?->name ?? '—' }}</div>
+                    </div>
+                @endif
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#confirmUnderReviewModal">
+                        <i class="bi bi-check-circle me-1"></i>Confirm Payment
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectUnderReviewModal">
+                        <i class="bi bi-x-circle me-1"></i>Reject Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Confirm Under Review Modal --}}
+        <div class="modal fade" id="confirmUnderReviewModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('admin.orders.confirm-under-review', $order) }}">
+                        @csrf
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">Confirm Payment</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Confirm that <strong>₦{{ number_format($order->grand_total, 2) }}</strong> has been received for order <strong>{{ $order->reference }}</strong>?</p>
+                            <p class="text-muted small">This will mark the order as paid and confirm it.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Note (optional)</label>
+                                <textarea name="admin_note" class="form-control" rows="2" placeholder="Reason for confirming..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Confirm Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {{-- Reject Under Review Modal --}}
+        <div class="modal fade" id="rejectUnderReviewModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('admin.orders.reject-under-review', $order) }}">
+                        @csrf
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Reject Payment</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Reject the payment for order <strong>{{ $order->reference }}</strong>?</p>
+                            <p class="text-muted small">The customer will be notified and can retry payment.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Reason (optional)</label>
+                                <textarea name="admin_note" class="form-control" rows="2" placeholder="Why is this payment being rejected?"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger">Reject Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
 @if($order->paymentTransactions->isNotEmpty())
 <div class="card mb-3">
     <div class="card-header"><i class="bi bi-bank me-1"></i>Paystack Bank Transfer Transactions</div>
@@ -422,12 +509,13 @@
                 <td>
                     @php
                         $badge = match($txn->status) {
-                            'success'  => 'bg-success',
-                            'pending'  => 'bg-warning text-dark',
-                            'failed'   => 'bg-danger',
-                            'expired'  => 'bg-secondary',
-                            'cancelled'=> 'bg-secondary',
-                            default    => 'bg-light text-dark',
+                            'success'     => 'bg-success',
+                            'pending'     => 'bg-warning text-dark',
+                            'failed'      => 'bg-danger',
+                            'expired'     => 'bg-secondary',
+                            'cancelled'   => 'bg-secondary',
+                            'under_review'=> 'bg-warning text-dark',
+                            default       => 'bg-light text-dark',
                         };
                     @endphp
                     <span class="badge {{ $badge }}">{{ ucfirst($txn->status) }}</span>

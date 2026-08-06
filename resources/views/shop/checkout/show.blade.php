@@ -142,29 +142,30 @@
             </dl>
             <div class="mb-3">
                 <label class="form-label">Payment Method</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_at_pickup" value="pay_at_pickup" checked>
-                    <label class="form-check-label" for="pm_pay_at_pickup">
-                        Pay at Pickup
-                        <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="payment_method" id="pm_pay_now" value="pay_now" disabled>
-                    <label class="form-check-label" for="pm_pay_now">
-                        Pay Now (Bank Transfer)
-                        <span class="badge bg-secondary ms-1">Coming Soon</span>
-                        <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
-                    </label>
-                </div>
+                @if($paymentMethods->isEmpty())
+                    <div class="text-muted small">No payment methods available.</div>
+                @else
+                    @foreach($paymentMethods as $method)
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="payment_method"
+                                   id="pm_{{ $method->key }}" value="{{ $method->key }}"
+                                   {{ $loop->first ? 'checked' : '' }}>
+                            <label class="form-check-label" for="pm_{{ $method->key }}">
+                                {{ $method->label }}
+                                @if($method->key === 'instant_bank_transfer')
+                                    <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
+                                @elseif($method->key === 'pay_at_pickup')
+                                    <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
+                                @endif
+                            </label>
+                        </div>
+                    @endforeach
+                @endif
             </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">
                 <i class="bi bi-bag-check me-1"></i> Place Order
             </button>
-            <div class="small text-muted mt-2 text-center">
-                Pay when you collect your order at the pickup station.
-            </div>
         </div></div>
     </div>
 </form>

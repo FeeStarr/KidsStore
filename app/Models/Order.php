@@ -11,6 +11,7 @@ class Order extends Model
     public const STATUS_PENDING              = 'pending';           // legacy — not a valid ENUM value, kept for BC
     public const STATUS_ORDERED              = 'ordered';
     public const STATUS_PENDING_CONFIRMATION = 'pending confirmation';
+    public const STATUS_PENDING_PAYMENT      = 'pending payment';
     public const STATUS_CONFIRMED            = 'confirmed';
     public const STATUS_PROCESSING           = 'processing';
     public const STATUS_SHIPPING_TO_STATION  = 'shipping to station';
@@ -18,6 +19,7 @@ class Order extends Model
     public const STATUS_READY_FOR_PICKUP     = 'ready for pick up';
     public const STATUS_DELIVERED            = 'delivered';
     public const STATUS_CANCELLED            = 'cancelled';
+    public const STATUS_EXPIRED              = 'expired';
     public const STATUS_PICKUP_WINDOW_EXPIRED = 'pickup window expired';
 
     // Delivery Method Constants
@@ -25,7 +27,7 @@ class Order extends Model
     public const DELIVERY_METHOD_DELIVERY = 'delivery';
 
     protected $fillable = [
-        'reference', 'customer_id', 'order_date', 'status', 'delivery_method', 'payment_status',
+        'reference', 'customer_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
         'pickup_station_id', 'delivery_address',
         'courier_name', 'tracking_number', 'tracking_url',
         'total_amount',
@@ -122,6 +124,7 @@ class Order extends Model
         return [
             self::STATUS_ORDERED,
             self::STATUS_PENDING_CONFIRMATION,
+            self::STATUS_PENDING_PAYMENT,
             self::STATUS_CONFIRMED,
             self::STATUS_PROCESSING,
             self::STATUS_SHIPPING_TO_STATION,
@@ -129,6 +132,7 @@ class Order extends Model
             self::STATUS_READY_FOR_PICKUP,
             self::STATUS_DELIVERED,
             self::STATUS_CANCELLED,
+            self::STATUS_EXPIRED,
             self::STATUS_PICKUP_WINDOW_EXPIRED,
         ];
     }
@@ -157,6 +161,7 @@ class Order extends Model
         return match ($this->status) {
             self::STATUS_ORDERED              => 'Ordered',
             self::STATUS_PENDING_CONFIRMATION => 'Pending Confirmation',
+            self::STATUS_PENDING_PAYMENT      => 'Pending Payment',
             self::STATUS_CONFIRMED            => 'Confirmed',
             self::STATUS_PROCESSING           => 'Processing',
             self::STATUS_SHIPPING_TO_STATION  => 'Shipping to Station',
@@ -164,6 +169,7 @@ class Order extends Model
             self::STATUS_READY_FOR_PICKUP     => 'Ready for Pick Up',
             self::STATUS_DELIVERED            => 'Delivered',
             self::STATUS_CANCELLED            => 'Cancelled',
+            self::STATUS_EXPIRED              => 'Payment Expired',
             self::STATUS_PICKUP_WINDOW_EXPIRED => 'Pickup Window Expired',
             default                           => ucfirst($this->status),
         };
@@ -184,9 +190,14 @@ class Order extends Model
      */
     public function getDeliveryWindowAttribute(): string
     {
-        // Already delivered or cancelled — no estimate needed
-        if (in_array($this->status, ['delivered', 'cancelled', 'pickup window expired'], true)) {
+        // Already delivered, cancelled, or expired — no estimate needed
+        if (in_array($this->status, ['delivered', 'cancelled', 'expired', 'pickup window expired'], true)) {
             return 'N/A';
+        }
+
+        // Pending payment — show payment window
+        if ($this->status === 'pending payment') {
+            return 'Awaiting payment';
         }
 
         // Ready for pickup — 4-day collection window
@@ -265,5 +276,10 @@ class Order extends Model
     public function markAsCancelled(): void
     {
         $this->update(['status' => self::STATUS_CANCELLED]);
+    }
+
+    public function markAsExpired(): void
+    {
+        $this->update(['status' => self::STATUS_EXPIRED]);
     }
 }

@@ -52,24 +52,28 @@ class OrderStatusNotification extends Notification
 
             $message = (new MailMessage)
                 ->subject($subject)
+                ->replyTo(config('emails.support'), 'KidsFlairr Support')
                 ->view('emails.order-delivered', ['order' => $order]);
 
             // CC admins + staff
             foreach (NotificationRecipients::adminUsers() as $admin) {
                 if ($admin->id !== $notifiable->id) {
-                    $message->cc($admin->email, $admin->name);
+                    $message->bcc($admin->email, $admin->name);
                 }
             }
             foreach (NotificationRecipients::orderProcessingStaff() as $staff) {
                 if ($staff->id !== $notifiable->id) {
-                    $message->cc($staff->email, $staff->name);
+                    $message->bcc($staff->email, $staff->name);
                 }
             }
             foreach (NotificationRecipients::customerSupportStaff() as $staff) {
                 if ($staff->id !== $notifiable->id) {
-                    $message->cc($staff->email, $staff->name);
+                    $message->bcc($staff->email, $staff->name);
                 }
             }
+
+            // BCC orders mailbox for record-keeping
+            $message->bcc(config('emails.orders'));
 
             return $message;
         }
@@ -94,6 +98,7 @@ class OrderStatusNotification extends Notification
 
         $message = (new MailMessage)
             ->subject($subject)
+            ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line($intro)
             ->line('')
@@ -116,19 +121,22 @@ class OrderStatusNotification extends Notification
         // CC admins + order processing + customer support on status change notifications to customers
         foreach (NotificationRecipients::adminUsers() as $admin) {
             if ($admin->id !== $notifiable->id) {
-                $message->cc($admin->email, $admin->name);
+                $message->bcc($admin->email, $admin->name);
             }
         }
         foreach (NotificationRecipients::orderProcessingStaff() as $staff) {
             if ($staff->id !== $notifiable->id) {
-                $message->cc($staff->email, $staff->name);
+                $message->bcc($staff->email, $staff->name);
             }
         }
         foreach (NotificationRecipients::customerSupportStaff() as $staff) {
             if ($staff->id !== $notifiable->id) {
-                $message->cc($staff->email, $staff->name);
+                $message->bcc($staff->email, $staff->name);
             }
         }
+
+        // BCC orders mailbox for record-keeping
+        $message->bcc(config('emails.orders'));
 
         return $message;
     }

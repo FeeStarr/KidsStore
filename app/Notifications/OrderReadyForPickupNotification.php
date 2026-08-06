@@ -32,6 +32,7 @@ class OrderReadyForPickupNotification extends Notification
 
         $message = (new MailMessage)
             ->subject("Your order is ready for pickup — {$order->reference}")
+            ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->view('emails.order-ready-for-pickup', ['order' => $order]);
 
         // BCC admins
@@ -40,6 +41,9 @@ class OrderReadyForPickupNotification extends Notification
                 $message->bcc($admin->email, $admin->name);
             }
         }
+
+        // BCC orders mailbox for record-keeping
+        $message->bcc(config('emails.orders'));
 
         return $message;
     }

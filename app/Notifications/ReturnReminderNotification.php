@@ -31,6 +31,7 @@ class ReturnReminderNotification extends Notification
 
         $mail = (new MailMessage)
             ->subject("Reminder: Please return item for order {$order->reference}")
+            ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line("This is a friendly reminder that your return for **{$itemName}** in order **{$order->reference}** has been approved.")
             ->line("Please bring the item to **{$stationName}** at your earliest convenience.");
@@ -49,6 +50,14 @@ class ReturnReminderNotification extends Notification
 
         $mail->line('')
             ->line("If you have questions, please contact our support team.");
+
+        // BCC orders mailbox for record-keeping
+        $mail->bcc(config('emails.orders'));
+
+        // BCC admins
+        foreach (NotificationRecipients::adminUsers() as $admin) {
+            $mail->bcc($admin->email, $admin->name);
+        }
 
         return $mail;
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentMethod;
 use App\Models\PickupStation;
 use App\Services\CartService;
 use App\Services\OrderService;
@@ -23,12 +24,14 @@ class CheckoutController extends Controller
         }
 
         $pickupStations = PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get();
+        $paymentMethods = PaymentMethod::where('is_active', true)->orderBy('key')->get();
 
         return view('shop.checkout.show', [
             'items'          => $this->cart->items(),
             'subtotal'       => $this->cart->subtotal(),
             'customer'       => Auth::user(),
             'pickupStations' => $pickupStations,
+            'paymentMethods' => $paymentMethods,
         ]);
     }
 
@@ -45,7 +48,7 @@ class CheckoutController extends Controller
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
             'note'              => ['nullable', 'string', 'max:500'],
             'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
-            'payment_method'    => ['nullable', 'string', 'in:pay_now,pay_at_pickup,transfer'],
+            'payment_method'    => ['nullable', 'string', 'exists:payment_methods,key'],
         ]);
 
         $customer = Auth::user();
@@ -68,11 +71,17 @@ class CheckoutController extends Controller
             $shippingFee = (float) ($data['shipping_fee'] ?? 0);
         }
 
+        // Determine order status based on payment method
+        $orderStatus = ($data['payment_method'] ?? '') === 'instant_bank_transfer'
+            ? 'pending payment'
+            : 'confirmed';
+
         $order = $this->orders->create([
             'customer_id'       => $customer->id,
             'order_date'        => now()->toDateString(),
-            'status'            => 'confirmed',
+            'status'            => $orderStatus,
             'delivery_method'   => $data['delivery_method'],
+            'payment_method'    => $data['payment_method'] ?? null,
             'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
             'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
             'shipping_fee'      => $shippingFee,
@@ -85,7 +94,7 @@ class CheckoutController extends Controller
         $redirect = redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: '.$order->reference);
 
-        if (($data['payment_method'] ?? '') === 'pay_now') {
+        if (($data['payment_method'] ?? '') === 'instant_bank_transfer') {
             $redirect = $redirect->with('show_pay_now', true);
         }
 

@@ -113,10 +113,22 @@ class PickupStation extends Model
     }
 
     /**
-     * Calculate total commission for all picked up items.
+     * Calculate total commission for all picked up items (per-order cap: min ₦500, max ₦2,000).
      */
     public function totalCommission(): float
     {
-        return $this->pickedUpItems()->sum(fn($item) => $item->commission);
+        $items = $this->pickedUpItems()->get();
+
+        $byOrder = [];
+        foreach ($items as $item) {
+            $byOrder[$item->order_id] = ($byOrder[$item->order_id] ?? 0) + $item->commission;
+        }
+
+        $total = 0.0;
+        foreach ($byOrder as $orderCommission) {
+            $total += max(500.0, min(2000.0, $orderCommission));
+        }
+
+        return round($total, 2);
     }
 }

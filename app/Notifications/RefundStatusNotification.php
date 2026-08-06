@@ -98,6 +98,7 @@ class RefundStatusNotification extends Notification
 
         $message = (new MailMessage)
             ->subject($subject)
+            ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line($intro)
             ->line($detail)
@@ -113,6 +114,11 @@ class RefundStatusNotification extends Notification
             if ($admin->id !== $notifiable->id) {
                 $message->bcc($admin->email, $admin->name);
             }
+        }
+
+        // BCC accounts mailbox only when sending to customer (avoid duplicates)
+        if (! $notifiable->isAdmin() && ! $notifiable->isStaff()) {
+            $message->bcc(config('emails.accounts'));
         }
 
         return $message;

@@ -195,6 +195,57 @@ class OrderController extends Controller
         return back()->with('success', 'Payment rejected. Customer must retry payment.');
     }
 
+    public function confirmUnderReview(Order $order): RedirectResponse
+    {
+        if ($order->payment_status !== 'under_review') {
+            return back()->with('error', 'This order is not under review.');
+        }
+
+        $data = request()->validate([
+            'admin_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $txn = $order->paymentTransactions()->where('status', 'under_review')->latest()->first();
+        if ($txn) {
+            $txn->update(['status' => 'success']);
+        }
+
+        $paid = (float) $order->amount_paid + (float) $order->grand_total;
+        $order->update([
+            'amount_paid'    => $paid,
+            'payment_status' => 'paid',
+        ]);
+
+        // Confirm the order if it was pending payment
+        if ($order->status === 'pending payment') {
+            app(\App\Services\OrderService::class)->confirm($order);
+        }
+
+        return back()->with('success', 'Payment confirmed. Order is now paid.');
+    }
+
+    public function rejectUnderReview(Order $order): RedirectResponse
+    {
+        if ($order->payment_status !== 'under_review') {
+            return back()->with('error', 'This order is not under review.');
+        }
+
+        $data = request()->validate([
+            'admin_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $txn = $order->paymentTransactions()->where('status', 'under_review')->latest()->first();
+        if ($txn) {
+            $payload = (array) $txn->opay_payload;
+            $payload['rejection_reason'] = $data['admin_note'] ?? 'Payment rejected by admin';
+            $txn->update(['status' => 'failed', 'opay_payload' => $payload]);
+        }
+
+        $order->update(['payment_status' => 'unpaid']);
+
+        return back()->with('success', 'Payment rejected. Customer can retry payment.');
+    }
+
     public function updateStatus(Request $request, Order $order): RedirectResponse
     {
         if (in_array($order->status, ['delivered', 'cancelled'])) {

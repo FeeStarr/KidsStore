@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Notifications\AdminTwoFactorCodeNotification;
+use App\Services\CartService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +67,8 @@ class AuthController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
+        app(CartService::class)->mergeSessionIntoDatabase();
+
         return redirect()->intended(route('shop.home'));
     }
 
@@ -98,6 +101,7 @@ class AuthController extends Controller
             Auth::login($user, (bool) $request->session()->pull('shop_2fa_remember', false));
             $request->session()->forget('shop_2fa_user_id');
             $request->session()->regenerate();
+            app(CartService::class)->mergeSessionIntoDatabase();
             return redirect()->intended(route('shop.home'))
                 ->with('warning', 'Signed in using a backup code. Your code has been used and is no longer valid.');
         }
@@ -110,6 +114,7 @@ class AuthController extends Controller
         $user->resetTwoFactorCode();
         $request->session()->forget('shop_2fa_user_id');
         $request->session()->regenerate();
+        app(CartService::class)->mergeSessionIntoDatabase();
 
         return redirect()->intended(route('shop.home'));
     }
@@ -135,6 +140,7 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        app(CartService::class)->mergeSessionIntoDatabase();
 
         return redirect()->route('shop.home')->with('success', 'Welcome, '.$user->name.'!');
     }

@@ -2,32 +2,30 @@
 
 namespace App\Services;
 
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\ProductVariant;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
 /**
- * Session-backed shopping cart. Stores [product_variant_id => qty] in the
- * session and exposes hydrated line objects with the resolved variant,
- * its parent product and current price/discount.
+ * Hybrid cart: database-backed for logged-in users, session-backed for guests.
+ * On login, the guest session cart is merged into the database cart.
  */
 class CartService
 {
-    private const KEY = 'cart';
+    private const SESSION_KEY = 'cart';
+
+    // ── Public API ────────────────────────────────────────────────────────────
 
     public function add(int $variantId, int $quantity = 1, ?string $ageGroup = null, ?string $selectedSize = null): void
     {
-        $cart = $this->raw();
-        $lineKey = $this->makeLineKey($variantId, $ageGroup, $selectedSize);
-        $entry = $cart[$lineKey] ?? [
-            'variant_id' => $variantId,
-            'age_group' => $ageGroup,
-            'selected_size' => $selectedSize,
-            'quantity' => 0,
-        ];
-        $entry['quantity'] = (int) ($entry['quantity'] ?? 0) + max(1, $quantity);
-        $cart[$lineKey] = $entry;
-        $this->save($cart);
+        if (Auth::check()) {
+            $this->dbAdd($variantId, $quantity, $ageGroup, $selectedSize);
+        } else {
+            $this->sessionAdd($variantId, $quantity, $ageGroup, $selectedSize);
+        }
     }
 
     public function update(int $variantId, int $quantity, ?string $ageGroup = null, ?string $selectedSize = null): void
@@ -38,16 +36,11 @@ class CartService
 
     public function updateByLineKey(string $lineKey, int $quantity): void
     {
-        $cart = $this->raw();
-        if ($quantity <= 0) {
-            unset($cart[$lineKey]);
+        if (Auth::check()) {
+            $this->dbUpdateByLineKey($lineKey, $quantity);
         } else {
-            if (! isset($cart[$lineKey])) {
-                return;
-            }
-            $cart[$lineKey]['quantity'] = $quantity;
+            $this->sessionUpdateByLineKey($lineKey, $quantity);
         }
-        $this->save($cart);
     }
 
     public function remove(int $variantId, ?string $ageGroup = null, ?string $selectedSize = null): void
@@ -58,14 +51,20 @@ class CartService
 
     public function removeByLineKey(string $lineKey): void
     {
-        $cart = $this->raw();
-        unset($cart[$lineKey]);
-        $this->save($cart);
+        if (Auth::check()) {
+            $this->dbRemoveByLineKey($lineKey);
+        } else {
+            $this->sessionRemoveByLineKey($lineKey);
+        }
     }
 
     public function clear(): void
     {
-        Session::forget(self::KEY);
+        if (Auth::check()) {
+            $this->dbClear();
+        } else {
+            Session::forget(self::SESSION_KEY);
+        }
     }
 
     public function isEmpty(): bool
@@ -142,12 +141,180 @@ class CartService
         return (float) $this->items()->sum('line_total');
     }
 
-    private function raw(): array
+    // ── Guest → Authenticated merge ──────────────────────────────────────────
+
+    /**
+     * Merge session cart into the database cart. Called after login/register.
+     */
+    public function mergeSessionIntoDatabase(): void
     {
-        $raw = (array) Session::get(self::KEY, []);
+        $sessionCart = Session::get(self::SESSION_KEY, []);
+        if (empty($sessionCart)) {
+            return;
+        }
+
+        $cart = Cart::firstOrCreate(['user_id' => Auth::id()]);
+
+        foreach ($sessionCart as $line) {
+            $variantId = (int) ($line['variant_id'] ?? 0);
+            $ageGroup = $this->normalizeAgeGroup($line['age_group'] ?? null);
+            $selectedSize = $this->normalizeSelectedSize($line['selected_size'] ?? null);
+            $qty = max(1, (int) ($line['quantity'] ?? 0));
+
+            if ($variantId <= 0) continue;
+
+            $existing = $cart->items()
+                ->where('product_variant_id', $variantId)
+                ->where('age_group', $ageGroup)
+                ->where('selected_size', $selectedSize)
+                ->first();
+
+            if ($existing) {
+                $existing->update(['quantity' => $existing->quantity + $qty]);
+            } else {
+                $cart->items()->create([
+                    'product_variant_id' => $variantId,
+                    'age_group'          => $ageGroup,
+                    'selected_size'      => $selectedSize,
+                    'quantity'           => $qty,
+                ]);
+            }
+        }
+
+        Session::forget(self::SESSION_KEY);
+    }
+
+    // ── Database operations ───────────────────────────────────────────────────
+
+    private function dbAdd(int $variantId, int $quantity, ?string $ageGroup, ?string $selectedSize): void
+    {
+        $cart = Cart::firstOrCreate(['user_id' => Auth::id()]);
+        $ageGroup = $this->normalizeAgeGroup($ageGroup);
+        $selectedSize = $this->normalizeSelectedSize($selectedSize);
+
+        $existing = $cart->items()
+            ->where('product_variant_id', $variantId)
+            ->where('age_group', $ageGroup)
+            ->where('selected_size', $selectedSize)
+            ->first();
+
+        if ($existing) {
+            $existing->update(['quantity' => $existing->quantity + max(1, $quantity)]);
+        } else {
+            $cart->items()->create([
+                'product_variant_id' => $variantId,
+                'age_group'          => $ageGroup,
+                'selected_size'      => $selectedSize,
+                'quantity'           => max(1, $quantity),
+            ]);
+        }
+    }
+
+    private function dbUpdateByLineKey(string $lineKey, int $quantity): void
+    {
+        $cart = Cart::where('user_id', Auth::id())->first();
+        if (! $cart) return;
+
+        $parts = $this->parseLineKey($lineKey);
+        $item = $cart->items()
+            ->where('product_variant_id', $parts['variant_id'])
+            ->where('age_group', $parts['age_group'])
+            ->where('selected_size', $parts['selected_size'])
+            ->first();
+
+        if (! $item) return;
+
+        if ($quantity <= 0) {
+            $item->delete();
+        } else {
+            $item->update(['quantity' => $quantity]);
+        }
+    }
+
+    private function dbRemoveByLineKey(string $lineKey): void
+    {
+        $cart = Cart::where('user_id', Auth::id())->first();
+        if (! $cart) return;
+
+        $parts = $this->parseLineKey($lineKey);
+        $cart->items()
+            ->where('product_variant_id', $parts['variant_id'])
+            ->where('age_group', $parts['age_group'])
+            ->where('selected_size', $parts['selected_size'])
+            ->delete();
+    }
+
+    private function dbClear(): void
+    {
+        $cart = Cart::where('user_id', Auth::id())->first();
+        if ($cart) {
+            $cart->items()->delete();
+        }
+    }
+
+    private function dbRaw(): array
+    {
+        $cart = Cart::where('user_id', Auth::id())->first();
+        if (! $cart) return [];
+
+        $normalized = [];
+        foreach ($cart->items()->get() as $item) {
+            $lineKey = $this->makeLineKey(
+                $item->product_variant_id,
+                $item->age_group,
+                $item->selected_size
+            );
+            $normalized[$lineKey] = [
+                'variant_id'    => $item->product_variant_id,
+                'age_group'     => $item->age_group,
+                'selected_size' => $item->selected_size,
+                'quantity'      => $item->quantity,
+            ];
+        }
+        return $normalized;
+    }
+
+    // ── Session operations (guest) ────────────────────────────────────────────
+
+    private function sessionAdd(int $variantId, int $quantity, ?string $ageGroup, ?string $selectedSize): void
+    {
+        $cart = $this->sessionRaw();
+        $lineKey = $this->makeLineKey($variantId, $ageGroup, $selectedSize);
+        $entry = $cart[$lineKey] ?? [
+            'variant_id' => $variantId,
+            'age_group' => $ageGroup,
+            'selected_size' => $selectedSize,
+            'quantity' => 0,
+        ];
+        $entry['quantity'] = (int) ($entry['quantity'] ?? 0) + max(1, $quantity);
+        $cart[$lineKey] = $entry;
+        Session::put(self::SESSION_KEY, $cart);
+    }
+
+    private function sessionUpdateByLineKey(string $lineKey, int $quantity): void
+    {
+        $cart = $this->sessionRaw();
+        if ($quantity <= 0) {
+            unset($cart[$lineKey]);
+        } else {
+            if (! isset($cart[$lineKey])) return;
+            $cart[$lineKey]['quantity'] = $quantity;
+        }
+        Session::put(self::SESSION_KEY, $cart);
+    }
+
+    private function sessionRemoveByLineKey(string $lineKey): void
+    {
+        $cart = $this->sessionRaw();
+        unset($cart[$lineKey]);
+        Session::put(self::SESSION_KEY, $cart);
+    }
+
+    private function sessionRaw(): array
+    {
+        $raw = (array) Session::get(self::SESSION_KEY, []);
         $normalized = [];
 
-        // Support legacy cart format: [variant_id => qty]
         foreach ($raw as $key => $value) {
             if (is_int($value) || is_numeric($value)) {
                 $variantId = (int) $key;
@@ -164,15 +331,11 @@ class CartService
 
             if (is_array($value)) {
                 $variantId = (int) ($value['variant_id'] ?? 0);
-                if ($variantId <= 0) {
-                    continue;
-                }
+                if ($variantId <= 0) continue;
                 $ageGroup = $this->normalizeAgeGroup($value['age_group'] ?? null);
                 $selectedSize = $this->normalizeSelectedSize($value['selected_size'] ?? null);
                 $qty = max(0, (int) ($value['quantity'] ?? 0));
-                if ($qty <= 0) {
-                    continue;
-                }
+                if ($qty <= 0) continue;
                 $lineKey = $this->makeLineKey($variantId, $ageGroup, $selectedSize);
                 $normalized[$lineKey] = [
                     'variant_id' => $variantId,
@@ -186,9 +349,14 @@ class CartService
         return $normalized;
     }
 
-    private function save(array $cart): void
+    // ── Shared helpers ────────────────────────────────────────────────────────
+
+    private function raw(): array
     {
-        Session::put(self::KEY, $cart);
+        if (Auth::check()) {
+            return $this->dbRaw();
+        }
+        return $this->sessionRaw();
     }
 
     private function makeLineKey(int $variantId, ?string $ageGroup, ?string $selectedSize): string
@@ -196,6 +364,16 @@ class CartService
         $age = $this->normalizeAgeGroup($ageGroup);
         $size = $this->normalizeSelectedSize($selectedSize);
         return $variantId.'|'.($size ?? '').'|'.($age ?? '');
+    }
+
+    private function parseLineKey(string $lineKey): array
+    {
+        $parts = explode('|', $lineKey);
+        return [
+            'variant_id'    => (int) ($parts[0] ?? 0),
+            'selected_size' => $parts[1] !== '' ? $parts[1] : null,
+            'age_group'     => $parts[2] !== '' ? $parts[2] : null,
+        ];
     }
 
     private function normalizeAgeGroup(?string $ageGroup): ?string

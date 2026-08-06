@@ -36,8 +36,9 @@ class RefundReturnNotification extends Notification
 
         $customerName = $order->customer?->name ?? 'N/A';
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject($subject)
+            ->bcc(config('emails.stations'))
             ->greeting("Hello {$notifiable->name},")
             ->line("A return request has been **approved** and assigned to your station for collection.")
             ->line('')
@@ -50,5 +51,12 @@ class RefundReturnNotification extends Notification
             ->line("When the customer brings the item to your station, please mark it as **collected** in your portal.")
             ->line("**Important:** Only collect the item if the customer's payment status is **paid**.")
             ->action('View Return Details', url('/pickup-portal'));
+
+        // BCC admins
+        foreach (NotificationRecipients::adminUsers() as $admin) {
+            $message->bcc($admin->email, $admin->name);
+        }
+
+        return $message;
     }
 }
