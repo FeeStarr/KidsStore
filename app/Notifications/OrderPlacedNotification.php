@@ -47,9 +47,14 @@ class OrderPlacedNotification extends Notification
         if ($isInternal) {
             foreach (NotificationRecipients::adminUsers() as $admin) {
                 if ($admin->id !== $notifiable->id) {
-                    $message->cc($admin->email, $admin->name);
+                    $message->bcc($admin->email, $admin->name);
                 }
             }
+        }
+
+        // BCC orders mailbox only when sending to customer (avoid duplicates)
+        if (! $isInternal) {
+            $message->bcc(config('emails.orders'));
         }
 
         return $message;

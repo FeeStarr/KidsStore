@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function ($schedule) {
         $schedule->command('payments:check-delayed')->everyFiveMinutes();
+        $schedule->command('payments:expire-pending')->daily();
         $schedule->command('pickups:check-expired')->dailyAt('23:00');
         $schedule->command('pickups:send-reminders')->dailyAt('09:00');
     })

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\PaymentTransaction;
+use App\Models\User;
+use App\Notifications\PaymentUnderReviewNotification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -71,14 +73,35 @@ class PaystackService
         $email = $order->customer?->email ?? 'customer@kidsstore.com';
 
         // Step 1: Create (or get existing) customer
-        $customer = $this->getOrCreateCustomer($email, $order->customer?->name ?? 'Customer');
+        $customerName = $order->customer?->name ?? 'Customer';
+        $firstName = $order->customer?->profile?->first_name ?? '';
+        $lastName = $order->customer?->profile?->last_name ?? '';
+
+        // Fall back to splitting the name if profile names are empty
+        if (empty(trim($firstName)) && empty(trim($lastName))) {
+            $nameParts = explode(' ', trim($customerName), 2);
+            $firstName = $nameParts[0] ?? $customerName;
+            $lastName = $nameParts[1] ?? $firstName;
+        }
+
+        // Final safety — Paystack requires both first_name and last_name to be non-empty
+        $firstName = trim($firstName) ?: 'Customer';
+        $lastName = trim($lastName) ?: 'Customer';
+
+        $customer = $this->getOrCreateCustomer($email, $firstName, $lastName);
 
         // Step 2: Assign a dedicated virtual account
-        $response = $this->post('/dedicated_account', [
+        $payload = [
             'customer'    => $customer['id'],
-            'preferred_bank' => 'wema-bank', // Paystack's primary virtual account bank
             'currency'    => config('paystack.currency', 'NGN'),
-        ]);
+        ];
+
+        // Wema Bank only available in live mode for dedicated accounts
+        if (config('app.env') === 'production') {
+            $payload['preferred_bank'] = 'wema-bank';
+        }
+
+        $response = $this->post('/dedicated_account', $payload);
 
         if (! ($response['status'] ?? false)) {
             $msg = $response['message'] ?? 'Unknown Paystack error';
@@ -127,12 +150,22 @@ class PaystackService
         $paystackStatus = strtolower($data['status'] ?? '');
 
         if ($paystackStatus === 'success') {
-            $this->markTransactionSuccess($transaction, $response);
+            // Verify amount matches
+            $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
+            $orderAmount = (float) $transaction->order->grand_total;
+
+            if ($paystackAmount < $orderAmount * 0.99 || $paystackAmount > $orderAmount * 1.01) {
+                $this->markUnderReview($transaction, $response, 'Amount mismatch: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
+            } else {
+                $this->markTransactionSuccess($transaction, $response);
+            }
         } elseif (in_array($paystackStatus, ['abandoned', 'failed', 'reversed'], true)) {
             $transaction->update([
                 'status'       => 'failed',
                 'opay_payload' => $response,
             ]);
+        } elseif ($paystackStatus !== '') {
+            $this->markUnderReview($transaction, $response, 'Paystack returned ambiguous status: ' . $paystackStatus);
         }
 
         return $transaction->refresh();
@@ -169,12 +202,21 @@ class PaystackService
         $paystackStatus = strtolower($data['status'] ?? '');
 
         if ($paystackStatus === 'success') {
-            $this->markTransactionSuccess($transaction, $payload);
+            $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
+            $orderAmount = (float) $transaction->order->grand_total;
+
+            if ($paystackAmount < $orderAmount * 0.99 || $paystackAmount > $orderAmount * 1.01) {
+                $this->markUnderReview($transaction, $payload, 'Amount mismatch via webhook: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
+            } else {
+                $this->markTransactionSuccess($transaction, $payload);
+            }
         } elseif (in_array($paystackStatus, ['abandoned', 'failed', 'reversed'], true)) {
             $transaction->update([
                 'status'       => 'failed',
                 'opay_payload' => $payload,
             ]);
+        } elseif ($paystackStatus !== '') {
+            $this->markUnderReview($transaction, $payload, 'Webhook ambiguous status: ' . $paystackStatus);
         }
 
         return true;
@@ -198,7 +240,7 @@ class PaystackService
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private function getOrCreateCustomer(string $email, string $name): array
+    private function getOrCreateCustomer(string $email, string $firstName, string $lastName): array
     {
         // Try to find existing customer by email
         $response = $this->get("/customer?email=" . urlencode($email));
@@ -206,14 +248,31 @@ class PaystackService
         if (($response['status'] ?? false) && ! empty($response['data'])) {
             $customers = is_array($response['data']) ? $response['data'] : [$response['data']];
             if (! empty($customers)) {
-                return $customers[0];
+                $existing = $customers[0];
+
+                // If existing customer has empty first/last name, update it
+                if (empty(trim($existing['first_name'] ?? '')) || empty(trim($existing['last_name'] ?? ''))) {
+                    $customerCode = $existing['customer_code'] ?? null;
+                    if ($customerCode) {
+                        $this->put('/customer/' . $customerCode, [
+                            'first_name' => $firstName,
+                            'last_name'  => $lastName,
+                        ]);
+
+                        $existing['first_name'] = $firstName;
+                        $existing['last_name']  = $lastName;
+                    }
+                }
+
+                return $existing;
             }
         }
 
         // Create new customer
         $response = $this->post('/customer', [
-            'email' => $email,
-            'first_name' => $name,
+            'email'      => $email,
+            'first_name' => $firstName,
+            'last_name'  => $lastName,
         ]);
 
         if (! ($response['status'] ?? false)) {
@@ -238,6 +297,33 @@ class PaystackService
                 'amount_paid'    => $paid,
                 'payment_status' => $paid >= (float) $order->grand_total ? 'paid' : 'partial',
             ]);
+
+            // Auto-confirm pending payment orders
+            if ($order->status === 'pending payment' && $order->payment_status === 'paid') {
+                $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
+            }
+        }
+    }
+
+    private function markUnderReview(PaymentTransaction $transaction, array $rawPayload, string $reason): void
+    {
+        $transaction->update([
+            'status'       => 'under_review',
+            'opay_payload' => array_merge((array) $transaction->opay_payload, ['review_reason' => $reason]),
+        ]);
+
+        $order = $transaction->order;
+        if ($order) {
+            $order->update(['payment_status' => 'under_review']);
+
+            // Notify all admin users
+            $admins = User::where('is_active', true)
+                ->whereIn('role', [User::ROLE_SUPERADMIN, User::ROLE_ADMIN])
+                ->get();
+
+            foreach ($admins as $index => $admin) {
+                $admin->notify(new PaymentUnderReviewNotification($order, $transaction, $index === 0));
+            }
         }
     }
 
@@ -300,6 +386,27 @@ class PaystackService
         }
 
         $response = $http->post($this->baseUrl . $endpoint, $data);
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * PUT to Paystack API.
+     */
+    private function put(string $endpoint, array $data): array
+    {
+        $http = Http::timeout(30)
+            ->withHeaders([
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . $this->secretKey,
+                'Accept'        => 'application/json',
+            ]);
+
+        if (config('app.env') !== 'production') {
+            $http = $http->withoutVerifying();
+        }
+
+        $response = $http->put($this->baseUrl . $endpoint, $data);
 
         return $response->json() ?? [];
     }

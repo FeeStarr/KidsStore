@@ -15,6 +15,7 @@ class AdminPaymentSubmittedNotification extends Notification
     public function __construct(
         public readonly Order $order,
         public readonly PaymentVerification $verification,
+        public readonly bool $bccAccounts = true,
     ) {}
 
     public function via(object $notifiable): array
@@ -27,7 +28,7 @@ class AdminPaymentSubmittedNotification extends Notification
         $station = $this->order->pickupStation;
         $stationName = $station?->name ?? 'Unknown Station';
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject("Payment Verification Required — {$this->order->reference}")
             ->greeting("Hello {$notifiable->name},")
             ->line("A pickup station has submitted a payment verification request.")
@@ -36,5 +37,11 @@ class AdminPaymentSubmittedNotification extends Notification
             ->line("**Amount:** ₦" . number_format($this->order->grand_total, 2))
             ->line("**Submitted:** {$this->verification->submitted_at->format('M d, Y H:i')}")
             ->action('Verify Payment', route('admin.orders.show', $this->order));
+
+        if ($this->bccAccounts) {
+            $message->bcc(config('emails.accounts'));
+        }
+
+        return $message;
     }
 }

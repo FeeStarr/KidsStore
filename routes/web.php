@@ -20,7 +20,7 @@ use App\Http\Controllers\Admin\RefundController as AdminRefundController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VendorApprovalController;
 use App\Http\Controllers\PickupPortalController;
-use App\Http\Controllers\OPayController;
+use App\Http\Controllers\PaystackController;
 use App\Http\Controllers\Shop\AboutController as ShopAboutController;
 use App\Http\Controllers\Shop\ContactController as ShopContactController;
 use App\Http\Controllers\Shop\ReturnPolicyController as ShopReturnPolicyController;
@@ -80,6 +80,7 @@ Route::name('shop.')->group(function () {
 
         Route::get('/account/orders',          [AccountController::class, 'orders'])->name('account.orders.index');
         Route::get('/account/orders/{order}',  [AccountController::class, 'showOrder'])->name('account.orders.show');
+        Route::put('/account/orders/{order}/payment-method', [AccountController::class, 'changePaymentMethod'])->name('account.orders.change-payment-method');
 
         // Paystack payment
         Route::post('/account/orders/{order}/pay',       [PaystackController::class, 'initiate'])->name('paystack.initiate');
@@ -185,6 +186,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status')->middleware('permission:update_order_status');
         Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->name('orders.confirm-payment')->middleware('permission:update_order_status');
         Route::post('orders/{order}/reject-payment', [OrderController::class, 'rejectPayment'])->name('orders.reject-payment')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/confirm-under-review', [OrderController::class, 'confirmUnderReview'])->name('orders.confirm-under-review')->middleware('permission:update_order_status');
+        Route::post('orders/{order}/reject-under-review', [OrderController::class, 'rejectUnderReview'])->name('orders.reject-under-review')->middleware('permission:update_order_status');
 
         Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store')->middleware('permission:manage_orders');
         Route::patch('orders/{order}/delivery-date', [OrderController::class, 'updateDeliveryDate'])->name('orders.delivery-date.update')->middleware('permission:manage_orders');

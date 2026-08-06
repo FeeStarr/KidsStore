@@ -44,6 +44,7 @@ class OrderService
                 'order_date'             => $data['order_date'],
                 'status'                 => $data['status'] ?? 'confirmed',
                 'delivery_method'        => $data['delivery_method'] ?? 'delivery',
+                'payment_method'         => $data['payment_method'] ?? null,
                 'pickup_station_id'      => $data['pickup_station_id'] ?? null,
                 'delivery_address'       => $data['delivery_address'] ?? null,
                 'discount'               => (float) ($data['discount'] ?? 0),
@@ -60,6 +61,7 @@ class OrderService
             $this->recalculateTotals($order);
 
             // Decrease inventory for confirmed/processing/shipping to station/out for delivery/ready/delivered orders.
+            // Skip pending payment — stock is not reserved until payment is confirmed.
             if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
                 $this->applyInventoryDecrease($order);
             }
@@ -79,8 +81,8 @@ class OrderService
     public function confirm(Order $order): Order
     {
         return DB::transaction(function () use ($order) {
-            if ($order->status === 'cancelled') {
-                throw new RuntimeException('Cannot confirm a cancelled order.');
+            if (in_array($order->status, ['cancelled', 'expired'], true)) {
+                throw new RuntimeException('Cannot confirm a cancelled or expired order.');
             }
 
             if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
@@ -363,24 +365,9 @@ class OrderService
     private function notifyOrderPlaced(Order $order): void
     {
         try {
-            $order->load('customer', 'items.product', 'items.variant', 'pickupStation');
-
-            // Notify the customer
-            if ($order->customer) {
-                $order->customer->notify(new OrderPlacedNotification($order));
-            }
-
-            // Notify admin users
-            foreach (NotificationRecipients::adminUsers() as $admin) {
-                $admin->notify(new OrderPlacedNotification($order));
-            }
-
-            // Notify customer support staff
-            foreach (NotificationRecipients::internalStaff() as $staff) {
-                $staff->notify(new OrderPlacedNotification($order));
-            }
+            \App\Jobs\SendOrderPlacedNotifications::dispatch($order->id);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('OrderPlaced notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
+            \Illuminate\Support\Facades\Log::error('OrderPlaced notification dispatch failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
         }
     }
 
@@ -397,11 +384,6 @@ class OrderService
 
             if ($order->customer) {
                 $order->customer->notify(new OrderStatusNotification($order, $previousStatus));
-            }
-
-            // Notify admin users
-            foreach (NotificationRecipients::adminUsers() as $admin) {
-                $admin->notify(new OrderStatusNotification($order, $previousStatus));
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('OrderStatus notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);

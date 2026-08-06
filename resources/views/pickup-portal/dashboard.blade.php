@@ -151,13 +151,22 @@
             </div>
 
             @foreach($currentItems->groupBy('order_id') as $orderId => $items)
-                @php $order = $items->first()->order; @endphp
+                @php
+                    $order = $items->first()->order;
+                    $canReceive = in_array($order->status, ['shipping to station', 'out for delivery', 'ready for pick up']);
+                @endphp
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <div>
-                            <input type="checkbox" class="select-all me-2">
+                            <input type="checkbox" class="select-all me-2" {{ $filter === 'pending' && !$canReceive ? 'disabled' : '' }}>
                             <strong>{{ $order->reference }}</strong>
                             <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y') }}</span>
+                            @if($filter === 'pending')
+                                <span class="badge bg-secondary ms-2">Order: {{ $order->status }}</span>
+                                @if(!$canReceive)
+                                    <span class="badge bg-warning text-dark ms-1">Awaiting shipment</span>
+                                @endif
+                            @endif
                         </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
@@ -178,8 +187,8 @@
                             </thead>
                             <tbody>
                                 @foreach($items as $item)
-                                    <tr>
-                                        <td><input type="checkbox" name="item_ids[]" value="{{ $item->id }}" class="item-checkbox"></td>
+                                    <tr @if($filter === 'pending' && !$canReceive) class="table-light" @endif>
+                                        <td><input type="checkbox" name="item_ids[]" value="{{ $item->id }}" class="item-checkbox" {{ $filter === 'pending' && !$canReceive ? 'disabled' : '' }}></td>
                                         <td>{{ $item->product?->name }}</td>
                                         <td class="text-muted small">{{ $item->variant?->options_label }}</td>
                                         <td class="text-center">{{ $item->quantity }}</td>
@@ -187,6 +196,17 @@
                                         <td class="text-end text-success">₦{{ number_format($item->line_total * 0.10, 2) }}</td>
                                         <td class="text-center">
                                             <span class="badge bg-secondary">{{ $item->status_label }}</span>
+                                            @if($filter === 'pending' && $canReceive)
+                                                <form method="POST" action="{{ route('pickup-portal.items.received', $item) }}" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary ms-1 mark-received-btn"
+                                                            data-item="{{ $item->product?->name }}">
+                                                        <i class="bi bi-check-circle me-1"></i>Received
+                                                    </button>
+                                                </form>
+                                            @elseif($filter === 'pending' && !$canReceive)
+                                                <span class="text-muted small ms-1">Order must be shipped first</span>
+                                            @endif
                                             @if($filter === 'received')
                                                 <form method="POST" action="{{ route('pickup-portal.items.ready', $item) }}" class="d-inline">
                                                     @csrf
@@ -221,6 +241,7 @@
                 $isPaid = $order->payment_status === 'paid';
                 $isVerificationPending = $order->payment_status === 'verification_pending';
                 $isVerificationFailed = $order->payment_status === 'verification_failed';
+                $isUnderReview = $order->payment_status === 'under_review';
                 $balance = ($order->grand_total ?? 0) - ($order->amount_paid ?? 0);
                 $pendingVerification = $order->latestPendingVerification();
                 $stationAccount = $bankAccount;
@@ -238,12 +259,19 @@
                             </span>
                         @elseif($isVerificationFailed)
                             <span class="badge bg-danger ms-2"><i class="bi bi-x-circle me-1"></i>Verification Failed</span>
+                        @elseif($isUnderReview)
+                            <span class="badge bg-warning text-dark ms-2"><i class="bi bi-hourglass-split me-1"></i>Under Review</span>
                         @else
                             <span class="badge bg-warning text-dark ms-2"><i class="bi bi-exclamation-circle me-1"></i>Unpaid — ₦{{ number_format($balance, 2) }} remaining</span>
                         @endif
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        @if($order->payment_method)
+                            <span class="badge bg-light text-dark">
+                                <i class="bi bi-credit-card me-1"></i>{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}
+                            </span>
+                        @endif
                         @if($order->customer)
                             <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
                                 @csrf
@@ -283,6 +311,10 @@
                                                     <i class="bi bi-check-circle me-1"></i>Picked Up
                                                 </button>
                                             </form>
+                                        @elseif($isUnderReview)
+                                            <span class="text-warning small me-2">
+                                                <i class="bi bi-hourglass-split me-1"></i>Payment under review
+                                            </span>
                                         @else
                                             <span class="text-danger small me-2">
                                                 <i class="bi bi-lock me-1"></i>Payment pending
@@ -308,6 +340,12 @@
                             <span class="small text-muted">— waiting for admin confirmation</span>
                         </div>
 
+                    {{-- Under review: show waiting message --}}
+                    @elseif($isUnderReview)
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <span class="small text-warning"><i class="bi bi-hourglass-split me-1"></i>Payment under review — waiting for admin to confirm</span>
+                        </div>
+
                     {{-- Verification failed: show retry option --}}
                     @elseif($isVerificationFailed)
                         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -325,15 +363,15 @@
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <span class="small text-muted me-1">Collect payment:</span>
 
-                            <button type="button" class="btn btn-sm btn-secondary" disabled
-                                    title="Coming soon">
+                            <button type="button" class="btn btn-sm btn-success"
+                                    onclick="portalPayNow({{ $order->id }})">
                                 <i class="bi bi-lightning me-1"></i>Pay Now (Paystack)
                             </button>
 
                             @if($stationAccount)
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#bankDetailsModal-{{ $order->id }}">
-                                    <i class="bi bi-bank me-1"></i>Show Bank Details
+                                    <i class="bi bi-bank me-1"></i>Manual Transfer
                                 </button>
                             @endif
 
@@ -344,16 +382,6 @@
                                     <i class="bi bi-send me-1"></i>Payment Submitted
                                 </button>
                             </form>
-
-                            <form method="POST" action="{{ route('pickup-portal.record-payment', $order) }}" class="d-inline">
-                                @csrf
-                                <input type="hidden" name="amount" value="{{ $balance }}">
-                                <input type="hidden" name="method" value="cash">
-                                <button type="submit" class="btn btn-sm btn-outline-success"
-                                        onclick="return confirm('Record cash payment of ₦{{ number_format($balance, 2) }}?')">
-                                    <i class="bi bi-cash me-1"></i>Cash
-                                </button>
-                            </form>
                         </div>
 
                         {{-- Bank Details Modal --}}
@@ -362,11 +390,11 @@
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Bank Transfer Details</h5>
+                                        <h5 class="modal-title">Manual Bank Transfer</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <p class="small text-muted mb-3">Share these details with the customer for bank transfer.</p>
+                                        <p class="small text-muted mb-3">If Paystack is unavailable, share these details with the customer for manual bank transfer. After transfer, click "Payment Submitted" to send for admin verification.</p>
                                         <table class="table table-sm mb-0">
                                             <tr><td class="text-muted" style="width:120px">Bank</td><td><strong>{{ $stationAccount->bank_name }}</strong></td></tr>
                                             <tr><td class="text-muted">Account Name</td><td>{{ $stationAccount->bank_account_name }}</td></tr>

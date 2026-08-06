@@ -6,11 +6,19 @@
     <a href="{{ route('shop.account.orders.index') }}" class="btn btn-outline-secondary btn-sm">Back to orders</a>
 </div>
 
-@if(false && session('show_pay_now') && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled']))
+@if(($order->payment_method === 'instant_bank_transfer' || session('show_pay_now')) && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled', 'expired']))
 <div class="card border-primary mb-3" id="pay-now-panel">
     <div class="card-body text-center py-4">
-        <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
-        <p class="text-muted small mb-3">Transfer the exact amount to the virtual account below. Payment is verified automatically.</p>
+        @if($order->payment_status === 'under_review')
+            <h5 class="mb-2"><i class="bi bi-hourglass-split me-2"></i>Payment Under Review</h5>
+            <p class="text-muted small mb-3">Your payment is being reviewed. We'll confirm shortly. No further action is needed from you right now.</p>
+            <div class="spinner-border text-warning mb-2" role="status"></div>
+            <div id="pay-now-review" class="small text-muted" data-order-id="{{ $order->id }}">
+                Waiting for admin confirmation...
+            </div>
+        @else
+            <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
+            <p class="text-muted small mb-3">Transfer the exact amount to the virtual account below. Payment is verified automatically.</p>
         <div id="pay-now-loading">
             <div class="spinner-border text-primary mb-2" role="status"></div>
             <div class="small text-muted">Generating your payment account...</div>
@@ -37,12 +45,34 @@
             <div class="small text-muted mb-3">
                 Expires in <strong id="pn-countdown">...</strong>
             </div>
+            <div id="pay-now-retry" style="display:none" class="mb-3">
+                <div class="alert alert-warning small mb-2">Virtual account has expired.</div>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Generate New Account
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePaymentModal">
+                        <i class="bi bi-arrow-left me-1"></i>Change Payment Method
+                    </button>
+                </div>
+            </div>
             <button id="pn-check-btn" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-arrow-clockwise me-1"></i>I've paid — check now
             </button>
             <div id="pn-status" class="small text-muted mt-2"></div>
+        @endif
         </div>
-        <div id="pay-now-error" style="display:none" class="text-danger small"></div>
+        <div id="pay-now-error" style="display:none" class="text-danger small">
+            <div id="pay-now-error-msg"></div>
+            <div class="mt-3 d-flex gap-2 justify-content-center">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Retry Payment
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePaymentModal">
+                    <i class="bi bi-arrow-left me-1"></i>Change Payment Method
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 @endif
@@ -55,13 +85,25 @@
                 <span class="badge {{ match($order->status) {
                     'delivered' => 'text-bg-success',
                     'cancelled' => 'text-bg-danger',
+                    'expired' => 'text-bg-secondary',
                     'pickup window expired' => 'text-bg-danger',
+                    'pending payment' => 'text-bg-warning text-dark',
                     'ready for pick up' => 'text-bg-warning text-dark',
                     'confirmed' => 'text-bg-primary',
                     default => 'text-bg-secondary'
                 } }}">{{ $order->getStatusLabel() }}</span>
                 &middot;
-                <span class="badge text-bg-light">{{ ucfirst($order->payment_status) }}</span>
+                <span class="badge {{ match($order->payment_status) {
+                    'paid' => 'text-bg-success',
+                    'under_review' => 'text-bg-warning text-dark',
+                    'verification_pending' => 'text-bg-info text-dark',
+                    'verification_failed' => 'text-bg-danger',
+                    default => 'text-bg-light'
+                } }}">{{ ucfirst(str_replace('_', ' ', $order->payment_status)) }}</span>
+                @if($order->payment_method)
+                    &middot;
+                    <span class="badge text-bg-info">{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</span>
+                @endif
             </p>
             <small class="text-muted">Placed on {{ $order->order_date->format('M d, Y') }}</small>
 
@@ -286,7 +328,7 @@
                         <input class="form-check-input" type="radio" name="scope"
                                id="scope_full" value="full" checked>
                         <label class="form-check-label" for="scope_full">
-                            Full order — ₦{{ number_format($order->amount_paid, 2) }}
+                            Full order — ₦{{ number_format($order->grand_total, 2) }}
                         </label>
                     </div>
                     @endif
@@ -396,7 +438,15 @@
 
                 var seconds = data.seconds_remaining || 0;
                 function tick() {
-                    if (seconds <= 0) { countdown.textContent = 'expired'; return; }
+                    if (seconds <= 0) {
+                        countdown.textContent = 'expired';
+                        countdown.classList.remove('text-muted');
+                        countdown.classList.add('text-danger');
+                        // Show retry options when expired
+                        var retryDiv = document.getElementById('pay-now-retry');
+                        if (retryDiv) retryDiv.style.display = '';
+                        return;
+                    }
                     var m = Math.floor(seconds / 60);
                     var s = seconds % 60;
                     countdown.textContent = m + ':' + String(s).padStart(2, '0');
@@ -412,13 +462,13 @@
             } else {
                 loading.style.display = 'none';
                 errDiv.style.display = '';
-                errDiv.textContent = data.message || 'Could not generate payment account.';
+                document.getElementById('pay-now-error-msg').textContent = data.message || 'Could not generate payment account.';
             }
         })
         .catch(function() {
             loading.style.display = 'none';
             errDiv.style.display = '';
-            errDiv.textContent = 'Network error. Please refresh the page.';
+            document.getElementById('pay-now-error-msg').textContent = 'Network error. Please try again.';
         });
 
         // Manual check
@@ -444,7 +494,7 @@
                 if (status) {
                     status.textContent = data.throttled
                         ? 'Please wait before checking again.'
-                        : 'Payment not yet received. Transfer then try again.';
+                        : 'Payment not yet received. Transfer the exact amount, then click "I\'ve paid" below.';
                 }
             })
             .catch(function() {
@@ -454,6 +504,30 @@
                 if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>I\'ve paid — check now'; }
             });
         }
+    }
+
+    // ── Under Review auto-poll ───────────────────────────────────────────────
+    var reviewEl = document.getElementById('pay-now-review');
+    if (reviewEl) {
+        var reviewOrderId = reviewEl.dataset.orderId;
+        var csrfReview = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+        var reviewPoll = setInterval(function() {
+            fetch('{{ route("shop.paystack.query", $order) }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfReview, 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.paid || data.payment_status === 'paid') {
+                    clearInterval(reviewPoll);
+                    location.reload();
+                } else if (data.payment_status !== 'under_review') {
+                    clearInterval(reviewPoll);
+                    location.reload();
+                }
+            })
+            .catch(function() {});
+        }, 30000);
     }
 
     // ── Refund form: toggle item fields on scope selection ────────────────────
@@ -482,5 +556,41 @@
 })();
 </script>
 @endpush
+
+{{-- Change Payment Method Modal --}}
+@if($order->payment_status !== 'paid')
+@php $activePaymentMethods = \App\Models\PaymentMethod::where('is_active', true)->orderBy('key')->get(); @endphp
+<div class="modal fade" id="changePaymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{{ route('shop.account.orders.change-payment-method', $order) }}">
+                @csrf
+                @method('PUT')
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Payment Method</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Current method: <strong>{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</strong></p>
+                    @foreach($activePaymentMethods as $method)
+                        @if($method->key !== $order->payment_method)
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="payment_method" id="pm_change_{{ $method->key }}" value="{{ $method->key }}" {{ $loop->first ? 'checked' : '' }}>
+                            <label class="form-check-label" for="pm_change_{{ $method->key }}">
+                                {{ $method->label }}
+                            </label>
+                        </div>
+                        @endif
+                    @endforeach
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Payment Method</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Order;
+use App\Models\PaymentMethod;
+use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -166,5 +168,27 @@ class AccountController extends Controller
         $address->update(['is_default' => true]);
 
         return redirect()->back()->with('success', 'Default address updated.');
+    }
+
+    public function changePaymentMethod(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->customer_id === (int) Auth::id(), 404);
+
+        if ($order->payment_status === 'paid') {
+            return back()->with('error', 'Cannot change payment method for a paid order.');
+        }
+
+        $data = $request->validate([
+            'payment_method' => ['required', 'string', 'exists:payment_methods,key'],
+        ]);
+
+        $order->update(['payment_method' => $data['payment_method']]);
+
+        // If switching to pay_at_pickup on a pending payment order, confirm it immediately
+        if ($data['payment_method'] === 'pay_at_pickup' && $order->status === 'pending payment') {
+            app(OrderService::class)->confirm($order);
+        }
+
+        return back()->with('success', 'Payment method updated to ' . ucfirst(str_replace('_', ' ', $data['payment_method'])) . '.');
     }
 }

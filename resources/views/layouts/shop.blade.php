@@ -134,6 +134,7 @@
                             <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}">Admin Panel</a></li>
                             <li><hr class="dropdown-divider"></li>
                         @endif
+                        <li><a class="dropdown-item" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>

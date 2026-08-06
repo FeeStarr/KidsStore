@@ -6,6 +6,8 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PickupStation;
 use App\Models\PickupPayout;
+use App\Notifications\OrderItemPickedUpNotification;
+use App\Notifications\OrderItemReceivedNotification;
 use App\Notifications\OrderReadyForPickupNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -26,10 +28,26 @@ class PickupStationService
             throw new \RuntimeException('Only pending items can be marked as received.');
         }
 
+        // Order must be at least "shipping to station" before items can be marked received
+        $validStatuses = [
+            Order::STATUS_SHIPPING_TO_STATION,
+            Order::STATUS_OUT_FOR_DELIVERY,
+            Order::STATUS_READY_FOR_PICKUP,
+        ];
+
+        if (! in_array($item->order->status, $validStatuses)) {
+            throw new \RuntimeException(
+                'Order must be at "Shipping to Station" status before items can be marked as received.'
+            );
+        }
+
         $item->update([
             'pickup_status' => 'received',
             'pickup_status_changed_at' => now(),
         ]);
+
+        // Notify customer that their item has been received at the station
+        $this->notifyItemReceived($item);
 
         return $item->fresh();
     }
@@ -52,8 +70,16 @@ class PickupStationService
             'pickup_status_changed_at' => now(),
         ]);
 
+        // Update order status to "ready for pick up" when all items are ready
+        $order = $item->order;
+        $allReady = $order->items()->where('pickup_status', '!=', 'ready for pickup')
+            ->where('pickup_status', '!=', 'picked_up')->doesntExist();
+        if ($allReady && $order->status !== 'ready for pick up' && $order->status !== 'delivered') {
+            $order->update(['status' => 'ready for pick up']);
+        }
+
         // Notify customer when their order items are ready for pickup
-        $this->notifyReadyForPickup($item->order);
+        $this->notifyReadyForPickup($order);
 
         return $item->fresh();
     }
@@ -89,12 +115,41 @@ class PickupStationService
             // Auto-deliver order when all items are picked up
             $order = $item->order;
             $allPickedUp = $order->items()->where('pickup_status', '!=', 'picked_up')->doesntExist();
-            if ($allPickedUp && $order->status === 'ready for pick up') {
+            if ($allPickedUp && ! in_array($order->status, ['delivered', 'cancelled'])) {
                 $order->update(['status' => 'delivered']);
             }
         });
 
+        // Notify customer that their item has been picked up
+        $this->notifyItemPickedUp($item);
+
         return $item->fresh();
+    }
+
+    /**
+     * Notify the customer that an item has been picked up.
+     */
+    private function notifyItemPickedUp(OrderItem $item): void
+    {
+        try {
+            // Prevent duplicate notifications within 60 seconds
+            $cacheKey = "item_picked_up_notified_{$item->id}";
+            if (cache()->has($cacheKey)) {
+                return;
+            }
+            cache()->put($cacheKey, true, 60);
+
+            $customer = $item->order->customer;
+            if ($customer) {
+                $customer->notify(new OrderItemPickedUpNotification($item->order, $item));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Item picked up notification failed', [
+                'error'    => $e->getMessage(),
+                'order'    => $item->order->reference,
+                'item_id'  => $item->id,
+            ]);
+        }
     }
 
     /**
@@ -103,9 +158,12 @@ class PickupStationService
      */
     public function refreshOrderFeeTotal(Order $order): void
     {
-        $total = $order->items()
+        $raw = $order->items()
             ->where('pickup_status', 'picked_up')
             ->sum('line_total') * 0.10;
+
+        // Apply per-order commission cap (min ₦500, max ₦2,000)
+        $total = max(500.0, min(2000.0, $raw));
 
         $order->update(['pickup_station_fee_total' => round($total, 2)]);
     }
@@ -159,9 +217,6 @@ class PickupStationService
         $itemsByOrder = [];
 
         foreach ($items as $item) {
-            $commission = $item->commission;
-            $totalCommission += $commission;
-
             $orderId = $item->order_id;
             if (! isset($itemsByOrder[$orderId])) {
                 $itemsByOrder[$orderId] = [
@@ -171,8 +226,16 @@ class PickupStationService
                 ];
             }
             $itemsByOrder[$orderId]['items'][] = $item;
-            $itemsByOrder[$orderId]['commission'] += $commission;
+            $itemsByOrder[$orderId]['commission'] += $item->commission;
         }
+
+        // Apply per-order commission cap (min ₦500, max ₦2,000)
+        foreach ($itemsByOrder as &$entry) {
+            $entry['commission'] = max(500.0, min(2000.0, $entry['commission']));
+        }
+        unset($entry);
+
+        $totalCommission = array_sum(array_column($itemsByOrder, 'commission'));
 
         return [
             'total_commission' => round($totalCommission, 2),
@@ -259,7 +322,6 @@ class PickupStationService
     {
         try {
             // Only notify if ALL items in the order are ready or already picked up
-            // (so customer gets one notification when the order is fully ready)
             $pendingItems = $order->items()
                 ->whereIn('pickup_status', ['pending', 'received'])
                 ->count();
@@ -267,6 +329,13 @@ class PickupStationService
             if ($pendingItems > 0) {
                 return; // Not all items ready yet
             }
+
+            // Prevent duplicate notifications within 60 seconds
+            $cacheKey = "ready_pickup_notified_{$order->id}";
+            if (cache()->has($cacheKey)) {
+                return;
+            }
+            cache()->put($cacheKey, true, 60);
 
             $customer = $order->customer;
             if ($customer) {
@@ -276,6 +345,32 @@ class PickupStationService
             Log::error('Ready for pickup notification failed', [
                 'error' => $e->getMessage(),
                 'order' => $order->reference,
+            ]);
+        }
+    }
+
+    /**
+     * Notify the customer that an item has been received at the station.
+     */
+    private function notifyItemReceived(OrderItem $item): void
+    {
+        try {
+            // Prevent duplicate notifications within 60 seconds
+            $cacheKey = "item_received_notified_{$item->id}";
+            if (cache()->has($cacheKey)) {
+                return;
+            }
+            cache()->put($cacheKey, true, 60);
+
+            $customer = $item->order->customer;
+            if ($customer) {
+                $customer->notify(new OrderItemReceivedNotification($item->order, $item));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Item received notification failed', [
+                'error'    => $e->getMessage(),
+                'order'    => $item->order->reference,
+                'item_id'  => $item->id,
             ]);
         }
     }

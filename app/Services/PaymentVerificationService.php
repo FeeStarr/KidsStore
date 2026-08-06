@@ -39,8 +39,8 @@ class PaymentVerificationService
             ->whereIn('role', [User::ROLE_SUPERADMIN, User::ROLE_ADMIN])
             ->get();
 
-        foreach ($admins as $admin) {
-            $admin->notify(new AdminPaymentSubmittedNotification($order, $verification));
+        foreach ($admins as $index => $admin) {
+            $admin->notify(new AdminPaymentSubmittedNotification($order, $verification, $index === 0));
         }
 
         return $verification;
@@ -107,8 +107,8 @@ class PaymentVerificationService
                 ->whereIn('role', [User::ROLE_SUPERADMIN, User::ROLE_ADMIN])
                 ->get();
 
-            foreach ($admins as $admin) {
-                $admin->notify(new PaymentVerificationDelayedNotification($verification->order, $verification));
+            foreach ($admins as $index => $admin) {
+                $admin->notify(new PaymentVerificationDelayedNotification($verification->order, $verification, $index === 0));
             }
 
             $count++;

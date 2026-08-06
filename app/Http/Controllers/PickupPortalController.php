@@ -133,22 +133,40 @@ class PickupPortalController extends Controller
             ? $pendingReturns
             : ($itemsByStatus[$filter] ?? collect());
 
-        // Commission summary for picked-up tab
+        // Commission summary for picked-up tab — apply per-order cap (min ₦500, max ₦2,000)
         $commissionSummary = null;
         if ($filter === 'picked_up') {
             $pickedUpItems = $itemsByStatus['picked_up'];
+
             $totalEarned = 0;
             $totalPaid = 0;
             $totalPending = 0;
+            $paidCount = 0;
+            $pendingCount = 0;
+
+            // Group by order to apply per-order cap
+            $byOrder = [];
             foreach ($pickedUpItems as $item) {
-                $comm = $item->commission;
-                $totalEarned += $comm;
-                if ($item->pickup_station_fee_paid) {
-                    $totalPaid += $comm;
-                } else {
-                    $totalPending += $comm;
+                $orderId = $item->order_id;
+                if (!isset($byOrder[$orderId])) {
+                    $byOrder[$orderId] = ['raw' => 0, 'paid' => true];
+                }
+                $byOrder[$orderId]['raw'] += $item->commission;
+                if (!$item->pickup_station_fee_paid) {
+                    $byOrder[$orderId]['paid'] = false;
                 }
             }
+
+            foreach ($byOrder as $orderComm) {
+                $capped = max(500.0, min(2000.0, $orderComm['raw']));
+                $totalEarned += $capped;
+                if ($orderComm['paid']) {
+                    $totalPaid += $capped;
+                } else {
+                    $totalPending += $capped;
+                }
+            }
+
             $commissionSummary = [
                 'total_earned' => round($totalEarned, 2),
                 'total_paid' => round($totalPaid, 2),
