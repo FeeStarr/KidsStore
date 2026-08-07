@@ -200,10 +200,10 @@ class Order extends Model
             return 'Awaiting payment';
         }
 
-        // Ready for pickup — 4-day collection window
+        // Ready for pickup — 4-day collection window (working days)
         if ($this->status === 'ready for pick up') {
             $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
-            $latest = $readyAt->copy()->addDays(4);
+            $latest = $this->addWorkingDays($readyAt, 4);
             return 'Collect by ' . $latest->format('M d, Y');
         }
 
@@ -212,13 +212,13 @@ class Order extends Model
 
         $estimates = match ($this->status) {
             'ordered', 'pending confirmation', 'confirmed' =>
-                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(10)],
+                ['earliest' => $this->addWorkingDays($referenceDate, 2), 'latest' => $this->addWorkingDays($referenceDate, 10)],
             'processing' =>
-                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(5)],
+                ['earliest' => $this->addWorkingDays($referenceDate, 2), 'latest' => $this->addWorkingDays($referenceDate, 5)],
             'shipping to station', 'out for delivery' =>
-                ['earliest' => $referenceDate->copy()->addDays(1), 'latest' => $referenceDate->copy()->addDays(3)],
+                ['earliest' => $this->addWorkingDays($referenceDate, 1), 'latest' => $this->addWorkingDays($referenceDate, 3)],
             default =>
-                ['earliest' => $referenceDate->copy()->addDays(2), 'latest' => $referenceDate->copy()->addDays(10)],
+                ['earliest' => $this->addWorkingDays($referenceDate, 2), 'latest' => $this->addWorkingDays($referenceDate, 10)],
         };
 
         $earliest = $estimates['earliest'];
@@ -234,6 +234,39 @@ class Order extends Model
      * Number of days since the order became "ready for pick up".
      * Used by the pickup reminder scheduler.
      */
+    /**
+     * Add working days to a date (skips Saturday and Sunday).
+     */
+    protected function addWorkingDays(\Carbon\Carbon $date, int $days): \Carbon\Carbon
+    {
+        $result = $date->copy();
+        $added = 0;
+        while ($added < $days) {
+            $result->addDay();
+            if ($result->isWeekday()) {
+                $added++;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Calculate the number of working days between two dates (excludes weekends).
+     */
+    protected function workingDaysBetween(\Carbon\Carbon $from, \Carbon\Carbon $to): int
+    {
+        $days = 0;
+        $current = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+        while ($current->lt($end)) {
+            $current->addDay();
+            if ($current->isWeekday()) {
+                $days++;
+            }
+        }
+        return $days;
+    }
+
     public function getPickupDaysElapsed(): int
     {
         $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
