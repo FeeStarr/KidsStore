@@ -1,15 +1,17 @@
-@php($title = $title ?? 'Kids Store')
+@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
+@php($title = $title ?? $appName)
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} | Kids Store</title>
+    <title>{{ $title }} | {{ $appName }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <style>
         :root {
             --kid-pink:   #ff6fa3;
@@ -102,7 +104,7 @@
 <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
   <div class="container">
     <a class="navbar-brand text-primary" href="{{ route('shop.home') }}">
-        <i class="bi bi-balloon-heart-fill"></i> Kids Store
+        <i class="bi bi-balloon-heart-fill"></i> {{ $appName }}
     </a>
     <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
@@ -160,7 +162,7 @@
 <footer style="flex-shrink: 0;">
     <div class="container small">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>&copy; {{ date('Y') }} Kids Store. All prices in &#8358; (NGN).</span>
+            <span>&copy; {{ date('Y') }} {{ $appName }}. All prices in &#8358; (NGN).</span>
             <div class="d-flex gap-3">
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50">Contact Us</a>
                 <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50">Return Policy</a>
@@ -172,6 +174,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 @include('partials.flash-alerts')
 @stack('scripts')
 </body>

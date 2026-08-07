@@ -92,7 +92,7 @@
                     <th>Variant</th>
                     <th class="text-center">Qty</th>
                     <th class="text-end">Unit Price</th>
-                    <th class="text-end">Commission (10%)</th>
+                    <th class="text-end">Commission ({{ \App\Models\Setting::get('commission_rate', 10) }}%)</th>
                     <th>Status</th>
                 </tr>
             </thead>

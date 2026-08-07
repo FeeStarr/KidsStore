@@ -133,10 +133,13 @@ class PickupPortalController extends Controller
             ? $pendingReturns
             : ($itemsByStatus[$filter] ?? collect());
 
-        // Commission summary for picked-up tab — apply per-order cap (min ₦500, max ₦2,000)
+        // Commission summary for picked-up tab — apply per-order cap from settings
         $commissionSummary = null;
         if ($filter === 'picked_up') {
             $pickedUpItems = $itemsByStatus['picked_up'];
+
+            $commMin = (float) \App\Models\Setting::get('commission_min', 500);
+            $commMax = (float) \App\Models\Setting::get('commission_max', 2000);
 
             $totalEarned = 0;
             $totalPaid = 0;
@@ -158,7 +161,7 @@ class PickupPortalController extends Controller
             }
 
             foreach ($byOrder as $orderComm) {
-                $capped = max(500.0, min(2000.0, $orderComm['raw']));
+                $capped = max($commMin, min($commMax, $orderComm['raw']));
                 $totalEarned += $capped;
                 if ($orderComm['paid']) {
                     $totalPaid += $capped;
@@ -521,14 +524,21 @@ class PickupPortalController extends Controller
 
         $total = 0;
         $itemsToMarkPaid = collect();
+        $orderCommissions = [];
 
         foreach ($orders as $o) {
             $pickedUpItems = $o->items->where('pickup_status', 'picked_up')->where('pickup_station_fee_paid', false);
             foreach ($pickedUpItems as $item) {
-                $commission = $item->commission;
-                $total += $commission;
+                $orderCommissions[$o->id] = ($orderCommissions[$o->id] ?? 0) + $item->commission;
                 $itemsToMarkPaid->push($item);
             }
+        }
+
+        // Apply per-order commission cap from settings
+        $commMin = (float) \App\Models\Setting::get('commission_min', 500);
+        $commMax = (float) \App\Models\Setting::get('commission_max', 2000);
+        foreach ($orderCommissions as $orderComm) {
+            $total += max($commMin, min($commMax, $orderComm));
         }
 
         if ($total <= 0) {

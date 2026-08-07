@@ -4,7 +4,7 @@
 <div class="card auth-card">
     <div class="card-body p-5">
         <div class="text-center mb-5">
-            <h2 class="mb-3"><i class="bi bi-balloon-heart-fill"></i> Kids Store</h2>
+            <h2 class="mb-3"><i class="bi bi-balloon-heart-fill"></i> {{ \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')) }}</h2>
             <h4 class="mb-2">Admin Portal</h4>
             <p class="text-muted small">Sign in to access the admin panel</p>
         </div>

@@ -1,3 +1,4 @@
+@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
 @php($title = $title ?? 'Admin')
 <!doctype html>
 <html lang="en">
@@ -5,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} | Kids Store</title>
+    <title>{{ $title }} | {{ $appName }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -29,7 +30,7 @@
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 sidebar p-0">
-            <div class="brand"><i class="bi bi-balloon-heart-fill"></i> Kids Store</div>
+            <div class="brand"><i class="bi bi-balloon-heart-fill"></i> {{ $appName }}</div>
             @if(auth()->check())
                 <div class="px-3 py-2 bg-light border-bottom">
                     <small class="text-muted d-block">Logged in as:</small>
