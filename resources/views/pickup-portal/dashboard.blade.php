@@ -117,7 +117,7 @@
                         <th>Variant</th>
                         <th class="text-center">Qty</th>
                         <th class="text-end">Line Total</th>
-                        <th class="text-end">Commission (10%)</th>
+                        <th class="text-end">Commission ({{ \App\Models\Setting::get('commission_rate', 10) }}%)</th>
                         <th class="text-center">Status</th>
                         <th>Picked Up At</th>
                     </tr>
@@ -181,7 +181,7 @@
                                     <th>Variant</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Price</th>
-                                    <th class="text-end">Commission (10%)</th>
+                                    <th class="text-end">Commission ({{ \App\Models\Setting::get('commission_rate', 10) }}%)</th>
                                     <th class="text-center">Action</th>
                                 </tr>
                             </thead>
@@ -290,7 +290,7 @@
                                 <th>Variant</th>
                                 <th class="text-center">Qty</th>
                                 <th class="text-end">Price</th>
-                                <th class="text-end">Commission (10%)</th>
+                                <th class="text-end">Commission ({{ \App\Models\Setting::get('commission_rate', 10) }}%)</th>
                                 <th class="text-center">Action</th>
                             </tr>
                         </thead>

@@ -113,10 +113,13 @@ class PickupStation extends Model
     }
 
     /**
-     * Calculate total commission for all picked up items (per-order cap: min ₦500, max ₦2,000).
+     * Calculate total commission for all picked up items (per-order cap from settings).
      */
     public function totalCommission(): float
     {
+        $min = (float) \App\Models\Setting::get('commission_min', 500);
+        $max = (float) \App\Models\Setting::get('commission_max', 2000);
+
         $items = $this->pickedUpItems()->get();
 
         $byOrder = [];
@@ -126,7 +129,7 @@ class PickupStation extends Model
 
         $total = 0.0;
         foreach ($byOrder as $orderCommission) {
-            $total += max(500.0, min(2000.0, $orderCommission));
+            $total += max($min, min($max, $orderCommission));
         }
 
         return round($total, 2);

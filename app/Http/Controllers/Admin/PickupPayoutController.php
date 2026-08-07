@@ -134,14 +134,16 @@ class PickupPayoutController extends Controller
             return back()->with('error', 'No unpaid picked-up items found for the selected items.');
         }
 
-        // Apply per-order commission cap (min ₦500, max ₦2,000)
+        // Apply per-order commission cap from settings
+        $commMin = (float) \App\Models\Setting::get('commission_min', 500);
+        $commMax = (float) \App\Models\Setting::get('commission_max', 2000);
         $byOrder = [];
         foreach ($itemsToMarkPaid as $item) {
             $byOrder[$item->order_id] = ($byOrder[$item->order_id] ?? 0) + $item->commission;
         }
         $total = 0;
         foreach ($byOrder as $orderComm) {
-            $total += max(500.0, min(2000.0, $orderComm));
+            $total += max($commMin, min($commMax, $orderComm));
         }
 
         $payout = \App\Models\PickupPayout::create([

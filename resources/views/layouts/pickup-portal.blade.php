@@ -1,3 +1,4 @@
+@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
 @php($title = $title ?? 'Pickup Portal')
 <!doctype html>
 <html lang="en">
@@ -5,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} | Kids Store</title>
+    <title>{{ $title }} | {{ $appName }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">

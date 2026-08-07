@@ -158,12 +158,16 @@ class PickupStationService
      */
     public function refreshOrderFeeTotal(Order $order): void
     {
+        $min = (float) \App\Models\Setting::get('commission_min', 500);
+        $max = (float) \App\Models\Setting::get('commission_max', 2000);
+        $rate = (float) \App\Models\Setting::get('commission_rate', 10);
+
         $raw = $order->items()
             ->where('pickup_status', 'picked_up')
-            ->sum('line_total') * 0.10;
+            ->sum('line_total') * ($rate / 100);
 
-        // Apply per-order commission cap (min ₦500, max ₦2,000)
-        $total = max(500.0, min(2000.0, $raw));
+        // Apply per-order commission cap from settings
+        $total = max($min, min($max, $raw));
 
         $order->update(['pickup_station_fee_total' => round($total, 2)]);
     }
@@ -229,9 +233,11 @@ class PickupStationService
             $itemsByOrder[$orderId]['commission'] += $item->commission;
         }
 
-        // Apply per-order commission cap (min ₦500, max ₦2,000)
+        // Apply per-order commission cap from settings
+        $min = (float) \App\Models\Setting::get('commission_min', 500);
+        $max = (float) \App\Models\Setting::get('commission_max', 2000);
         foreach ($itemsByOrder as &$entry) {
-            $entry['commission'] = max(500.0, min(2000.0, $entry['commission']));
+            $entry['commission'] = max($min, min($max, $entry['commission']));
         }
         unset($entry);
 

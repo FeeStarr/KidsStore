@@ -68,7 +68,7 @@ class OrderItem extends Model
     }
 
     /**
-     * Commission amount for this item (10% of line_total — discounted price).
+     * Commission amount for this item (% of line_total from settings).
      * Only calculated when item is picked_up.
      */
     public function getCommissionAttribute(): float
@@ -76,6 +76,7 @@ class OrderItem extends Model
         if (! $this->isPickedUp()) {
             return 0.0;
         }
-        return round((float) $this->line_total * 0.10, 2);
+        $rate = (float) Setting::get('commission_rate', 10);
+        return round((float) $this->line_total * ($rate / 100), 2);
     }
 }

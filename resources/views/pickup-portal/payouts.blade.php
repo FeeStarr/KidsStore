@@ -38,7 +38,7 @@
             <div class="col-md-3">
                 <div class="border rounded p-3">
                     <div class="small text-muted">Commission Rate</div>
-                    <div class="fs-4 fw-bold">10%</div>
+                    <div class="fs-4 fw-bold">{{ \App\Models\Setting::get('commission_rate', 10) }}%</div>
                     <div class="small text-muted">per item</div>
                 </div>
             </div>
@@ -98,7 +98,7 @@
                                     <th>Variant</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Line Total</th>
-                                    <th class="text-end">Commission (10%)</th>
+                                    <th class="text-end">Commission ({{ \App\Models\Setting::get('commission_rate', 10) }}%)</th>
                                     <th class="text-center">Status</th>
                                 </tr>
                             </thead>

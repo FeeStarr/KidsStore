@@ -115,6 +115,29 @@
                 </div>
             @endif
 
+            @if($order->status === 'delivered')
+                @php
+                    $existingReview = \App\Models\ProductReview::where('customer_id', auth()->id())
+                        ->whereIn('product_id', $order->items->pluck('product_id')->filter()->values())
+                        ->pluck('product_id');
+                    $unreviewedItems = $order->items->filter(fn($i) => $i->product && !$existingReview->contains($i->product_id));
+                @endphp
+                @if($unreviewedItems->isNotEmpty())
+                    <div class="mt-3">
+                        @foreach($unreviewedItems as $item)
+                            <a href="{{ route('shop.products.show', $item->product) }}#review"
+                               class="btn btn-sm btn-outline-success mb-1">
+                                <i class="bi bi-star me-1"></i>Review {{ $item->product->name }}
+                            </a>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="mt-3">
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>All items reviewed</span>
+                    </div>
+                @endif
+            @endif
+
             <div class="mt-2 small text-muted">
                 <i class="bi bi-{{ $order->isForPickup() ? 'geo-alt' : 'house-door' }} me-1"></i>
                 {{ $order->getDeliveryMethodLabel() }}
@@ -172,14 +195,13 @@
     </div>
 </div>
 
-@endphp
-
 <div class="card border-0 shadow-sm">
-<table class="table mb-0 align-middle">
-    <thead><tr><th colspan="2">Item</th><th>Qty</th><th class="text-end">Unit</th><th class="text-end">Line Total</th></tr></thead>
+<table id="order-items-table" class="table mb-0 align-middle">
+    <thead><tr><th>#</th><th colspan="2">Item</th><th>Qty</th><th class="text-end">Unit</th><th class="text-end">Line Total</th></tr></thead>
     <tbody>
     @foreach($order->items as $it)
         <tr>
+            <td>{{ $loop->iteration }}</td>
             <td style="width:80px">
                 @if($it->product?->primaryImage)
                     <img src="{{ $it->product->primaryImage->url }}" style="width:56px;height:56px;object-fit:cover;border-radius:.35rem">
@@ -592,5 +614,26 @@
     </div>
 </div>
 @endif
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    $('#order-items-table').DataTable({
+        searching: true,
+        paging: false,
+        info: false,
+        ordering: true,
+        language: {
+            search: '<i class="bi bi-search"></i>',
+            searchPlaceholder: 'Search items...'
+        },
+        columnDefs: [
+            { orderable: false, targets: [1] }
+        ],
+        order: [[0, 'asc']]
+    });
+});
+</script>
+@endpush
 
 @endsection
