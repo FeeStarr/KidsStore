@@ -28,14 +28,20 @@
             <hr>
             <h5 class="mb-3">Delivery Method</h5>
 
-            <input type="hidden" name="delivery_method" value="pickup">
-
             <div class="d-flex gap-3 mb-3">
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 border-primary bg-primary-subtle"
-                     id="opt-delivery" style="display:none">
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'pickup') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
+                     id="opt-delivery">
+                    <input class="form-check-input" type="radio" name="delivery_method" value="delivery"
+                           id="dm_delivery" {{ old('delivery_method') === 'delivery' ? 'checked' : '' }}>
+                    <label class="form-check-label fw-semibold" for="dm_delivery">
+                        <i class="bi bi-truck me-1"></i> Home Delivery
+                        <small class="text-muted d-block fw-normal">Delivered to your address</small>
+                    </label>
                 </div>
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 border-primary bg-primary-subtle"
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'pickup') === 'pickup' ? 'border-primary bg-primary-subtle' : '' }}"
                      id="opt-pickup">
+                    <input class="form-check-input" type="radio" name="delivery_method" value="pickup"
+                           id="dm_pickup" {{ old('delivery_method', 'pickup') !== 'delivery' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="dm_pickup">
                         <i class="bi bi-geo-alt me-1"></i> Pick Up
                         <small class="text-muted d-block fw-normal">Collect from a station near you</small>
@@ -174,10 +180,29 @@
 <script>
 (function () {
     const secPickup = document.getElementById('section-pickup');
+    const secDelivery = document.getElementById('section-delivery');
+    const dmDelivery = document.getElementById('dm_delivery');
+    const dmPickup = document.getElementById('dm_pickup');
+    const optDelivery = document.getElementById('opt-delivery');
     const optPickup = document.getElementById('opt-pickup');
 
-    // Always show pickup section
-    if (secPickup) secPickup.style.display = '';
+    function toggleSections() {
+        if (dmDelivery.checked) {
+            secDelivery.style.display = '';
+            secPickup.style.display = 'none';
+            optDelivery.classList.add('border-primary', 'bg-primary-subtle');
+            optPickup.classList.remove('border-primary', 'bg-primary-subtle');
+        } else {
+            secDelivery.style.display = 'none';
+            secPickup.style.display = '';
+            optPickup.classList.add('border-primary', 'bg-primary-subtle');
+            optDelivery.classList.remove('border-primary', 'bg-primary-subtle');
+        }
+    }
+
+    dmDelivery.addEventListener('change', toggleSections);
+    dmPickup.addEventListener('change', toggleSections);
+    toggleSections();
 
     // Highlight station cards on select
     document.querySelectorAll('[name="pickup_station_id"]').forEach(radio => {
