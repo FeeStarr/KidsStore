@@ -150,6 +150,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('products', ProductController::class)->middleware('permission:manage_products');
         Route::post('products/{product}/images/{imageId}/primary', [ProductController::class, 'setPrimaryImage'])
             ->name('products.images.primary')->middleware('permission:manage_products');
+        Route::post('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])
+            ->name('products.toggle-status')->middleware('permission:manage_products');
 
         // Product variants (nested store; shallow update/delete by variant id)
         Route::post('products/{product}/variants',     [ProductVariantController::class, 'store'])
@@ -259,6 +261,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('refunds/{refundRequest}/mark-received',   [AdminRefundController::class, 'markReceived'])->name('refunds.mark-received');
         Route::post('refunds/{refundRequest}/inspect',         [AdminRefundController::class, 'inspect'])->name('refunds.inspect');
         Route::post('refunds/{refundRequest}/process-refund',  [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund');
+        Route::post('refunds/{refundRequest}/mark-replacement-shipped', [AdminRefundController::class, 'markReplacementShipped'])->name('refunds.mark-replacement-shipped');
     });
 });
 

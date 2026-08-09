@@ -140,6 +140,36 @@ class InventoryService implements InventoryServiceInterface
         });
     }
 
+    public function deductForExchange(
+        ProductVariant $variant,
+        int $quantity,
+        string $referenceType,
+        int $referenceId,
+        ?string $note = null
+    ): InventoryMovement {
+        if ($quantity <= 0) {
+            throw new InvalidArgumentException('Exchange quantity must be positive.');
+        }
+
+        return DB::transaction(function () use ($variant, $quantity, $referenceType, $referenceId, $note) {
+            $inventory = $this->lockInventory($variant);
+
+            if ($inventory->quantity < $quantity) {
+                $label = $variant->display_label;
+                throw new RuntimeException(
+                    "Insufficient stock for exchange variant '{$label}'. Available: {$inventory->quantity}, needed: {$quantity}."
+                );
+            }
+
+            $inventory->quantity -= $quantity;
+            $inventory->save();
+
+            $this->refreshProductStock($variant->product_id);
+
+            return $this->recordMovement($variant, 'exchange', -$quantity, $referenceType, $referenceId, $note);
+        });
+    }
+
     public function adjustStock(ProductVariant $variant, int $delta, string $reason, ?string $note = null): InventoryMovement
     {
         if ($delta >= 0) {

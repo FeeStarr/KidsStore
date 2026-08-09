@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Helpers\BusinessDayHelper;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PickupStation;
+use App\Models\ProductVariant;
 use App\Models\RefundRequest;
 use App\Models\ReturnAuditLog;
 use App\Models\User;
@@ -38,19 +40,21 @@ class RefundService
         Order        $order,
         string       $reason,
         ?string      $details,
-        ?OrderItem   $item     = null,
-        int          $quantity = 1,
-        ?UploadedFile $evidence = null
+        ?OrderItem   $item             = null,
+        int          $quantity         = 1,
+        ?UploadedFile $evidence        = null,
+        ?ProductVariant $exchangeVariant = null
     ): RefundRequest {
         // Policy: only delivered orders can be refunded
         if ($order->status !== 'delivered') {
             throw new \RuntimeException('Refunds can only be requested for delivered orders.');
         }
 
-        // Policy: within return window
-        $window = RefundRequest::REFUND_WINDOW_DAYS;
-        if ($order->updated_at->diffInDays(now()) > $window) {
-            throw new \RuntimeException("Return window of {$window} days has passed.");
+        // Policy: within return window (per-reason time limits)
+        $limitHours = RefundRequest::REASON_TIME_LIMITS[$reason] ?? (RefundRequest::REFUND_WINDOW_DAYS * 24);
+        if ($order->updated_at->diffInHours(now()) > $limitHours) {
+            $limitDays = round($limitHours / 24, 1);
+            throw new \RuntimeException("Return window of {$limitDays} days for this reason has passed.");
         }
 
         // Policy: non-returnable items cannot be refunded
@@ -65,6 +69,22 @@ class RefundService
                 ->every(fn ($i) => $i->product && ! $i->product->is_returnable);
             if ($allNonReturnable && $order->items->isNotEmpty()) {
                 throw new \RuntimeException('None of the items in this order are eligible for returns or refunds.');
+            }
+        }
+
+        // Exchange: validate the requested replacement variant
+        if ($exchangeVariant) {
+            if (! $item) {
+                throw new \RuntimeException('Exchange requests require a specific item to be returned.');
+            }
+            if (! $item->product_id || $exchangeVariant->product_id !== $item->product_id) {
+                throw new \RuntimeException('The replacement variant must be for the same product.');
+            }
+            if (! $exchangeVariant->is_active) {
+                throw new \RuntimeException('The selected replacement variant is no longer available.');
+            }
+            if ($exchangeVariant->stock_quantity < $quantity) {
+                throw new \RuntimeException('The selected replacement variant does not have enough stock.');
             }
         }
 
@@ -117,20 +137,24 @@ class RefundService
         }
 
         $refund = RefundRequest::create([
-            'order_id'      => $order->id,
-            'order_item_id' => $item?->id,
-            'quantity'      => $quantity,
-            'amount'        => $amount,
-            'status'        => $initialStatus,
-            'reason'        => $reason,
-            'details'       => $details,
-            'evidence_path' => $evidencePath,
+            'order_id'            => $order->id,
+            'order_item_id'       => $item?->id,
+            'exchange_variant_id' => $exchangeVariant?->id,
+            'quantity'            => $quantity,
+            'amount'              => $amount,
+            'status'              => $initialStatus,
+            'reason'              => $reason,
+            'details'             => $details,
+            'evidence_path'       => $evidencePath,
+            'review_deadline'     => BusinessDayHelper::slaDeadline(now(), 6),
         ]);
 
         $this->logAudit($refund, 'requested', null, "Reason: {$reason}", [
             'scope' => $item ? 'item' : 'full',
             'quantity' => $quantity,
             'initial_status' => $initialStatus,
+            'exchange_variant_id' => $exchangeVariant?->id,
+            'exchange_variant_label' => $exchangeVariant?->options_label,
         ]);
 
         $this->notifyCustomer($refund->refresh());
@@ -218,6 +242,7 @@ class RefundService
             'reviewed_by'       => $admin->id,
             'reviewed_at'       => now(),
             'pickup_station_id' => $pickupStationId,
+            'dropoff_deadline'  => BusinessDayHelper::slaDeadline(now(), 3),
         ]);
 
         $this->logAudit($refundRequest, 'approved', $admin->id, $note);
@@ -297,7 +322,8 @@ class RefundService
         }
 
         $refundRequest->update([
-            'status' => RefundRequest::STATUS_RECEIVED,
+            'status'              => RefundRequest::STATUS_RECEIVED,
+            'inspection_deadline' => BusinessDayHelper::slaDeadline(now(), 5),
         ]);
 
         // Restore stock when item is received
@@ -324,6 +350,28 @@ class RefundService
             throw new \RuntimeException('Item must be received before inspection.');
         }
 
+        // For exchange requests, validate replacement variant stock before approving
+        if ($outcome === 'replacement' && $refundRequest->exchangeVariant) {
+            $exchangeVariant = $refundRequest->exchangeVariant;
+            $quantity = $refundRequest->quantity ?? 1;
+
+            if (! $exchangeVariant->is_active) {
+                throw new \RuntimeException('The replacement variant is no longer available.');
+            }
+            if ($exchangeVariant->stock_quantity < $quantity) {
+                throw new \RuntimeException("Insufficient stock for the replacement variant. Available: {$exchangeVariant->stock_quantity}, needed: {$quantity}.");
+            }
+
+            // Deduct stock for the replacement variant
+            $this->inventory->deductForExchange(
+                $exchangeVariant,
+                $quantity,
+                RefundRequest::class,
+                $refundRequest->id,
+                "Exchange for return #{$refundRequest->id}: {$refundRequest->reason}"
+            );
+        }
+
         $newStatus = $outcome === 'replacement'
             ? RefundRequest::STATUS_REPLACEMENT_APPROVED
             : RefundRequest::STATUS_REFUND_APPROVED;
@@ -335,7 +383,32 @@ class RefundService
             'inspected_at'     => now(),
         ]);
 
-        $this->logAudit($refundRequest, 'inspection_completed', $admin->id, "Outcome: {$outcome}. {$notes}");
+        $this->logAudit($refundRequest, 'inspection_completed', $admin->id, "Outcome: {$outcome}. {$notes}", [
+            'exchange_variant_id' => $refundRequest->exchange_variant_id,
+            'exchange_variant_label' => $refundRequest->exchangeVariant?->options_label,
+        ]);
+        $this->notifyCustomer($refundRequest->refresh());
+
+        return $refundRequest->refresh();
+    }
+
+    // ── Admin: mark replacement shipped ───────────────────────────────────────
+
+    /**
+     * Mark the replacement as shipped.
+     */
+    public function markReplacementShipped(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REPLACEMENT_APPROVED) {
+            throw new \RuntimeException('Only approved replacements can be marked as shipped.');
+        }
+
+        $refundRequest->update([
+            'status'     => RefundRequest::STATUS_REPLACEMENT_SHIPPED,
+            'admin_note' => $note,
+        ]);
+
+        $this->logAudit($refundRequest, 'replacement_shipped', $admin->id, $note);
         $this->notifyCustomer($refundRequest->refresh());
 
         return $refundRequest->refresh();

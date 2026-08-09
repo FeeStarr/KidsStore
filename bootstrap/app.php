@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('payments:expire-pending')->daily();
         $schedule->command('pickups:check-expired')->dailyAt('23:00');
         $schedule->command('pickups:send-reminders')->dailyAt('09:00');
+        $schedule->command('returns:check-sla')->dailyAt('08:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\LogUserActivity::class);

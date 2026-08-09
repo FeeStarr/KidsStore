@@ -36,4 +36,9 @@ interface InventoryServiceInterface
      * Restore stock from a customer return.
      */
     public function restoreFromReturn(ProductVariant $variant, int $quantity, string $referenceType, int $referenceId, ?string $note = null): InventoryMovement;
+
+    /**
+     * Deduct stock for an exchange (replacement variant sent to customer).
+     */
+    public function deductForExchange(ProductVariant $variant, int $quantity, string $referenceType, int $referenceId, ?string $note = null): InventoryMovement;
 }

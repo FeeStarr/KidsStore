@@ -147,4 +147,19 @@ class RefundController extends Controller
 
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', $msg);
     }
+
+    public function markReplacementShipped(Request $request, RefundRequest $refundRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'admin_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $this->refunds->markReplacementShipped($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Replacement marked as shipped.');
+    }
 }
