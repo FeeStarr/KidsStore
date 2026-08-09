@@ -76,6 +76,7 @@ class PaystackService
         $customerName = $order->customer?->name ?? 'Customer';
         $firstName = $order->customer?->profile?->first_name ?? '';
         $lastName = $order->customer?->profile?->last_name ?? '';
+        $phone = $order->customer?->phone ?? $order->customer?->profile?->phone ?? null;
 
         // Fall back to splitting the name if profile names are empty
         if (empty(trim($firstName)) && empty(trim($lastName))) {
@@ -88,7 +89,7 @@ class PaystackService
         $firstName = trim($firstName) ?: 'Customer';
         $lastName = trim($lastName) ?: 'Customer';
 
-        $customer = $this->getOrCreateCustomer($email, $firstName, $lastName);
+        $customer = $this->getOrCreateCustomer($email, $firstName, $lastName, $phone);
 
         // Step 2: Assign a dedicated virtual account
         $payload = [
@@ -97,7 +98,8 @@ class PaystackService
         ];
 
         // Wema Bank only available in live mode for dedicated accounts
-        if (config('app.env') === 'production') {
+        $isTestKey = str_starts_with($this->secretKey, 'sk_test_');
+        if (! $isTestKey) {
             $payload['preferred_bank'] = 'wema-bank';
         }
 
@@ -240,7 +242,7 @@ class PaystackService
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private function getOrCreateCustomer(string $email, string $firstName, string $lastName): array
+    private function getOrCreateCustomer(string $email, string $firstName, string $lastName, ?string $phone = null): array
     {
         // Try to find existing customer by email
         $response = $this->get("/customer?email=" . urlencode($email));
@@ -250,17 +252,28 @@ class PaystackService
             if (! empty($customers)) {
                 $existing = $customers[0];
 
-                // If existing customer has empty first/last name, update it
-                if (empty(trim($existing['first_name'] ?? '')) || empty(trim($existing['last_name'] ?? ''))) {
+                // If existing customer has empty first/last name or phone, update it
+                $needsUpdate = empty(trim($existing['first_name'] ?? '')) || empty(trim($existing['last_name'] ?? ''));
+                if ($phone && empty($existing['phone'])) {
+                    $needsUpdate = true;
+                }
+                if ($needsUpdate) {
                     $customerCode = $existing['customer_code'] ?? null;
                     if ($customerCode) {
-                        $this->put('/customer/' . $customerCode, [
+                        $updateData = [
                             'first_name' => $firstName,
                             'last_name'  => $lastName,
-                        ]);
+                        ];
+                        if ($phone) {
+                            $updateData['phone'] = $phone;
+                        }
+                        $this->put('/customer/' . $customerCode, $updateData);
 
                         $existing['first_name'] = $firstName;
                         $existing['last_name']  = $lastName;
+                        if ($phone) {
+                            $existing['phone'] = $phone;
+                        }
                     }
                 }
 
@@ -269,11 +282,16 @@ class PaystackService
         }
 
         // Create new customer
-        $response = $this->post('/customer', [
+        $payload = [
             'email'      => $email,
             'first_name' => $firstName,
             'last_name'  => $lastName,
-        ]);
+        ];
+        if ($phone) {
+            $payload['phone'] = $phone;
+        }
+
+        $response = $this->post('/customer', $payload);
 
         if (! ($response['status'] ?? false)) {
             throw new \RuntimeException('Failed to create Paystack customer: ' . ($response['message'] ?? 'Unknown error'));
