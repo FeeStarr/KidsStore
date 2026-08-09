@@ -79,6 +79,21 @@
                     <dd class="col-7">{{ $refundRequest->inspection_notes }}</dd>
                 @endif
 
+                @if($refundRequest->exchange_variant_id)
+                    <dt class="col-5">Replacement Variant</dt>
+                    <dd class="col-7">
+                        <span class="badge bg-primary">
+                            <i class="bi bi-arrow-left-right me-1"></i>Exchange
+                        </span>
+                        {{ $refundRequest->exchangeVariant?->options_label ?? 'N/A' }}
+                        @if($refundRequest->exchangeVariant)
+                            <span class="small text-muted ms-1">
+                                (Stock: {{ $refundRequest->exchangeVariant->stock_quantity }})
+                            </span>
+                        @endif
+                    </dd>
+                @endif
+
                 @if($refundRequest->opay_refund_no)
                     <dt class="col-5">Paystack Refund Ref.</dt>
                     <dd class="col-7 font-monospace small">{{ $refundRequest->opay_refund_no }}</dd>
@@ -273,10 +288,27 @@
     </div></div>
 
 @elseif($s === 'replacement_approved')
-    <div class="alert alert-primary">
-        <i class="bi bi-arrow-repeat me-1"></i>
-        Replacement approved. Ship the replacement item to the customer.
-    </div>
+    <div class="card border-primary border-2"><div class="card-body">
+        <h6 class="text-primary mb-3"><i class="bi bi-arrow-repeat me-1"></i>Ship Replacement</h6>
+        <div class="mb-3">
+            <strong>Replacement Variant:</strong>
+            {{ $refundRequest->exchangeVariant?->options_label ?? 'Standard replacement' }}
+            @if($refundRequest->exchangeVariant)
+                <span class="small text-muted ms-2">(Stock: {{ $refundRequest->exchangeVariant->stock_quantity }})</span>
+            @endif
+        </div>
+        <p class="small text-muted mb-3">Ship the replacement item to the customer, then mark as shipped.</p>
+        <form method="post" action="{{ route('admin.refunds.mark-replacement-shipped', $refundRequest) }}">
+            @csrf
+            <div class="mb-3">
+                <textarea name="admin_note" rows="2" class="form-control form-control-sm"
+                          placeholder="Tracking info or notes (optional)"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="return confirm('Mark replacement as shipped?')">
+                <i class="bi bi-truck me-1"></i>Mark Replacement Shipped
+            </button>
+        </form>
+    </div></div>
 
 @elseif(in_array($s, ['refunded', 'refund_failed', 'replacement_delivered', 'completed', 'cancelled', 'rejected']))
     <div class="alert alert-secondary">

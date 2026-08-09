@@ -8,8 +8,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RefundRequest extends Model
 {
-    // Refund window in days after delivery (default, can be overridden per category)
+    // Refund window in days after delivery (default, used for reasons not listed below)
     public const REFUND_WINDOW_DAYS = 7;
+
+    /**
+     * Per-reason return time limits (in hours) counted from delivery.
+     * Reasons not listed here fall back to REFUND_WINDOW_DAYS.
+     */
+    public const REASON_TIME_LIMITS = [
+        'wrong_item'       => 5 * 24,   // 5 business days ≈ 5 calendar days
+        'wrong_size'       => 5 * 24,   // 5 business days
+        'wrong_color'      => 5 * 24,   // 5 business days
+        'damaged'          => 48,       // 48 hours
+        'missing_item'     => 24,       // 24 hours
+        'incomplete_order' => 5 * 24,   // 5 business days
+        'not_as_described' => 5 * 24,   // 5 business days
+        'changed_mind'     => 3 * 24,   // 3 business days
+    ];
 
     // ── Statuses ──────────────────────────────────────────────────────────────
     public const STATUS_REQUESTED            = 'requested';
@@ -104,21 +119,30 @@ class RefundRequest extends Model
     ];
 
     protected $fillable = [
-        'order_id', 'order_item_id', 'pickup_station_id', 'quantity', 'amount',
+        'order_id', 'order_item_id', 'exchange_variant_id', 'pickup_station_id', 'quantity', 'amount',
         'status', 'reason', 'details', 'evidence_path', 'evidence_video_path',
         'admin_note', 'reviewed_by', 'reviewed_at',
+        'review_deadline', 'review_sla_breached',
         'opay_refund_no', 'opay_payload',
         'inspection_notes', 'inspected_by', 'inspected_at',
+        'inspection_deadline', 'inspection_sla_breached',
         'return_collected_at',
+        'dropoff_deadline', 'dropoff_sla_breached',
     ];
 
     protected $casts = [
-        'amount'              => 'decimal:2',
-        'quantity'            => 'integer',
-        'reviewed_at'         => 'datetime',
-        'inspected_at'        => 'datetime',
-        'return_collected_at' => 'datetime',
-        'opay_payload'        => 'array',
+        'amount'               => 'decimal:2',
+        'quantity'             => 'integer',
+        'reviewed_at'          => 'datetime',
+        'review_deadline'      => 'datetime',
+        'review_sla_breached'  => 'boolean',
+        'inspected_at'         => 'datetime',
+        'inspection_deadline'  => 'datetime',
+        'inspection_sla_breached' => 'boolean',
+        'return_collected_at'  => 'datetime',
+        'dropoff_deadline'     => 'datetime',
+        'dropoff_sla_breached' => 'boolean',
+        'opay_payload'         => 'array',
     ];
 
     // ── Relationships ─────────────────────────────────────────────────────────
@@ -131,6 +155,11 @@ class RefundRequest extends Model
     public function orderItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class);
+    }
+
+    public function exchangeVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'exchange_variant_id');
     }
 
     public function pickupStation(): BelongsTo
@@ -196,6 +225,51 @@ class RefundRequest extends Model
     public function getEvidenceRequirements(): array
     {
         return self::EVIDENCE_RULES[$this->reason] ?? ['photos' => 'optional', 'video' => 'no', 'comments' => 'optional'];
+    }
+
+    /**
+     * Get the return time limit in hours for the current reason.
+     */
+    public function getTimeLimitHours(): int
+    {
+        return self::REASON_TIME_LIMITS[$this->reason] ?? (self::REFUND_WINDOW_DAYS * 24);
+    }
+
+    /**
+     * Check if the return request was submitted within the allowed time limit.
+     * The limit is calculated from the order's delivery date (updated_at).
+     */
+    public function isWithinTimeLimit(): bool
+    {
+        $hours = $this->getTimeLimitHours();
+        return $this->order->updated_at->diffInHours(now()) <= $hours;
+    }
+
+    /**
+     * Check if this is an exchange request (customer wants a different variant).
+     */
+    public function isExchange(): bool
+    {
+        return $this->exchange_variant_id !== null;
+    }
+
+    /**
+     * Get a human-readable label for the exchange variant.
+     */
+    public function getExchangeVariantLabel(): ?string
+    {
+        if (! $this->exchangeVariant) {
+            return null;
+        }
+
+        $variant = $this->exchangeVariant;
+        $label = $variant->options_label;
+
+        if ($variant->selling_price !== null) {
+            $label .= ' — ₦' . number_format($variant->net_price, 2);
+        }
+
+        return $label;
     }
 
     // ── Status Checks ─────────────────────────────────────────────────────────
