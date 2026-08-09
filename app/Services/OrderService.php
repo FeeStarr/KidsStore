@@ -69,9 +69,6 @@ class OrderService
             return $order->fresh('items.product');
         });
 
-        // Send notifications outside the transaction (non-critical)
-        $this->notifyOrderPlaced($order);
-
         return $order;
     }
 
@@ -97,6 +94,11 @@ class OrderService
 
             return $order->fresh();
         });
+
+        // Send order placed notification after payment confirmation (non-critical)
+        $this->notifyOrderPlaced($order->fresh());
+
+        return $order->fresh();
     }
 
     public function markPendingConfirmation(Order $order): Order
