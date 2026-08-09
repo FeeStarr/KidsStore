@@ -233,8 +233,9 @@
 </div>
 
 @php
+    $maxReturnHours = max(array_values(\App\Models\RefundRequest::REASON_TIME_LIMITS));
     $canRefund       = $order->status === 'delivered'
-                       && $order->updated_at->diffInDays(now()) <= \App\Models\RefundRequest::REFUND_WINDOW_DAYS;
+                       && $order->updated_at->diffInHours(now()) <= $maxReturnHours;
     $existingRequests = $order->refundRequests ?? collect();
     // Check per-item: which items already have an active return request
     $activeReturnItemIds = $existingRequests
@@ -245,6 +246,25 @@
     $hasAnyActiveReturn = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->isNotEmpty();
     // Full order return is active if there's a pending request with null order_item_id
     $fullOrderReturnActive = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->contains('order_item_id', null);
+
+    // Build variant data for exchange (variants of the same product, in stock)
+    $itemVariants = [];
+    foreach ($order->items as $it) {
+        if (! $it->product || ! $it->product->is_returnable) continue;
+        $variants = $it->product->variants()
+            ->where('is_active', true)
+            ->where('id', '!=', $it->product_variant_id)
+            ->with('inventory')
+            ->get()
+            ->filter(fn ($v) => $v->stock_quantity > 0)
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'label' => $v->options_label . ' — ₦' . number_format($v->net_price, 2),
+                'stock' => $v->stock_quantity,
+            ])
+            ->values();
+        $itemVariants[$it->id] = $variants;
+    }
 @endphp
 
 @if($canRefund)
@@ -297,8 +317,14 @@
                     <form method="post" action="{{ route('shop.refund.evidence', [$order, $rr]) }}" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-2">
-                            <input type="file" name="evidence" class="form-control form-control-sm" accept="image/*" required>
+                            <label class="form-label form-label-sm">Photo</label>
+                            <input type="file" name="evidence" class="form-control form-control-sm" accept="image/*">
                             <div class="form-text">Upload a clear photo of the item (max 5MB).</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">Video <small class="text-muted">(if requested by admin)</small></label>
+                            <input type="file" name="evidence_video" class="form-control form-control-sm" accept="video/mp4,video/mov,video/avi,video/webm">
+                            <div class="form-text">Upload a short video (max 20MB). MP4, MOV, or WebM.</div>
                         </div>
                         <div class="mb-2">
                             <textarea name="details" rows="2" class="form-control form-control-sm"
@@ -399,6 +425,34 @@
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                {{-- Request Type --}}
+                <div class="mb-3">
+                    <label class="form-label">Request Type *</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="request_type"
+                               id="request_type_refund" value="refund" checked>
+                        <label class="form-check-label" for="request_type_refund">
+                            <i class="bi bi-cash me-1"></i>Refund to original payment method
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="request_type"
+                               id="request_type_exchange" value="exchange">
+                        <label class="form-check-label" for="request_type_exchange">
+                            <i class="bi bi-arrow-left-right me-1"></i>Exchange for a different size/color
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Exchange variant selector --}}
+                <div id="exchange-section" class="mb-3" style="display:none">
+                    <label class="form-label">Select replacement variant *</label>
+                    <select name="exchange_variant_id" id="exchange-variant-select" class="form-select">
+                        <option value="">— Select a variant —</option>
+                    </select>
+                    <div class="form-text">Only items with the same product are available for exchange.</div>
                 </div>
 
                 <div class="mb-3">
@@ -553,6 +607,9 @@
     }
 
     // ── Refund form: toggle item fields on scope selection ────────────────────
+    const itemVariants = @json($itemVariants);
+    let selectedItemId = null;
+
     document.querySelectorAll('input[type="radio"][name="scope"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const itemFields  = document.getElementById('item-fields');
@@ -562,19 +619,48 @@
                 itemFields.style.display = '';
                 if (itemIdInput && radio.dataset.itemId) {
                     itemIdInput.value = radio.dataset.itemId;
+                    selectedItemId = radio.dataset.itemId;
                     const maxQty = radio.dataset.itemQty;
                     const qtyInput = document.querySelector('[name="quantity"]');
                     if (maxQty && qtyInput) {
                         qtyInput.max = maxQty;
                         if (parseInt(qtyInput.value) > parseInt(maxQty)) qtyInput.value = maxQty;
                     }
+                    updateExchangeVariants(selectedItemId);
                 }
             } else {
                 itemFields.style.display = 'none';
                 if (itemIdInput) itemIdInput.value = '';
+                selectedItemId = null;
+                updateExchangeVariants(null);
             }
         });
     });
+
+    // ── Request type toggle ──────────────────────────────────────────────────
+    document.querySelectorAll('input[type="radio"][name="request_type"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const exchangeSection = document.getElementById('exchange-section');
+            if (!exchangeSection) return;
+            exchangeSection.style.display = radio.value === 'exchange' ? '' : 'none';
+            if (radio.value === 'exchange' && selectedItemId) {
+                updateExchangeVariants(selectedItemId);
+            }
+        });
+    });
+
+    function updateExchangeVariants(itemId) {
+        const select = document.getElementById('exchange-variant-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">— Select a variant —</option>';
+        if (!itemId || !itemVariants[itemId]) return;
+        itemVariants[itemId].forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.label + ' (' + v.stock + ' in stock)';
+            select.appendChild(opt);
+        });
+    }
 })();
 </script>
 @endpush
