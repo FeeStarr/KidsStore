@@ -261,6 +261,39 @@
 </table>
 </div>
 
+@php
+    $statusTimeline = array_filter([
+        'Ordered'              => $order->ordered_at,
+        'Pending Confirmation' => $order->pending_confirmation_at,
+        'Pending Payment'      => $order->pending_payment_at,
+        'Confirmed'            => $order->confirmed_at,
+        'Processing'           => $order->processing_at,
+        'Shipping to Station'  => $order->shipped_at,
+        'Out for Delivery'     => $order->shipped_at,
+        'Ready for Pick Up'    => $order->ready_for_pickup_at,
+        'Delivered'            => $order->delivered_at,
+        'Cancelled'            => $order->cancelled_at,
+        'Expired'              => $order->expired_at,
+        'Pickup Window Expired'=> $order->pickup_window_expired_at,
+    ], fn ($v) => $v !== null);
+@endphp
+
+@if($statusTimeline)
+<div class="card mb-3">
+    <div class="card-header"><i class="bi bi-clock-history me-1"></i>Status Timeline</div>
+    <div class="card-body p-3">
+        <ul class="list-group list-group-flush">
+            @foreach($statusTimeline as $label => $at)
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1">
+                    <span>{{ $label }}</span>
+                    <span class="small text-muted">{{ $at->format('M d, Y g:i A') }}</span>
+                </li>
+            @endforeach
+        </ul>
+    </div>
+</div>
+@endif
+
 <div class="card mb-3"><div class="card-header d-flex justify-content-between">
     <span>Payments</span>
     <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#pay-form">Record Payment</button>
