@@ -486,7 +486,19 @@ class PaystackService
 
         $expected = hash_hmac('sha512', $rawBody, $this->secretKey);
 
-        return hash_equals($expected, $receivedSignature);
+        $match = hash_equals($expected, $receivedSignature);
+
+        if (! $match) {
+            Log::warning('Paystack webhook signature debug', [
+                'received_sig'   => $receivedSignature,
+                'expected_sig'   => $expected,
+                'raw_body_len'   => strlen($rawBody),
+                'raw_body_head'  => substr($rawBody, 0, 80),
+                'key_prefix'     => substr($this->secretKey, 0, 8),
+            ]);
+        }
+
+        return $match;
     }
 
     /**
