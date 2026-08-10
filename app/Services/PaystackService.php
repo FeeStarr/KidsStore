@@ -139,10 +139,24 @@ class PaystackService
             return $transaction->refresh();
         }
 
-        // Verify transaction via Paystack API
-        $response = $this->get("/transaction/verify/{$transaction->reference}");
+        // If already success, skip API call
+        if ($transaction->status === 'success') {
+            return $transaction->refresh();
+        }
 
-        if (! ($response['status'] ?? false)) {
+        // Try our reference first, then Paystack reference stored from webhook
+        $paystackRef = $transaction->opay_payload['data']['reference'] ?? null;
+        $references = array_filter([$transaction->reference, $paystackRef]);
+
+        $response = null;
+        foreach ($references as $ref) {
+            $response = $this->get("/transaction/verify/{$ref}");
+            if ($response['status'] ?? false) {
+                break;
+            }
+        }
+
+        if (! $response || ! ($response['status'] ?? false)) {
             return $transaction->refresh();
         }
 
@@ -150,7 +164,13 @@ class PaystackService
         $paystackStatus = strtolower($data['status'] ?? '');
 
         if ($paystackStatus === 'success') {
-            // Verify amount matches
+            // Store Paystack's reference for future queries
+            if (! empty($data['reference']) && empty($transaction->opay_payload['data']['reference'])) {
+                $payload = (array) $transaction->opay_payload;
+                $payload['data']['reference'] = $data['reference'];
+                $transaction->update(['opay_payload' => $payload]);
+            }
+
             $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
             $orderAmount = (float) $transaction->order->grand_total;
 
@@ -211,6 +231,13 @@ class PaystackService
         if (! $transaction) {
             Log::warning('Paystack webhook: transaction not found', ['reference' => $reference, 'id' => $paystackId, 'acct' => $webhookAcctNum]);
             return false;
+        }
+
+        // Store Paystack's reference on the transaction for future queries
+        if ($reference && empty($transaction->opay_payload['data']['reference'])) {
+            $existingPayload = (array) $transaction->opay_payload;
+            $existingPayload['data']['reference'] = $reference;
+            $transaction->update(['opay_payload' => $existingPayload]);
         }
 
         $paystackStatus = strtolower($data['status'] ?? '');
