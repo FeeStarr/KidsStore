@@ -22,6 +22,7 @@ class ProductRequest extends FormRequest
             'sku'           => ['nullable', 'string', 'max:64', Rule::unique('products', 'sku')->ignore($productId)],
             'name'          => ['required', 'string', 'max:255'],
             'slug'          => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($productId)],
+            'gender'        => ['nullable', Rule::in(['', 'boy', 'girl', 'unisex'])],
             'description'   => ['nullable', 'string'],
             'status'        => ['nullable', Rule::in(['active', 'inactive', 'draft'])],
 
