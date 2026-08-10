@@ -110,11 +110,12 @@ class PaystackController extends Controller
      */
     public function webhook(Request $request): Response
     {
-        $body      = $request->all();
+        $rawBody  = $request->getContent();
+        $body      = json_decode($rawBody, true) ?? [];
         $signature = $request->header('X-Paystack-Signature', '');
 
         try {
-            $this->paystack->handleWebhook($body, $signature);
+            $this->paystack->handleWebhook($body, $signature, $rawBody);
         } catch (\Throwable $e) {
             Log::error('Paystack webhook exception', ['error' => $e->getMessage()]);
         }

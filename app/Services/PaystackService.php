@@ -175,9 +175,10 @@ class PaystackService
      * Handle an incoming webhook from Paystack.
      * Verifies the signature, then updates the transaction + order.
      */
-    public function handleWebhook(array $payload, string $signature): bool
+    public function handleWebhook(array $payload, string $signature, string $rawBody = ''): bool
     {
-        if (! $this->verifyWebhookSignature($payload, $signature)) {
+        $bodyForVerification = $rawBody ?: json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (! $this->verifyWebhookSignatureRaw($bodyForVerification, $signature)) {
             Log::warning('Paystack webhook signature mismatch', ['payload' => $payload]);
             return false;
         }
@@ -191,11 +192,21 @@ class PaystackService
         }
 
         $reference = $data['reference'] ?? null;
-        if (! $reference) return false;
+        $paystackId = $data['id'] ?? null;
 
-        $transaction = PaymentTransaction::where('reference', $reference)->first();
+        $transaction = null;
+        if ($reference) {
+            $transaction = PaymentTransaction::where('reference', $reference)->first();
+        }
+        if (! $transaction && $paystackId) {
+            $transaction = PaymentTransaction::where('opay_order_no', $paystackId)->first();
+        }
+        if (! $transaction && $reference) {
+            $transaction = PaymentTransaction::where('opay_payload->data->reference', $reference)
+                ->orWhereJsonContains('opay_payload->data', ['reference' => $reference])->first();
+        }
         if (! $transaction) {
-            Log::warning('Paystack webhook: transaction not found', ['reference' => $reference]);
+            Log::warning('Paystack webhook: transaction not found', ['reference' => $reference, 'id' => $paystackId]);
             return false;
         }
 
@@ -354,13 +365,18 @@ class PaystackService
      */
     private function verifyWebhookSignature(array $payload, string $receivedSignature): bool
     {
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return $this->verifyWebhookSignatureRaw($json, $receivedSignature);
+    }
+
+    private function verifyWebhookSignatureRaw(string $rawBody, string $receivedSignature): bool
+    {
         if (empty($this->secretKey)) {
             Log::error('Paystack webhook rejected: PAYSTACK_SECRET_KEY is not configured.');
             return false;
         }
 
-        $json     = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $expected = hash_hmac('sha512', $json, $this->secretKey);
+        $expected = hash_hmac('sha512', $rawBody, $this->secretKey);
 
         return hash_equals($expected, $receivedSignature);
     }
