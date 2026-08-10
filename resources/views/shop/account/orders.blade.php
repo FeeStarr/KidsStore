@@ -3,11 +3,12 @@
 <h3 class="mb-3">My Orders</h3>
 
 <div class="card border-0 shadow-sm">
-<table class="table mb-0 align-middle">
-    <thead><tr><th>Reference</th><th>Date</th><th>Status</th><th>Payment</th><th class="text-end">Total</th><th></th></tr></thead>
+<table id="orders-table" class="table mb-0 align-middle">
+    <thead><tr><th>#</th><th>Reference</th><th>Date</th><th>Status</th><th>Payment</th><th class="text-end">Total</th><th></th></tr></thead>
     <tbody>
     @forelse($orders as $o)
         <tr>
+            <td>{{ $loop->iteration }}</td>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
             <td>{{ $o->order_date->format('M d, Y') }}</td>
             <td><span class="badge {{ match($o->status) {
@@ -23,9 +24,30 @@
             <td class="text-end"><a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
         </tr>
     @empty
-        <tr><td colspan="6" class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>
     @endforelse
     </tbody>
 </table>
 </div>
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    $('#orders-table').DataTable({
+        searching: true,
+        paging: false,
+        info: false,
+        ordering: true,
+        language: {
+            search: '<i class="bi bi-search"></i>',
+            searchPlaceholder: 'Search orders...'
+        },
+        columnDefs: [
+            { orderable: false, targets: [6] }
+        ],
+        order: [[0, 'asc']]
+    });
+});
+</script>
+@endpush
 @endsection

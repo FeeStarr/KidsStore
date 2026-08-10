@@ -145,4 +145,17 @@ class ProductController extends Controller
 
         return $validated;
     }
+
+    public function toggleStatus(Product $product): RedirectResponse
+    {
+        if ($product->isInactive()) {
+            $product->activate();
+            $message = 'Product activated.';
+        } else {
+            $product->deactivate();
+            $message = 'Product deactivated. All variants are now inactive.';
+        }
+
+        return back()->with('success', $message);
+    }
 }

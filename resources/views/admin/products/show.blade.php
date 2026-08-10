@@ -2,7 +2,20 @@
 @section('content')
 <div class="d-flex justify-content-between mb-3">
     <h3>{{ $product->name }} <small class="text-muted">{{ $product->sku }}</small></h3>
-    <a href="{{ route('admin.products.edit', $product) }}" class="btn btn-outline-primary">Edit</a>
+    <div class="d-flex gap-2">
+        @if($product->isInactive())
+            <form action="{{ route('admin.products.toggle-status', $product) }}" method="post">
+                @csrf
+                <button class="btn btn-success" onclick="return confirm('Activate this product?')"><i class="bi bi-check-circle"></i> Activate</button>
+            </form>
+        @else
+            <form action="{{ route('admin.products.toggle-status', $product) }}" method="post">
+                @csrf
+                <button class="btn btn-warning" onclick="return confirm('Deactivate this product? All variants will also be deactivated.')"><i class="bi bi-x-circle"></i> Deactivate</button>
+            </form>
+        @endif
+        <a href="{{ route('admin.products.edit', $product) }}" class="btn btn-outline-primary">Edit</a>
+    </div>
 </div>
 <div class="row g-3">
     <div class="col-md-6">
@@ -23,7 +36,7 @@
                 <dt class="col-sm-4">Age Group</dt><dd class="col-sm-8">{{ !empty($product->age_group) ? implode(', ', (array) $product->age_group) : '-' }}</dd>
                 <dt class="col-sm-4">Gender</dt><dd class="col-sm-8">{{ $product->gender ?? 'â€”' }}</dd>
                 <dt class="col-sm-4">Brand</dt><dd class="col-sm-8">{{ $product->brand ?? 'â€”' }}</dd>
-                <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ $product->status ?? (($product->is_active ?? false) ? 'active' : 'inactive') }}</dd>
+                <dt class="col-sm-4">Status</dt><dd class="col-sm-8"><span class="badge {{ $product->isInactive() ? 'text-bg-danger' : 'text-bg-success' }}">{{ $product->status ?? 'inactive' }}</span></dd>
                 <dt class="col-sm-4">Selling Price</dt><dd class="col-sm-8">₦{{ number_format($product->selling_price, 2) }}</dd>
                 <dt class="col-sm-4">Product Discount</dt><dd class="col-sm-8">{{ number_format($product->discount, 2) }}% <small class="text-muted">(global)</small></dd>
                 <dt class="col-sm-4">Stock</dt><dd class="col-sm-8">{{ $product->inventory?->quantity ?? 0 }} (reorder at {{ $product->inventory?->reorder_level ?? 'â€”' }})</dd>

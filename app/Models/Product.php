@@ -184,4 +184,26 @@ class Product extends Model
     {
         return $this->image ?: $this->primaryImage?->url;
     }
+
+    /**
+     * Deactivate the product and all its variants.
+     */
+    public function deactivate(): void
+    {
+        $this->update(['status' => 'inactive', 'is_active' => false]);
+        $this->variants()->update(['is_active' => false]);
+    }
+
+    /**
+     * Activate the product.
+     */
+    public function activate(): void
+    {
+        $this->update(['status' => 'active', 'is_active' => true]);
+    }
+
+    public function isInactive(): bool
+    {
+        return $this->status === 'inactive' || ! $this->is_active;
+    }
 }

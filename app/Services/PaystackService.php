@@ -24,7 +24,6 @@ class PaystackService
 {
     private string $secretKey;
     private string $publicKey;
-    private string $webhookSecret;
     private string $baseUrl;
     private int    $expireMinutes;
 
@@ -32,7 +31,6 @@ class PaystackService
     {
         $this->secretKey     = (string) config('paystack.secret_key');
         $this->publicKey     = (string) config('paystack.public_key');
-        $this->webhookSecret = (string) config('paystack.webhook_secret');
         $this->baseUrl       = (string) config('paystack.base_url');
         $this->expireMinutes = (int) config('paystack.expire_minutes', 45);
     }
@@ -356,13 +354,13 @@ class PaystackService
      */
     private function verifyWebhookSignature(array $payload, string $receivedSignature): bool
     {
-        if (empty($this->webhookSecret)) {
-            Log::error('Paystack webhook rejected: PAYSTACK_WEBHOOK_SECRET is not configured.');
+        if (empty($this->secretKey)) {
+            Log::error('Paystack webhook rejected: PAYSTACK_SECRET_KEY is not configured.');
             return false;
         }
 
         $json     = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        $expected = hash_hmac('sha512', $json, $this->webhookSecret);
+        $expected = hash_hmac('sha512', $json, $this->secretKey);
 
         return hash_equals($expected, $receivedSignature);
     }
