@@ -193,20 +193,23 @@ class PaystackService
 
         $reference = $data['reference'] ?? null;
         $paystackId = $data['id'] ?? null;
+        $webhookAcctNum = $data['authorization']['receiver_bank_account_number'] ?? null;
 
         $transaction = null;
         if ($reference) {
             $transaction = PaymentTransaction::where('reference', $reference)->first();
         }
+        if (! $transaction && $webhookAcctNum) {
+            $transaction = PaymentTransaction::where('virtual_account_number', $webhookAcctNum)
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+        }
         if (! $transaction && $paystackId) {
             $transaction = PaymentTransaction::where('opay_order_no', $paystackId)->first();
         }
-        if (! $transaction && $reference) {
-            $transaction = PaymentTransaction::where('opay_payload->data->reference', $reference)
-                ->orWhereJsonContains('opay_payload->data', ['reference' => $reference])->first();
-        }
         if (! $transaction) {
-            Log::warning('Paystack webhook: transaction not found', ['reference' => $reference, 'id' => $paystackId]);
+            Log::warning('Paystack webhook: transaction not found', ['reference' => $reference, 'id' => $paystackId, 'acct' => $webhookAcctNum]);
             return false;
         }
 
