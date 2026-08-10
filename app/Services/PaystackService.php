@@ -157,7 +157,38 @@ class PaystackService
         }
 
         if (! $response || ! ($response['status'] ?? false)) {
-            return $transaction->refresh();
+            // Tier 4: If we have a dedicated account ID, query Paystack for recent transactions on it
+            if (! empty($transaction->opay_order_no)) {
+                try {
+                    $listResponse = $this->get("/dedicated_account/{$transaction->opay_order_no}/transactions");
+                    if ($listResponse['status'] ?? false) {
+                        $txns = $listResponse['data'] ?? [];
+                        foreach ($txns as $apiTxn) {
+                            $apiStatus = strtolower($apiTxn['status'] ?? '');
+                            $apiAmount = (float) ($apiTxn['amount'] ?? 0) / 100;
+                            if ($apiStatus === 'success' && abs($apiAmount - $transaction->amount) < 1) {
+                                // Found matching transaction — store Paystack reference and process
+                                $payload = (array) $transaction->opay_payload;
+                                $payload['data']['reference'] = $apiTxn['reference'] ?? null;
+                                $payload['api_match'] = true;
+                                $transaction->update(['opay_payload' => $payload]);
+                                $response = ['status' => true, 'data' => $apiTxn];
+                                Log::info('Paystack queryStatus: matched via Tier 4 dedicated account lookup', [
+                                    'transaction_id' => $transaction->id,
+                                    'paystack_reference' => $apiTxn['reference'] ?? null,
+                                ]);
+                                break;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Paystack queryStatus: Tier 4 lookup failed', ['transaction_id' => $transaction->id, 'error' => $e->getMessage()]);
+                }
+            }
+
+            if (! $response || ! ($response['status'] ?? false)) {
+                return $transaction->refresh();
+            }
         }
 
         $data = $response['data'];
@@ -228,6 +259,53 @@ class PaystackService
         if (! $transaction && $paystackId) {
             $transaction = PaymentTransaction::where('opay_order_no', $paystackId)->first();
         }
+
+        // Tier 4: Query Paystack API with the webhook reference to get authorization details
+        if (! $transaction && $reference) {
+            try {
+                $apiResult = $this->get("/transaction/verify/{$reference}");
+                if ($apiResult['status'] ?? false) {
+                    $apiData = $apiResult['data'] ?? [];
+                    $apiAuth = $apiData['authorization'] ?? [];
+                    $apiAcctNum = $apiAuth['receiver_bank_account_number'] ?? null;
+                    $apiAcctNum2 = $apiAuth['account_number'] ?? null;
+
+                    // Try matching by receiver bank account number
+                    if ($apiAcctNum) {
+                        $transaction = PaymentTransaction::where('virtual_account_number', $apiAcctNum)
+                            ->where('status', 'pending')
+                            ->latest()
+                            ->first();
+                    }
+                    // Fallback: try matching by source account number
+                    if (! $transaction && $apiAcctNum2) {
+                        $transaction = PaymentTransaction::where('virtual_account_number', $apiAcctNum2)
+                            ->where('status', 'pending')
+                            ->latest()
+                            ->first();
+                    }
+                    // Fallback: match by amount + pending status (last resort)
+                    if (! $transaction && isset($apiData['amount'])) {
+                        $amountNaira = (float) $apiData['amount'] / 100;
+                        $transaction = PaymentTransaction::where('status', 'pending')
+                            ->whereRaw('ABS(amount - ?) < 1', [$amountNaira])
+                            ->latest()
+                            ->first();
+                    }
+
+                    if ($transaction) {
+                        Log::info('Paystack webhook: matched via Tier 4 API lookup', [
+                            'transaction_id' => $transaction->id,
+                            'reference' => $reference,
+                            'api_acct_num' => $apiAcctNum,
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Paystack webhook: Tier 4 API lookup failed', ['reference' => $reference, 'error' => $e->getMessage()]);
+            }
+        }
+
         if (! $transaction) {
             Log::warning('Paystack webhook: transaction not found', ['reference' => $reference, 'id' => $paystackId, 'acct' => $webhookAcctNum]);
             return false;
