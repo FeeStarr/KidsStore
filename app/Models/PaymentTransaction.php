@@ -11,6 +11,7 @@ class PaymentTransaction extends Model
         'order_id',
         'reference',
         'opay_order_no',
+        'paystack_transaction_id',
         'virtual_account_number',
         'virtual_bank_name',
         'amount',

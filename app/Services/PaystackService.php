@@ -144,19 +144,9 @@ class PaystackService
             return $transaction->refresh();
         }
 
-        // Try our reference first, then Paystack reference stored from webhook
-        $paystackRef = $transaction->opay_payload['data']['reference'] ?? null;
-        $references = array_filter([$transaction->reference, $paystackRef]);
+        $response = $this->resolveTransactionFromPaystack($transaction);
 
-        $response = null;
-        foreach ($references as $ref) {
-            $response = $this->get("/transaction/verify/{$ref}");
-            if ($response['status'] ?? false) {
-                break;
-            }
-        }
-
-        if (! $response || ! ($response['status'] ?? false)) {
+        if (! $response) {
             return $transaction->refresh();
         }
 
@@ -164,12 +154,8 @@ class PaystackService
         $paystackStatus = strtolower($data['status'] ?? '');
 
         if ($paystackStatus === 'success') {
-            // Store Paystack's reference for future queries
-            if (! empty($data['reference']) && empty($transaction->opay_payload['data']['reference'])) {
-                $payload = (array) $transaction->opay_payload;
-                $payload['data']['reference'] = $data['reference'];
-                $transaction->update(['opay_payload' => $payload]);
-            }
+            // Remember the Paystack identifiers for future queries
+            $this->rememberTransactionIdentifiers($transaction, $data);
 
             $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
             $orderAmount = (float) $transaction->order->grand_total;
@@ -189,6 +175,112 @@ class PaystackService
         }
 
         return $transaction->refresh();
+    }
+
+    /**
+     * Try to locate a Paystack transaction for the given local transaction.
+     *
+     * Resolution order:
+     *   1. /transaction/{id}                 — stored Paystack transaction id
+     *   2. /transaction/verify/{reference}   — Paystack reference stored from webhook/earlier lookup
+     *   3. /transaction/verify/{appReference}— our KS- reference (usually 404)
+     *   4. /transaction?customer={code}      — newest success for this customer matching the amount
+     */
+    private function resolveTransactionFromPaystack(PaymentTransaction $transaction): ?array
+    {
+        $txId       = $transaction->paystack_transaction_id ?? null;
+        $paystackRef = $transaction->opay_payload['data']['reference'] ?? null;
+
+        // 1. Transaction id
+        if ($txId) {
+            $response = $this->get("/transaction/{$txId}");
+            if ($response['status'] ?? false) {
+                return $response;
+            }
+        }
+
+        // 2. Paystack reference
+        if ($paystackRef) {
+            $response = $this->get("/transaction/verify/{$paystackRef}");
+            if ($response['status'] ?? false) {
+                return $response;
+            }
+        }
+
+        // 3. Our app reference
+        $response = $this->get("/transaction/verify/{$transaction->reference}");
+        if ($response['status'] ?? false) {
+            return $response;
+        }
+
+        // 4. Customer-scoped transaction list, matched by amount
+        $customerCode = $transaction->opay_payload['data']['customer']['customer_code'] ?? null;
+        if ($customerCode) {
+            try {
+                $list = $this->get('/transaction?customer=' . urlencode($customerCode) . '&perPage=100');
+                if ($list['status'] ?? false) {
+                    foreach (($list['data'] ?? []) as $txn) {
+                        if (strtolower($txn['status'] ?? '') === 'success') {
+                            $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
+                            if (abs($amountNaira - $transaction->amount) < 1) {
+                                return ['status' => true, 'data' => $txn];
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Paystack queryStatus: customer lookup failed', ['transaction_id' => $transaction->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Persist the Paystack transaction id and reference on the local transaction
+     * so subsequent queries can skip the expensive customer-list fallback.
+     */
+    private function rememberTransactionIdentifiers(PaymentTransaction $transaction, array $data): void
+    {
+        $txId = ! empty($data['id']) ? (string) $data['id'] : null;
+        $ref  = ! empty($data['reference']) ? (string) $data['reference'] : null;
+
+        $updates = [];
+        if ($txId && (string) $transaction->paystack_transaction_id !== $txId) {
+            $updates['paystack_transaction_id'] = $txId;
+        }
+        if ($ref && empty($transaction->opay_payload['data']['reference'])) {
+            $payload = (array) $transaction->opay_payload;
+            $payload['data']['reference'] = $ref;
+            $updates['opay_payload'] = $payload;
+        }
+
+        if ($updates) {
+            $transaction->update($updates);
+        }
+    }
+
+    /**
+     * Persist identifiers from an incoming webhook payload.
+     */
+    private function rememberWebhookIdentifiers(PaymentTransaction $transaction, array $data): void
+    {
+        $txId = $data['id'] ?? null;
+        $ref  = $data['reference'] ?? null;
+
+        $updates = [];
+        if ($txId && (string) $transaction->paystack_transaction_id !== (string) $txId) {
+            $updates['paystack_transaction_id'] = (string) $txId;
+        }
+        if ($ref && empty($transaction->opay_payload['data']['reference'])) {
+            $payload = (array) $transaction->opay_payload;
+            $payload['data']['reference'] = $ref;
+            $updates['opay_payload'] = $payload;
+        }
+
+        if ($updates) {
+            $transaction->update($updates);
+        }
     }
 
     /**
@@ -230,7 +322,9 @@ class PaystackService
             $transaction = $query->latest()->first();
         }
         if (! $transaction && $paystackId) {
-            $transaction = PaymentTransaction::where('opay_order_no', $paystackId)->first();
+            $transaction = PaymentTransaction::where('paystack_transaction_id', $paystackId)
+                ->orWhere('opay_order_no', $paystackId)
+                ->first();
         }
 
         // Tier 4: Query Paystack API with the webhook reference to get authorization details
@@ -288,12 +382,8 @@ class PaystackService
             return false;
         }
 
-        // Store Paystack's reference on the transaction for future queries
-        if ($reference && empty($transaction->opay_payload['data']['reference'])) {
-            $existingPayload = (array) $transaction->opay_payload;
-            $existingPayload['data']['reference'] = $reference;
-            $transaction->update(['opay_payload' => $existingPayload]);
-        }
+        // Store Paystack's identifiers on the transaction for future queries
+        $this->rememberWebhookIdentifiers($transaction, $data);
 
         $paystackStatus = strtolower($data['status'] ?? '');
 
@@ -403,16 +493,23 @@ class PaystackService
 
         // Update the parent order
         $order = $transaction->order;
-        if ($order && $order->payment_status !== 'paid') {
-            $paid = (float) $order->amount_paid + (float) $transaction->amount;
-            $order->update([
-                'amount_paid'    => $paid,
-                'payment_status' => $paid >= (float) $order->grand_total ? 'paid' : 'partial',
-            ]);
+        if (! $order || $order->payment_status === 'paid') {
+            return;
+        }
 
-            // Auto-confirm pending payment orders
-            if ($order->status === 'pending payment' && $order->payment_status === 'paid') {
-                $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
+        $paid = round((float) $order->amount_paid + (float) $transaction->amount, 2);
+        $order->update([
+            'amount_paid'    => $paid,
+            'payment_status' => $paid >= (float) $order->grand_total ? 'paid' : 'partial',
+        ]);
+
+        // Auto-confirm pending-payment orders.
+        // OrderService::confirm() decreases inventory and dispatches notifications.
+        if ($order->payment_status === 'paid' && in_array($order->status, ['pending payment', 'pending confirmation', 'ordered'], true)) {
+            try {
+                app(OrderService::class)->confirm($order->fresh());
+            } catch (\Throwable $e) {
+                Log::error('Auto-confirm failed after payment', ['order' => $order->reference, 'error' => $e->getMessage()]);
             }
         }
     }
