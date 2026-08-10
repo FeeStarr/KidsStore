@@ -45,6 +45,23 @@ class ProductVariantController extends Controller
         return back()->with('success', 'Variant added.');
     }
 
+    private function generateColorCode(string $name): string
+    {
+        $base = strtoupper(preg_replace('/[^A-Z0-9]/', '', substr(trim($name), 0, 5)));
+        if ($base === '') {
+            $base = strtoupper(substr(bin2hex(random_bytes(2)), 0, 4));
+        }
+
+        $candidate = $base;
+        $i = 0;
+        while (Color::query()->where('code', $candidate)->exists()) {
+            $i++;
+            $candidate = substr($base, 0, 5 - strlen((string) $i)) . (string) $i;
+        }
+
+        return $candidate;
+    }
+
     private function ensureUniqueSku(?string $sku): string
     {
         $sku = trim((string) ($sku ?? ''));
@@ -108,9 +125,13 @@ class ProductVariantController extends Controller
         // Resolve color FK from free-text fallback if needed.
         $colorText = $data['color_name'] ?? $data['color_text'] ?? null;
         if (empty($data['color_id']) && ! empty($colorText)) {
-            $data['color_id'] = Color::query()
-                ->firstOrCreate(['name' => trim((string) $colorText)], ['is_active' => true])
-                ->id;
+            $color = Color::query()->firstOrNew(['name' => trim((string) $colorText)]);
+            if (! $color->exists) {
+                $color->is_active = true;
+                $color->code      = $this->generateColorCode($color->name);
+                $color->save();
+            }
+            $data['color_id'] = $color->id;
         }
 
         // Resolve size FK from free-text fallback if needed.
