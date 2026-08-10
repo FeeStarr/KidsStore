@@ -3,12 +3,18 @@
 namespace App\Console\Commands;
 
 use App\Models\Order;
+use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Console\Command;
 
 class ExpirePendingPaymentOrders extends Command
 {
     protected $signature = 'payments:expire-pending';
-    protected $description = 'Expire pending payment orders older than 24 hours';
+    protected $description = 'Expire pending payment orders older than 24 hours and release their stock reservations';
+
+    public function __construct(private InventoryServiceInterface $inventory)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -22,6 +28,9 @@ class ExpirePendingPaymentOrders extends Command
 
         foreach ($orders as $order) {
             $order->update(['status' => 'expired']);
+
+            // Release any stock reserved for this unpaid order
+            $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order expired — unpaid');
 
             // Also expire any pending payment transactions
             $order->paymentTransactions()

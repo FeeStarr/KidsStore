@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -60,11 +61,10 @@ class OrderService
 
             $this->recalculateTotals($order);
 
-            // Decrease inventory for confirmed/processing/shipping to station/out for delivery/ready/delivered orders.
-            // Skip pending payment — stock is not reserved until payment is confirmed.
-            if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
-                $this->applyInventoryDecrease($order);
-            }
+            // Reserve stock for every order at placement. For pending-payment
+            // (bank transfer) orders this prevents overselling: the units are
+            // held as a reservation and released on expiry/cancellation.
+            $this->applyInventoryDecrease($order);
 
             return $order->fresh('items.product');
         });
@@ -195,7 +195,7 @@ class OrderService
         $result = DB::transaction(function () use ($order) {
             $prev = $order->status;
 
-            if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+            if (! in_array($order->status, ['cancelled', 'expired'], true)) {
                 $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
             }
             $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
@@ -334,6 +334,18 @@ class OrderService
         foreach ($order->items()->with('variant.product')->get() as $item) {
             $variant = $item->variant;
             if (! $variant) {
+                continue;
+            }
+
+            // Idempotent: reserve each variant once per order. Stock was already
+            // decreased either at placement or by a previous confirm/re-run.
+            $alreadyReserved = InventoryMovement::where('reference_type', Order::class)
+                ->where('reference_id', $order->id)
+                ->where('product_variant_id', $variant->id)
+                ->where('quantity', '<', 0)
+                ->exists();
+
+            if ($alreadyReserved) {
                 continue;
             }
 
