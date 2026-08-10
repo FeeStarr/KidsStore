@@ -16,11 +16,33 @@
         }
     } catch (\Throwable $e) {}
 
+    // Group thumbnails by color — one thumbnail button per unique color.
+    $thumbVariants = $variants->groupBy(fn ($v) => $v->colorRef?->name ?? 'Default');
+
+    // Per-color fallback gallery. When a variant has no gallery of its own we
+    // fall back to the images belonging to the same colour group (mirrors the
+    // thumbnails), never the whole product gallery — otherwise same-age variants
+    // of a different colour would always show the primary/other-colour images.
+    $colorImgs = [];
+    foreach ($thumbVariants as $colorName => $colorVars) {
+        $gallery = collect();
+        foreach ($colorVars as $gv) {
+            if ($gv->image) {
+                $gallery->push($gv->image->url);
+            }
+            foreach ($gv->images as $gi) {
+                $gallery->push($gi->url);
+            }
+        }
+        $colorImgs[$colorName] = $gallery->unique()->values()->all();
+    }
+
     // Variant data for JS resolver — each row IS the full (color + age + size) combo
-    $variantsData = $variants->map(function ($v) use ($product, $cartQtys) {
+    $variantsData = $variants->map(function ($v) use ($product, $cartQtys, $colorImgs) {
         $imgs = $v->images->isNotEmpty()
             ? $v->images->map(fn ($i) => $i->url)->all()
-            : $product->images->map(fn ($i) => $i->url)->all();
+            : ($colorImgs[$v->colorRef?->name ?? 'Default']
+                ?: $product->images->map(fn ($i) => $i->url)->all());
         return [
             'id'            => $v->id,
             'sku'           => $v->sku,
@@ -43,9 +65,6 @@
             'options_label' => $v->options_label,
         ];
     })->values();
-
-    // Group thumbnails by color — one thumbnail button per unique color.
-    $thumbVariants = $variants->groupBy(fn ($v) => $v->colorRef?->name ?? 'Default');
 
     // Pre-compute the representative image per color group for thumbnail buttons.
     $thumbImgs = [];
