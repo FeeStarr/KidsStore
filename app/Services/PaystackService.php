@@ -111,6 +111,13 @@ class PaystackService
 
         $data = $response['data'];
 
+        // Persist the numeric Paystack customer id under a dedicated key so the
+        // status poll can reliably scope the /transaction lookup (the dedicated
+        // account create response does not always echo the customer object).
+        $payload = $response;
+        $payload['customer_id']       = $customer['id'] ?? null;
+        $payload['data']['customer']  = $payload['data']['customer'] ?? ['id' => $customer['id'] ?? null];
+
         $transaction = PaymentTransaction::create([
             'order_id'               => $order->id,
             'reference'              => $reference,
@@ -120,7 +127,7 @@ class PaystackService
             'amount'                 => (float) $order->grand_total,
             'status'                 => 'pending',
             'expires_at'             => now()->addMinutes($this->expireMinutes),
-            'opay_payload'           => $response,
+            'opay_payload'           => $payload,
         ]);
 
         return $transaction;
@@ -218,7 +225,32 @@ class PaystackService
 
         // 4. Customer-scoped transaction list (numeric customer id), matched by
         //    amount + excluding already-claimed transactions + closest time.
-        $customerId = $transaction->opay_payload['data']['customer']['id'] ?? null;
+        $customerId = $transaction->opay_payload['customer_id']
+            ?? $transaction->opay_payload['data']['customer']['id']
+            ?? null;
+
+        // Legacy transactions were created before the customer id was stored.
+        // Resolve it from the order's customer email so those pending payments
+        // can still be matched.
+        if (! $customerId && $transaction->order?->customer) {
+            try {
+                $customer = $transaction->order->customer;
+                $customer = $this->getOrCreateCustomer(
+                    $customer->email,
+                    $customer->profile?->first_name ?: ($customer->name ?? 'Customer'),
+                    $customer->profile?->last_name ?: 'Customer'
+                );
+                $customerId = $customer['id'] ?? null;
+                if ($customerId) {
+                    $payload = (array) $transaction->opay_payload;
+                    $payload['customer_id'] = $customerId;
+                    $transaction->update(['opay_payload' => $payload]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Paystack queryStatus: failed to resolve customer id', ['transaction_id' => $transaction->id, 'error' => $e->getMessage()]);
+            }
+        }
+
         if ($customerId) {
             try {
                 $list = $this->get('/transaction?customer=' . urlencode($customerId) . '&perPage=100');
@@ -238,12 +270,18 @@ class PaystackService
                     $localCreated = $transaction->created_at;
                     $localAcctNum = $transaction->virtual_account_number;
                     $best = null;
+                    $bestReceiverMatch = false;
                     $bestDiff = PHP_INT_MAX;
+                    $checked = 0;
+                    $rejectedAcct = 0;
+                    $rejectedAmount = 0;
 
                     foreach (($list['data'] ?? []) as $txn) {
                         if (strtolower($txn['status'] ?? '') !== 'success') {
                             continue;
                         }
+
+                        $checked++;
 
                         $payRef = $txn['reference'] ?? null;
                         $payId  = isset($txn['id']) ? (string) $txn['id'] : null;
@@ -264,36 +302,65 @@ class PaystackService
                             continue;
                         }
 
-                        // Most reliable: money must have landed in THIS order's
-                        // dedicated account. If Paystack reports a receiver
-                        // account, require it to match ours — otherwise a
-                        // same-amount transfer to another account is a mismatch.
-                        $receiverAcct = $txn['authorization']['receiver_bank_account_number'] ?? null;
-                        if ($receiverAcct && $localAcctNum && (string) $receiverAcct !== (string) $localAcctNum) {
+                        // Amount must match to the kobo — a similar-amount
+                        // payment for another order must never auto-confirm.
+                        // (Verified before the receiver preference so we do not
+                        // rely on an account field Paystack may not always send.)
+                        $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
+                        if (abs($amountNaira - $transaction->amount) > 0.01) {
+                            $rejectedAmount++;
                             continue;
                         }
 
-                        // Amount must match to the kobo — a similar-amount
-                        // payment for another order must never auto-confirm.
-                        $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
-                        if (abs($amountNaira - $transaction->amount) > 0.01) {
-                            continue;
+                        // The receiver account is the strongest signal when
+                        // Paystack reports it, but it is NOT guaranteed on every
+                        // charge. Prefer an exact receiver match; fall back to
+                        // amount+time if the field is absent or inconsistent.
+                        $receiverAcct = $txn['authorization']['receiver_bank_account_number'] ?? null;
+                        $receiverMatches = (! $receiverAcct || ! $localAcctNum)
+                            ? null
+                            : (string) $receiverAcct === (string) $localAcctNum;
+                        if ($receiverMatches === false) {
+                            $rejectedAcct++;
                         }
 
                         $diff = abs($created->diffInMinutes($localCreated));
-                        if ($diff < $bestDiff) {
-                            $bestDiff = $diff;
+
+                        if ($best === null
+                            || ($receiverMatches === true && ! $bestReceiverMatch)
+                            || ($receiverMatches === $bestReceiverMatch && $diff < $bestDiff)) {
                             $best = $txn;
+                            $bestReceiverMatch = $receiverMatches === true;
+                            $bestDiff = $diff;
                         }
                     }
 
                     if ($best) {
                         return ['status' => true, 'data' => $best];
                     }
+
+                    Log::info('Paystack queryStatus: no unclaimed success payment matched', [
+                        'transaction_id'   => $transaction->id,
+                        'customer_id'      => $customerId,
+                        'success_checked'  => $checked,
+                        'rejected_acct'    => $rejectedAcct,
+                        'rejected_amount'  => $rejectedAmount,
+                        'local_amount'     => $transaction->amount,
+                        'local_created_at' => $localCreated ? $localCreated->toISOString() : null,
+                        'virtual_account'  => $localAcctNum,
+                    ]);
+                } else {
+                    Log::warning('Paystack queryStatus: customer txn lookup failed', [
+                        'transaction_id' => $transaction->id,
+                        'customer_id'    => $customerId,
+                        'response'       => $list['message'] ?? $list,
+                    ]);
                 }
             } catch (\Exception $e) {
                 Log::warning('Paystack queryStatus: customer lookup failed', ['transaction_id' => $transaction->id, 'error' => $e->getMessage()]);
             }
+        } else {
+            Log::warning('Paystack queryStatus: no customer id on transaction', ['transaction_id' => $transaction->id]);
         }
 
         return null;
