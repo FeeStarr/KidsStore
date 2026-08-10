@@ -184,7 +184,8 @@ class PaystackService
      *   1. /transaction/{id}                 — stored Paystack transaction id
      *   2. /transaction/verify/{reference}   — Paystack reference stored from webhook/earlier lookup
      *   3. /transaction/verify/{appReference}— our KS- reference (usually 404)
-     *   4. /transaction?customer={code}      — newest success for this customer matching the amount
+     *   4. /transaction?customer={numeric id} — unclaimed success for this customer
+     *                                             matching amount + closest time
      */
     private function resolveTransactionFromPaystack(PaymentTransaction $transaction): ?array
     {
@@ -213,19 +214,63 @@ class PaystackService
             return $response;
         }
 
-        // 4. Customer-scoped transaction list, matched by amount
-        $customerCode = $transaction->opay_payload['data']['customer']['customer_code'] ?? null;
-        if ($customerCode) {
+        // 4. Customer-scoped transaction list (numeric customer id), matched by
+        //    amount + excluding already-claimed transactions + closest time.
+        $customerId = $transaction->opay_payload['data']['customer']['id'] ?? null;
+        if ($customerId) {
             try {
-                $list = $this->get('/transaction?customer=' . urlencode($customerCode) . '&perPage=100');
+                $list = $this->get('/transaction?customer=' . urlencode($customerId) . '&perPage=100');
                 if ($list['status'] ?? false) {
-                    foreach (($list['data'] ?? []) as $txn) {
-                        if (strtolower($txn['status'] ?? '') === 'success') {
-                            $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
-                            if (abs($amountNaira - $transaction->amount) < 1) {
-                                return ['status' => true, 'data' => $txn];
-                            }
+                    // Identifiers already claimed by other local transactions
+                    $claimed = [];
+                    foreach (PaymentTransaction::where('id', '!=', $transaction->id)->get() as $other) {
+                        if (! empty($other->paystack_transaction_id)) {
+                            $claimed[] = (string) $other->paystack_transaction_id;
                         }
+                        if (! empty($other->opay_payload['data']['reference'])) {
+                            $claimed[] = (string) $other->opay_payload['data']['reference'];
+                        }
+                    }
+                    $claimed = array_flip($claimed);
+
+                    $localCreated = $transaction->created_at;
+                    $best = null;
+                    $bestDiff = PHP_INT_MAX;
+
+                    foreach (($list['data'] ?? []) as $txn) {
+                        if (strtolower($txn['status'] ?? '') !== 'success') {
+                            continue;
+                        }
+
+                        $payRef = $txn['reference'] ?? null;
+                        $payId  = isset($txn['id']) ? (string) $txn['id'] : null;
+                        if ($payRef && isset($claimed[$payRef])) {
+                            continue;
+                        }
+                        if ($payId && isset($claimed[$payId])) {
+                            continue;
+                        }
+
+                        $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
+                        if (abs($amountNaira - $transaction->amount) >= 1) {
+                            continue;
+                        }
+
+                        $created = isset($txn['created_at']) ? \Carbon\Carbon::parse($txn['created_at']) : null;
+                        if (! $created) {
+                            $best = $txn;
+                            break;
+                        }
+
+                        $diff = abs($created->diffInMinutes($localCreated));
+                        if ($diff < $bestDiff) {
+                            $bestDiff = $diff;
+                            $best = $txn;
+                        }
+                    }
+
+                    if ($best) {
+                        return ['status' => true, 'data' => $best];
                     }
                 }
             } catch (\Exception $e) {
