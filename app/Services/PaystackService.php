@@ -246,15 +246,19 @@ class PaystackService
         $paystackId = $data['id'] ?? null;
         $webhookAcctNum = $data['authorization']['receiver_bank_account_number'] ?? null;
 
+        $webhookAmount = isset($data['amount']) ? (float) $data['amount'] / 100 : null;
+
         $transaction = null;
         if ($reference) {
             $transaction = PaymentTransaction::where('reference', $reference)->first();
         }
         if (! $transaction && $webhookAcctNum) {
-            $transaction = PaymentTransaction::where('virtual_account_number', $webhookAcctNum)
-                ->where('status', 'pending')
-                ->latest()
-                ->first();
+            $query = PaymentTransaction::where('virtual_account_number', $webhookAcctNum)
+                ->where('status', 'pending');
+            if ($webhookAmount !== null) {
+                $query->whereRaw('ABS(amount - ?) < 1', [$webhookAmount]);
+            }
+            $transaction = $query->latest()->first();
         }
         if (! $transaction && $paystackId) {
             $transaction = PaymentTransaction::where('opay_order_no', $paystackId)->first();
@@ -270,19 +274,23 @@ class PaystackService
                     $apiAcctNum = $apiAuth['receiver_bank_account_number'] ?? null;
                     $apiAcctNum2 = $apiAuth['account_number'] ?? null;
 
-                    // Try matching by receiver bank account number
+                    // Try matching by receiver bank account number + amount
                     if ($apiAcctNum) {
-                        $transaction = PaymentTransaction::where('virtual_account_number', $apiAcctNum)
-                            ->where('status', 'pending')
-                            ->latest()
-                            ->first();
+                        $q = PaymentTransaction::where('virtual_account_number', $apiAcctNum)
+                            ->where('status', 'pending');
+                        if ($webhookAmount !== null) {
+                            $q->whereRaw('ABS(amount - ?) < 1', [$webhookAmount]);
+                        }
+                        $transaction = $q->latest()->first();
                     }
-                    // Fallback: try matching by source account number
+                    // Fallback: try matching by source account number + amount
                     if (! $transaction && $apiAcctNum2) {
-                        $transaction = PaymentTransaction::where('virtual_account_number', $apiAcctNum2)
-                            ->where('status', 'pending')
-                            ->latest()
-                            ->first();
+                        $q = PaymentTransaction::where('virtual_account_number', $apiAcctNum2)
+                            ->where('status', 'pending');
+                        if ($webhookAmount !== null) {
+                            $q->whereRaw('ABS(amount - ?) < 1', [$webhookAmount]);
+                        }
+                        $transaction = $q->latest()->first();
                     }
                     // Fallback: match by amount + pending status (last resort)
                     if (! $transaction && isset($apiData['amount'])) {
