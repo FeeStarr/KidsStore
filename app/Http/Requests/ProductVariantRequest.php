@@ -23,6 +23,8 @@ class ProductVariantRequest extends FormRequest
             'age_range_id'  => ['nullable', 'integer', 'exists:age_ranges,id'],
             'size_id'       => ['nullable', 'integer', 'exists:sizes,id'],
             'color_id'      => ['nullable', 'integer', 'exists:colors,id'],
+            'size_text'     => ['nullable', 'string', 'max:60'],
+            'color_text'    => ['nullable', 'string', 'max:60'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'discount'      => ['nullable', 'numeric', 'min:0', 'max:100'],
             'image_id'      => ['nullable', 'integer', 'exists:product_images,id'],

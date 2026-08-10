@@ -135,7 +135,7 @@ class ProductVariantController extends Controller
         $data['options'] = $options ?: null;
 
         // image_ids handled separately via syncGallery().
-        unset($data['image_ids'], $data['color_name'], $data['size_name']);
+        unset($data['image_ids'], $data['color_name'], $data['color_text'], $data['size_name'], $data['size_text']);
 
         return $data;
     }
