@@ -76,18 +76,25 @@ class CheckoutController extends Controller
             ? 'pending payment'
             : 'confirmed';
 
-        $order = $this->orders->create([
-            'customer_id'       => $customer->id,
-            'order_date'        => now()->toDateString(),
-            'status'            => $orderStatus,
-            'delivery_method'   => $data['delivery_method'],
-            'payment_method'    => $data['payment_method'] ?? null,
-            'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
-            'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
-            'shipping_fee'      => $shippingFee,
-            'note'              => trim($data['note'] ?? '') ?: null,
-            'items'             => $items,
-        ]);
+        try {
+            $order = $this->orders->create([
+                'customer_id'       => $customer->id,
+                'order_date'        => now()->toDateString(),
+                'status'            => $orderStatus,
+                'delivery_method'   => $data['delivery_method'],
+                'payment_method'    => $data['payment_method'] ?? null,
+                'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
+                'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
+                'shipping_fee'      => $shippingFee,
+                'note'              => trim($data['note'] ?? '') ?: null,
+                'items'             => $items,
+            ]);
+        } catch (\RuntimeException $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage() ?: 'One or more items are out of stock. Please adjust your cart and try again.');
+        }
 
         $this->cart->clear();
 
