@@ -62,7 +62,7 @@ foreach ($order->items as $item) {
 
     $hasMovement = \App\Models\InventoryMovement::where('reference_type', Order::class)
         ->where('reference_id', $order->id)
-        ->where('product_variant_id', $item->variant_id)
+        ->where('product_variant_id', $item->product_variant_id)
         ->where('quantity', '<', 0)
         ->exists();
 
