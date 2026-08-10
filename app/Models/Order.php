@@ -34,7 +34,9 @@ class Order extends Model
         'subtotal', 'discount', 'shipping_fee', 'grand_total', 'amount_paid',
         'note', 'expected_delivery_date',
         'pickup_station_fee_total',
+        'ordered_at', 'pending_confirmation_at', 'pending_payment_at',
         'confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'cancelled_at',
+        'expired_at', 'pickup_window_expired_at',
     ];
 
     protected $casts = [
@@ -53,11 +55,51 @@ class Order extends Model
         'ready_for_pickup_at'     => 'datetime',
         'delivered_at'            => 'datetime',
         'cancelled_at'            => 'datetime',
+        'ordered_at'              => 'datetime',
+        'pending_confirmation_at' => 'datetime',
+        'pending_payment_at'      => 'datetime',
+        'expired_at'              => 'datetime',
+        'pickup_window_expired_at' => 'datetime',
     ];
 
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    /**
+     * Record the matching timestamp column whenever the order status is set
+     * (on create and on every status change). Centralizes timestamping for
+     * OrderService, admin fallback updates, pickup-station service, and the
+     * expiry scheduler — no matter how the status is written.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Order $order) {
+            if (! $order->isDirty('status')) {
+                return;
+            }
+
+            $column = match ($order->status) {
+                self::STATUS_ORDERED               => 'ordered_at',
+                self::STATUS_PENDING_CONFIRMATION  => 'pending_confirmation_at',
+                self::STATUS_PENDING_PAYMENT       => 'pending_payment_at',
+                self::STATUS_CONFIRMED             => 'confirmed_at',
+                self::STATUS_PROCESSING            => 'processing_at',
+                self::STATUS_SHIPPING_TO_STATION,
+                self::STATUS_OUT_FOR_DELIVERY      => 'shipped_at',
+                self::STATUS_READY_FOR_PICKUP      => 'ready_for_pickup_at',
+                self::STATUS_DELIVERED             => 'delivered_at',
+                self::STATUS_CANCELLED             => 'cancelled_at',
+                self::STATUS_EXPIRED               => 'expired_at',
+                self::STATUS_PICKUP_WINDOW_EXPIRED => 'pickup_window_expired_at',
+                default                            => null,
+            };
+
+            if ($column) {
+                $order->{$column} = now();
+            }
+        });
     }
 
     public function pickupStation(): BelongsTo

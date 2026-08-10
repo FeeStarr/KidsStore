@@ -160,7 +160,9 @@ class PaystackService
             $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
             $orderAmount = (float) $transaction->order->grand_total;
 
-            if ($paystackAmount < $orderAmount * 0.99 || $paystackAmount > $orderAmount * 1.01) {
+            // Amount must match to the kobo. Any deviation is an anomaly that
+            // must NOT auto-confirm — route it to manual review instead.
+            if (abs($paystackAmount - $orderAmount) > 0.01) {
                 $this->markUnderReview($transaction, $response, 'Amount mismatch: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
             } else {
                 $this->markTransactionSuccess($transaction, $response);
@@ -234,6 +236,7 @@ class PaystackService
                     $claimed = array_flip($claimed);
 
                     $localCreated = $transaction->created_at;
+                    $localAcctNum = $transaction->virtual_account_number;
                     $best = null;
                     $bestDiff = PHP_INT_MAX;
 
@@ -251,15 +254,30 @@ class PaystackService
                             continue;
                         }
 
-                        $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
-                        if (abs($amountNaira - $transaction->amount) >= 1) {
+                        // A payment must have been made AFTER this payment
+                        // session/account was provisioned — an older transfer
+                        // belongs to a previous order, never this one.
+                        $created = isset($txn['created_at'])
+                            ? \Carbon\Carbon::parse($txn['created_at'])
+                            : null;
+                        if (! $created || $created->lt($localCreated)) {
                             continue;
                         }
 
-                        $created = isset($txn['created_at']) ? \Carbon\Carbon::parse($txn['created_at']) : null;
-                        if (! $created) {
-                            $best = $txn;
-                            break;
+                        // Most reliable: money must have landed in THIS order's
+                        // dedicated account. If Paystack reports a receiver
+                        // account, require it to match ours — otherwise a
+                        // same-amount transfer to another account is a mismatch.
+                        $receiverAcct = $txn['authorization']['receiver_bank_account_number'] ?? null;
+                        if ($receiverAcct && $localAcctNum && (string) $receiverAcct !== (string) $localAcctNum) {
+                            continue;
+                        }
+
+                        // Amount must match to the kobo — a similar-amount
+                        // payment for another order must never auto-confirm.
+                        $amountNaira = (float) ($txn['amount'] ?? 0) / 100;
+                        if (abs($amountNaira - $transaction->amount) > 0.01) {
+                            continue;
                         }
 
                         $diff = abs($created->diffInMinutes($localCreated));
@@ -400,11 +418,11 @@ class PaystackService
                         }
                         $transaction = $q->latest()->first();
                     }
-                    // Fallback: match by amount + pending status (last resort)
+                    // Fallback: match by amount + pending status (last resort, exact amount)
                     if (! $transaction && isset($apiData['amount'])) {
-                        $amountNaira = (float) $apiData['amount'] / 100;
+                        $amountNaira = round((float) $apiData['amount'] / 100, 2);
                         $transaction = PaymentTransaction::where('status', 'pending')
-                            ->whereRaw('ABS(amount - ?) < 1', [$amountNaira])
+                            ->where('amount', (string) $amountNaira)
                             ->latest()
                             ->first();
                     }
@@ -436,7 +454,9 @@ class PaystackService
             $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
             $orderAmount = (float) $transaction->order->grand_total;
 
-            if ($paystackAmount < $orderAmount * 0.99 || $paystackAmount > $orderAmount * 1.01) {
+            // Exact amount required — a same-amount charge for a different order
+            // must never confirm this one; flag for review instead.
+            if (abs($paystackAmount - $orderAmount) > 0.01) {
                 $this->markUnderReview($transaction, $payload, 'Amount mismatch via webhook: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
             } else {
                 $this->markTransactionSuccess($transaction, $payload);
