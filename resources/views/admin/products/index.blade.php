@@ -34,13 +34,24 @@
             <td>{{ $p->sku }}</td>
             <td>{{ $p->name }}</td>
             <td>{{ $p->category?->name ?? '-' }}</td>
-            <td><span class="badge text-bg-light">{{ $p->status ?? (($p->is_active ?? false) ? 'active' : 'inactive') }}</span></td>
+            <td><span class="badge {{ ($p->status ?? 'inactive') === 'active' ? 'text-bg-success' : 'text-bg-danger' }}">{{ $p->status ?? (($p->is_active ?? false) ? 'active' : 'inactive') }}</span></td>
             <td class="text-end">{{ number_format($p->selling_price, 2) }}</td>
             <td class="text-end">{{ number_format($p->discount, 2) }}</td>
             <td class="text-end">{{ $p->stock_quantity }}</td>
             <td class="text-end text-nowrap">
                 <a href="{{ route('admin.products.show', $p) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
                 <a href="{{ route('admin.products.edit', $p) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                @if(($p->status ?? 'inactive') === 'active')
+                    <form action="{{ route('admin.products.toggle-status', $p) }}" method="post" class="d-inline">
+                        @csrf
+                        <button class="btn btn-sm btn-warning" title="Deactivate" onclick="return confirm('Deactivate this product? All variants will also be deactivated.')"><i class="bi bi-x-circle"></i></button>
+                    </form>
+                @else
+                    <form action="{{ route('admin.products.toggle-status', $p) }}" method="post" class="d-inline">
+                        @csrf
+                        <button class="btn btn-sm btn-success" title="Activate" onclick="return confirm('Activate this product?')"><i class="bi bi-check-circle"></i></button>
+                    </form>
+                @endif
                 <form action="{{ route('admin.products.destroy', $p) }}" method="post" class="d-inline"
                       data-confirm="This product will be permanently deleted." data-confirm-title="Delete Product?"
                       data-confirm-yes="Yes, delete">
