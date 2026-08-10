@@ -531,10 +531,9 @@
                 }
                 tick();
 
-                // Auto-poll every 30s
-                setInterval(function() {
-                    if (seconds > 0) checkPayment();
-                }, 30000);
+                // Auto-poll every 30s (keep checking after countdown expires in
+                // case the customer pays late)
+                setInterval(function() { checkPayment(); }, 30000);
             } else {
                 loading.style.display = 'none';
                 errDiv.style.display = '';
