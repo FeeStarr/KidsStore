@@ -35,8 +35,10 @@
 $(document).ready(function() {
     $('#orders-table').DataTable({
         searching: true,
-        paging: false,
-        info: false,
+        paging: true,
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+        info: true,
         ordering: true,
         language: {
             search: '<i class="bi bi-search"></i>',
