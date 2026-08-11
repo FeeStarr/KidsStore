@@ -488,6 +488,10 @@
                         return;
                     }
                     const handler = PaystackPop.setup({
+                        key: data.public_key,
+                        email: data.email,
+                        amount: data.amount_kobo,
+                        ref: data.reference,
                         access_code: data.access_code,
                         metadata: { order_id: {{ $order->id }} },
                         callback: function(response) {

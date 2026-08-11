@@ -760,6 +760,10 @@ function portalPayNow(orderId) {
                 return;
             }
             var handler = PaystackPop.setup({
+                key: session.public_key,
+                email: session.email,
+                amount: session.amount_kobo,
+                ref: session.reference,
                 access_code: session.access_code,
                 metadata: { order_id: orderId },
                 callback: function(response) {
