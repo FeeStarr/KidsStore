@@ -84,6 +84,7 @@ Route::name('shop.')->group(function () {
 
         // Paystack payment
         Route::post('/account/orders/{order}/pay',       [PaystackController::class, 'initiate'])->name('paystack.initiate');
+        Route::get('/account/orders/{order}/pay/callback', [PaystackController::class, 'callback'])->name('paystack.callback');
         Route::post('/account/orders/{order}/pay/query', [PaystackController::class, 'query'])->name('paystack.query');
 
         // Refund requests

@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Paystack — Dedicated Virtual Account integration.
+ * Paystack integration — standard transaction (popup / redirect checkout).
  *
- * Docs: https://paystack.com/docs/api/#dedicated-virtual-account
+ * Docs: https://paystack.com/docs/api/#transaction-initialize
+ *       https://paystack.com/docs/payments/accept-payments/#popup
  *
  * Configure via config/paystack.php + .env:
  *   PAYSTACK_SECRET_KEY=sk_test_xxx
@@ -35,10 +36,19 @@ class PaystackService
         $this->expireMinutes = (int) config('paystack.expire_minutes', 45);
     }
 
+    public function publicKey(): string
+    {
+        return $this->publicKey;
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Create a dedicated virtual account for the customer and return a PaymentTransaction.
+     * Initialize a standard Paystack transaction for the order.
+     *
+     * Our own KS- reference is passed to Paystack as the transaction reference,
+     * which means the webhook tier-1 lookup and queryStatus tier-3 verify will
+     * both match directly — no virtual account or customer-scoped fallback needed.
      *
      * @throws \RuntimeException if Paystack returns an error
      */
@@ -54,15 +64,13 @@ class PaystackService
         // ── Stub mode: no credentials configured ─────────────────────────────
         if (empty($this->secretKey)) {
             return PaymentTransaction::create([
-                'order_id'               => $order->id,
-                'reference'              => $reference,
-                'opay_order_no'          => null,
-                'virtual_account_number' => '0000000000',
-                'virtual_bank_name'      => 'Paystack (Test — no credentials)',
-                'amount'                 => (float) $order->grand_total,
-                'status'                 => 'pending',
-                'expires_at'             => now()->addMinutes($this->expireMinutes),
-                'opay_payload'           => ['note' => 'Stub — PAYSTACK_SECRET_KEY not set'],
+                'order_id'     => $order->id,
+                'reference'    => $reference,
+                'opay_order_no'=> null,
+                'amount'       => (float) $order->grand_total,
+                'status'       => 'pending',
+                'expires_at'   => now()->addMinutes($this->expireMinutes),
+                'opay_payload' => ['note' => 'Stub — PAYSTACK_SECRET_KEY not set'],
             ]);
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -70,38 +78,19 @@ class PaystackService
         $amountKobo = (int) round((float) $order->grand_total * 100);
         $email = $order->customer?->email ?? 'customer@kidsstore.com';
 
-        // Step 1: Create (or get existing) customer
-        $customerName = $order->customer?->name ?? 'Customer';
-        $firstName = $order->customer?->profile?->first_name ?? '';
-        $lastName = $order->customer?->profile?->last_name ?? '';
-        $phone = $order->customer?->phone ?? $order->customer?->profile?->phone ?? null;
-
-        // Fall back to splitting the name if profile names are empty
-        if (empty(trim($firstName)) && empty(trim($lastName))) {
-            $nameParts = explode(' ', trim($customerName), 2);
-            $firstName = $nameParts[0] ?? $customerName;
-            $lastName = $nameParts[1] ?? $firstName;
-        }
-
-        // Final safety — Paystack requires both first_name and last_name to be non-empty
-        $firstName = trim($firstName) ?: 'Customer';
-        $lastName = trim($lastName) ?: 'Customer';
-
-        $customer = $this->getOrCreateCustomer($email, $firstName, $lastName, $phone);
-
-        // Step 2: Assign a dedicated virtual account
-        $payload = [
-            'customer'    => $customer['id'],
-            'currency'    => config('paystack.currency', 'NGN'),
-        ];
-
-        // Wema Bank only available in live mode for dedicated accounts
-        $isTestKey = str_starts_with($this->secretKey, 'sk_test_');
-        if (! $isTestKey) {
-            $payload['preferred_bank'] = 'wema-bank';
-        }
-
-        $response = $this->post('/dedicated_account', $payload);
+        $response = $this->post('/transaction/initialize', [
+            'email'        => $email,
+            'amount'       => $amountKobo,
+            'reference'    => $reference,
+            'currency'     => config('paystack.currency', 'NGN'),
+            'callback_url' => route('shop.paystack.callback', $order),
+            'metadata'     => [
+                'order_id'      => $order->id,
+                'order_ref'     => $order->reference,
+                'customer_id'   => $order->customer_id,
+                'cancel_action' => route('shop.account.orders.show', $order),
+            ],
+        ]);
 
         if (! ($response['status'] ?? false)) {
             $msg = $response['message'] ?? 'Unknown Paystack error';
@@ -111,23 +100,14 @@ class PaystackService
 
         $data = $response['data'];
 
-        // Persist the numeric Paystack customer id under a dedicated key so the
-        // status poll can reliably scope the /transaction lookup (the dedicated
-        // account create response does not always echo the customer object).
-        $payload = $response;
-        $payload['customer_id']       = $customer['id'] ?? null;
-        $payload['data']['customer']  = $payload['data']['customer'] ?? ['id' => $customer['id'] ?? null];
-
         $transaction = PaymentTransaction::create([
-            'order_id'               => $order->id,
-            'reference'              => $reference,
-            'opay_order_no'          => $data['id'] ?? null,
-            'virtual_account_number' => $data['account_number'] ?? null,
-            'virtual_bank_name'      => ($data['bank']['name'] ?? 'Wema Bank') . ' (' . ($data['bank']['slug'] ?? 'wema-bank') . ')',
-            'amount'                 => (float) $order->grand_total,
-            'status'                 => 'pending',
-            'expires_at'             => now()->addMinutes($this->expireMinutes),
-            'opay_payload'           => $payload,
+            'order_id'     => $order->id,
+            'reference'    => $reference,
+            'opay_order_no'=> $data['reference'] ?? $reference,
+            'amount'       => (float) $order->grand_total,
+            'status'       => 'pending',
+            'expires_at'   => now()->addMinutes($this->expireMinutes),
+            'opay_payload' => $response,
         ]);
 
         return $transaction;

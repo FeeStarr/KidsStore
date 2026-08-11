@@ -18,38 +18,26 @@
             </div>
         @else
             <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
-            <p class="text-muted small mb-3">Transfer the exact amount to the virtual account below. Payment is verified automatically.</p>
+            <p class="text-muted small mb-3">Click the button below. A secure payment window will open where you can pay with your preferred method.</p>
         <div id="pay-now-loading">
             <div class="spinner-border text-primary mb-2" role="status"></div>
-            <div class="small text-muted">Generating your payment account...</div>
+            <div class="small text-muted">Preparing your payment...</div>
         </div>
         <div id="pay-now-account" style="display:none">
-            <div class="row g-3 mb-3 justify-content-center">
-                <div class="col-sm-5">
-                    <div class="bg-light rounded p-3">
-                        <div class="small text-muted mb-1">Bank</div>
-                        <div class="fw-bold fs-5" id="pn-bank-name"></div>
-                    </div>
-                </div>
-                <div class="col-sm-5">
-                    <div class="bg-light rounded p-3">
-                        <div class="small text-muted mb-1">Account Number</div>
-                        <div class="fw-bold fs-3 font-monospace" id="pn-account-number"></div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="navigator.clipboard.writeText(document.getElementById('pn-account-number').textContent);this.textContent='Copied!'">Copy</button>
-                    </div>
-                </div>
-            </div>
-            <div class="mb-2">
+            <div class="mb-3">
                 <span class="fw-bold fs-5 text-primary">&#8358;{{ number_format($order->grand_total, 2) }}</span>
             </div>
-            <div class="small text-muted mb-3">
-                Expires in <strong id="pn-countdown">...</strong>
+            <button type="button" class="btn btn-primary btn-lg" id="pn-pay-btn">
+                <i class="bi bi-credit-card me-1"></i>Pay Now
+            </button>
+            <div class="small text-muted mb-3 mt-2">
+                Payment link expires in <strong id="pn-countdown">...</strong>
             </div>
             <div id="pay-now-retry" style="display:none" class="mb-3">
-                <div class="alert alert-warning small mb-2">Virtual account has expired.</div>
+                <div class="alert alert-warning small mb-2">Payment link has expired.</div>
                 <div class="d-flex gap-2 justify-content-center">
                     <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Generate New Account
+                        <i class="bi bi-arrow-clockwise me-1"></i>Generate New Link
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePaymentModal">
                         <i class="bi bi-arrow-left me-1"></i>Change Payment Method
@@ -483,6 +471,7 @@
 @endif
 
 @push('scripts')
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
 (function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
@@ -493,11 +482,12 @@
         const loading  = document.getElementById('pay-now-loading');
         const account  = document.getElementById('pay-now-account');
         const errDiv   = document.getElementById('pay-now-error');
-        const bankName = document.getElementById('pn-bank-name');
-        const acctNum  = document.getElementById('pn-account-number');
         const countdown = document.getElementById('pn-countdown');
+        const payBtn   = document.getElementById('pn-pay-btn');
         const checkBtn = document.getElementById('pn-check-btn');
         const status   = document.getElementById('pn-status');
+
+        let session = null;
 
         // Auto-initiate payment
         fetch('{{ route("shop.paystack.initiate", $order) }}', {
@@ -507,10 +497,9 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
+                session = data;
                 loading.style.display = 'none';
                 account.style.display = '';
-                bankName.textContent = data.virtual_bank_name || 'Paystack';
-                acctNum.textContent = data.virtual_account_number || '0000000000';
 
                 var seconds = data.seconds_remaining || 0;
                 function tick() {
@@ -537,7 +526,7 @@
             } else {
                 loading.style.display = 'none';
                 errDiv.style.display = '';
-                document.getElementById('pay-now-error-msg').textContent = data.message || 'Could not generate payment account.';
+                document.getElementById('pay-now-error-msg').textContent = data.message || 'Could not prepare your payment.';
             }
         })
         .catch(function() {
@@ -545,6 +534,29 @@
             errDiv.style.display = '';
             document.getElementById('pay-now-error-msg').textContent = 'Network error. Please try again.';
         });
+
+        // Open Paystack popup
+        if (payBtn) {
+            payBtn.addEventListener('click', function() {
+                if (!session || typeof PaystackPop === 'undefined') {
+                    if (status) status.textContent = 'Payment not ready. Please refresh the page.';
+                    return;
+                }
+                const handler = PaystackPop.setup({
+                    access_code: session.access_code,
+                    metadata: { order_id: {{ $order->id }} },
+                    callback: function(response) {
+                        // Redirect through the callback so the order page
+                        // verifies and shows the right status.
+                        window.location.href = '{{ route("shop.paystack.callback", $order) }}?reference=' + encodeURIComponent(response.reference || '');
+                    },
+                    onClose: function() {
+                        if (status) status.textContent = 'Payment window closed. You can retry or check below.';
+                    }
+                });
+                handler.openIframe();
+            });
+        }
 
         // Manual check
         if (checkBtn) {
@@ -569,7 +581,7 @@
                 if (status) {
                     status.textContent = data.throttled
                         ? 'Please wait before checking again.'
-                        : 'Payment not yet received. Transfer the exact amount, then click "I\'ve paid" below.';
+                        : 'Payment not yet received. If you just paid, we are confirming it now.';
                 }
             })
             .catch(function() {

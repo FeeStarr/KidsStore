@@ -21,8 +21,9 @@ class PaystackController extends Controller
     // ── Customer: initiate payment ────────────────────────────────────────────
 
     /**
-     * POST /orders/{order}/pay
-     * Creates a dedicated virtual account and returns it to the customer.
+     * POST /account/orders/{order}/pay
+     * Initializes a standard Paystack transaction and returns the data the
+     * front-end needs to open the Paystack Inline popup.
      */
     public function initiate(Request $request, Order $order): JsonResponse|RedirectResponse
     {
@@ -39,19 +40,64 @@ class PaystackController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success'                => true,
-                'reference'              => $transaction->reference,
-                'virtual_account_number' => $transaction->virtual_account_number,
-                'virtual_bank_name'      => $transaction->virtual_bank_name,
-                'amount'                 => (float) $transaction->amount,
-                'expires_at'             => $transaction->expires_at?->toISOString(),
-                'seconds_remaining'      => $transaction->secondsRemaining(),
-            ]);
+        $payload = $transaction->opay_payload['data'] ?? [];
+
+        $response = [
+            'success'           => true,
+            'reference'         => $transaction->reference,
+            'access_code'       => $payload['access_code'] ?? null,
+            'authorization_url' => $payload['authorization_url'] ?? null,
+            'public_key'        => $this->paystack->publicKey(),
+            'email'             => $order->customer?->email ?? '',
+            'amount'            => (float) $transaction->amount,
+            'amount_kobo'       => (int) round((float) $transaction->amount * 100),
+            'expires_at'        => $transaction->expires_at?->toISOString(),
+            'seconds_remaining' => $transaction->secondsRemaining(),
+        ];
+
+        session()->flash('paystack_transaction', $transaction->id);
+
+        return response()->json($response);
+    }
+
+    // ── Customer: Paystack redirect callback ─────────────────────────────────
+
+    /**
+     * GET /account/orders/{order}/pay/callback
+     * Paystack redirects the customer here after payment (popup fallback).
+     * Verifies the transaction and bounces back to the order page.
+     */
+    public function callback(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
+
+        $reference = $request->query('reference') ?? $request->query('trxref');
+
+        if ($reference) {
+            $transaction = $order->paymentTransactions()
+                ->where('reference', $reference)
+                ->orWhere('opay_order_no', $reference)
+                ->latest()
+                ->first();
+
+            if ($transaction) {
+                $transaction = $this->paystack->queryStatus($transaction);
+                $order->refresh();
+
+                if ($order->payment_status === 'paid') {
+                    return redirect()->route('shop.account.orders.show', $order)
+                        ->with('success', 'Payment confirmed. Thank you!');
+                }
+
+                if ($order->payment_status === 'under_review') {
+                    return redirect()->route('shop.account.orders.show', $order)
+                        ->with('info', 'Payment received and is under review.');
+                }
+            }
         }
 
-        return back()->with('paystack_transaction', $transaction->id);
+        return redirect()->route('shop.account.orders.show', $order)
+            ->with('error', 'We could not confirm your payment yet. Please check again shortly.');
     }
 
     // ── Customer: query status ────────────────────────────────────────────────
