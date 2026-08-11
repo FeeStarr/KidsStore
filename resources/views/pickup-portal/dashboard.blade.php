@@ -713,8 +713,6 @@ function portalPayNow(orderId) {
     var account = document.getElementById('ppn-account');
     var errDiv = document.getElementById('ppn-error');
     var amountEl = document.getElementById('ppn-amount');
-    var countdown = document.getElementById('ppn-countdown');
-    var checkBtn = document.getElementById('ppn-check-btn');
     var statusEl = document.getElementById('ppn-status');
     var payBtn = document.getElementById('ppn-pay-btn');
 
@@ -722,7 +720,7 @@ function portalPayNow(orderId) {
     loading.style.display = '';
     account.style.display = 'none';
     errDiv.style.display = 'none';
-    if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check Payment'; }
+    if (statusEl) statusEl.textContent = '';
 
     var bsModal = new bootstrap.Modal(modal);
     bsModal.show();
@@ -741,23 +739,6 @@ function portalPayNow(orderId) {
             amountEl.textContent = '\u20A6' + Number(data.amount).toLocaleString(undefined, {minimumFractionDigits: 2});
             modal.dataset.session = JSON.stringify(data);
             modal.dataset.orderId = orderId;
-
-            var seconds = data.seconds_remaining || 0;
-            function tick() {
-                if (seconds <= 0) { countdown.textContent = 'expired'; return; }
-                var m = Math.floor(seconds / 60);
-                var s = seconds % 60;
-                countdown.textContent = m + ':' + String(s).padStart(2, '0');
-                seconds--;
-                setTimeout(tick, 1000);
-            }
-            tick();
-
-            // Auto-poll
-            var pollInterval = setInterval(function() {
-                if (seconds > 0) portalCheckPayment(orderId);
-                else clearInterval(pollInterval);
-            }, 30000);
         } else {
             loading.style.display = 'none';
             errDiv.style.display = '';
@@ -782,29 +763,23 @@ function portalPayNow(orderId) {
                 access_code: session.access_code,
                 metadata: { order_id: orderId },
                 callback: function(response) {
-                    if (statusEl) statusEl.textContent = 'Payment completed. Confirming...';
+                    if (statusEl) statusEl.textContent = 'Payment received. Confirming...';
                     portalCheckPayment(orderId);
                 },
                 onClose: function() {
-                    if (statusEl) statusEl.textContent = 'Payment window closed.';
+                    if (statusEl) statusEl.textContent = 'Payment window closed. If the customer did not finish, try again.';
                 }
             });
             handler.openIframe();
         };
     }
-
-    if (checkBtn) {
-        checkBtn.onclick = function() { portalCheckPayment(orderId); };
-    }
 }
 
 function portalCheckPayment(orderId) {
-    var checkBtn = document.getElementById('ppn-check-btn');
     var statusEl = document.getElementById('ppn-status');
     var csrf = document.querySelector('meta[name="csrf-token"]').content;
 
-    if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking...'; }
-    if (statusEl) statusEl.textContent = '';
+    if (statusEl) statusEl.textContent = 'Checking...';
 
     fetch('/pickup-portal/orders/' + orderId + '/query-payment', {
         method: 'POST',
@@ -820,15 +795,12 @@ function portalCheckPayment(orderId) {
         }
         if (statusEl) {
             statusEl.textContent = data.throttled
-                ? 'Please wait before checking again.'
-                : 'Payment not yet received. Ask the customer to complete payment in the window.';
+                ? 'Please wait a moment...'
+                : 'Payment not yet received. If the customer just paid, we are confirming it now.';
         }
     })
     .catch(function() {
         if (statusEl) statusEl.textContent = 'Network error.';
-    })
-    .finally(function() {
-        if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Check Payment'; }
     });
 }
 </script>
@@ -848,20 +820,14 @@ function portalCheckPayment(orderId) {
                     <div class="small text-muted">Preparing payment...</div>
                 </div>
                 <div id="ppn-account" style="display:none">
-                    <p class="small text-muted mb-3">Click below to open the secure payment window. The customer picks their preferred method.</p>
+                    <p class="small text-muted mb-3">Open the secure payment window and let the customer pay with their preferred method.</p>
                     <div class="mb-3">
                         <span class="fw-bold fs-5 text-success" id="ppn-amount"></span>
                     </div>
-                    <button id="ppn-pay-btn" class="btn btn-success btn-lg mb-2">
+                    <button id="ppn-pay-btn" class="btn btn-success btn-lg px-4">
                         <i class="bi bi-credit-card me-1"></i>Open Payment Window
                     </button>
-                    <div class="small text-muted mb-3">
-                        Expires in <strong id="ppn-countdown">...</strong>
-                    </div>
-                    <button id="ppn-check-btn" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Check Payment
-                    </button>
-                    <div id="ppn-status" class="small text-muted mt-2"></div>
+                    <div id="ppn-status" class="small text-muted mt-3"></div>
                 </div>
                 <div id="ppn-error" style="display:none" class="text-danger small"></div>
             </div>
