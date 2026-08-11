@@ -651,14 +651,19 @@ class PickupPortalController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
+        $payload = $transaction->opay_payload['data'] ?? [];
+
         return response()->json([
-            'success'                => true,
-            'reference'              => $transaction->reference,
-            'virtual_account_number' => $transaction->virtual_account_number,
-            'virtual_bank_name'      => $transaction->virtual_bank_name,
-            'amount'                 => (float) $transaction->amount,
-            'expires_at'             => $transaction->expires_at?->toISOString(),
-            'seconds_remaining'      => $transaction->secondsRemaining(),
+            'success'           => true,
+            'reference'         => $transaction->reference,
+            'access_code'       => $payload['access_code'] ?? null,
+            'authorization_url' => $payload['authorization_url'] ?? null,
+            'public_key'        => $this->paystack->publicKey(),
+            'email'             => $order->customer?->email ?? '',
+            'amount'            => (float) $transaction->amount,
+            'amount_kobo'       => (int) round((float) $transaction->amount * 100),
+            'expires_at'        => $transaction->expires_at?->toISOString(),
+            'seconds_remaining' => $transaction->secondsRemaining(),
         ]);
     }
 

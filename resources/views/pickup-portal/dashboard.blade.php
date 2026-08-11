@@ -528,6 +528,7 @@
 @endif
 
 @push('scripts')
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Select all checkbox
@@ -705,18 +706,17 @@ setInterval(updateCountdowns, 1000);
 </script>
 
 <script>
-// Portal Pay Now — initiate Paystack virtual account for customer
+// Portal Pay Now — initiate standard Paystack transaction and open the popup
 function portalPayNow(orderId) {
     var modal = document.getElementById('portalPayNowModal');
     var loading = document.getElementById('ppn-loading');
     var account = document.getElementById('ppn-account');
     var errDiv = document.getElementById('ppn-error');
-    var bankName = document.getElementById('ppn-bank-name');
-    var acctNum = document.getElementById('ppn-account-number');
     var amountEl = document.getElementById('ppn-amount');
     var countdown = document.getElementById('ppn-countdown');
     var checkBtn = document.getElementById('ppn-check-btn');
     var statusEl = document.getElementById('ppn-status');
+    var payBtn = document.getElementById('ppn-pay-btn');
 
     // Reset
     loading.style.display = '';
@@ -738,9 +738,9 @@ function portalPayNow(orderId) {
         if (data.success) {
             loading.style.display = 'none';
             account.style.display = '';
-            bankName.textContent = data.virtual_bank_name || 'Paystack';
-            acctNum.textContent = data.virtual_account_number || '0000000000';
             amountEl.textContent = '\u20A6' + Number(data.amount).toLocaleString(undefined, {minimumFractionDigits: 2});
+            modal.dataset.session = JSON.stringify(data);
+            modal.dataset.orderId = orderId;
 
             var seconds = data.seconds_remaining || 0;
             function tick() {
@@ -753,10 +753,6 @@ function portalPayNow(orderId) {
             }
             tick();
 
-            // Store for check
-            modal.dataset.orderId = orderId;
-            modal.dataset.seconds = seconds;
-
             // Auto-poll
             var pollInterval = setInterval(function() {
                 if (seconds > 0) portalCheckPayment(orderId);
@@ -765,7 +761,7 @@ function portalPayNow(orderId) {
         } else {
             loading.style.display = 'none';
             errDiv.style.display = '';
-            errDiv.textContent = data.message || 'Could not generate payment account.';
+            errDiv.textContent = data.message || 'Could not prepare payment.';
         }
     })
     .catch(function() {
@@ -773,6 +769,29 @@ function portalPayNow(orderId) {
         errDiv.style.display = '';
         errDiv.textContent = 'Network error. Please try again.';
     });
+
+    if (payBtn) {
+        payBtn.onclick = function() {
+            var session;
+            try { session = JSON.parse(modal.dataset.session || 'null'); } catch (e) { session = null; }
+            if (!session || typeof PaystackPop === 'undefined') {
+                if (statusEl) statusEl.textContent = 'Payment not ready. Please try again.';
+                return;
+            }
+            var handler = PaystackPop.setup({
+                access_code: session.access_code,
+                metadata: { order_id: orderId },
+                callback: function(response) {
+                    if (statusEl) statusEl.textContent = 'Payment completed. Confirming...';
+                    portalCheckPayment(orderId);
+                },
+                onClose: function() {
+                    if (statusEl) statusEl.textContent = 'Payment window closed.';
+                }
+            });
+            handler.openIframe();
+        };
+    }
 
     if (checkBtn) {
         checkBtn.onclick = function() { portalCheckPayment(orderId); };
@@ -802,7 +821,7 @@ function portalCheckPayment(orderId) {
         if (statusEl) {
             statusEl.textContent = data.throttled
                 ? 'Please wait before checking again.'
-                : 'Payment not yet received. Customer should transfer the exact amount.';
+                : 'Payment not yet received. Ask the customer to complete payment in the window.';
         }
     })
     .catch(function() {
@@ -820,29 +839,22 @@ function portalCheckPayment(orderId) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-lightning me-2"></i>Paystack Bank Transfer</h5>
+                <h5 class="modal-title"><i class="bi bi-lightning me-2"></i>Paystack Payment</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
                 <div id="ppn-loading">
                     <div class="spinner-border text-primary mb-2" role="status"></div>
-                    <div class="small text-muted">Generating virtual account...</div>
+                    <div class="small text-muted">Preparing payment...</div>
                 </div>
                 <div id="ppn-account" style="display:none">
-                    <p class="small text-muted mb-3">Share these details with the customer. Transfer must be the exact amount.</p>
-                    <div class="bg-light rounded p-3 mb-3">
-                        <div class="small text-muted mb-1">Bank</div>
-                        <div class="fw-bold fs-5" id="ppn-bank-name"></div>
-                    </div>
-                    <div class="bg-light rounded p-3 mb-3">
-                        <div class="small text-muted mb-1">Account Number</div>
-                        <div class="fw-bold fs-3 font-monospace" id="ppn-account-number"></div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1"
-                                onclick="navigator.clipboard.writeText(document.getElementById('ppn-account-number').textContent);this.textContent='Copied!'">Copy</button>
-                    </div>
-                    <div class="mb-2">
+                    <p class="small text-muted mb-3">Click below to open the secure payment window. The customer picks their preferred method.</p>
+                    <div class="mb-3">
                         <span class="fw-bold fs-5 text-success" id="ppn-amount"></span>
                     </div>
+                    <button id="ppn-pay-btn" class="btn btn-success btn-lg mb-2">
+                        <i class="bi bi-credit-card me-1"></i>Open Payment Window
+                    </button>
                     <div class="small text-muted mb-3">
                         Expires in <strong id="ppn-countdown">...</strong>
                     </div>
