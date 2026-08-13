@@ -134,7 +134,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/login/2fa', [AdminAuthController::class, 'showTwoFactorForm'])->name('login.2fa');
         Route::post('/login/2fa', [AdminAuthController::class, 'verifyTwoFactor'])->name('login.verify-2fa');
     });
-    Route::post('/logout', [AdminAuthController::class, 'logout'])
+    Route::match(['get', 'post'], '/logout', [AdminAuthController::class, 'logout'])
         ->middleware('auth.admin')->name('logout');
 
     // Protected admin routes
