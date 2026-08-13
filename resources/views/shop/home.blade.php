@@ -23,21 +23,89 @@
 </div>
 
 <div class="feature-strip p-3 p-md-4 mb-5">
-    <div class="row g-3 text-center">
-        <div class="col-6 col-md-3 feat">
+    <div class="fill-row gap-3 text-center">
+        <div class="feat fill-tile px-2">
             <i style="background:var(--kid-pink);"><i class="bi bi-truck"></i></i>
             <div class="mt-2"><strong>Fast Delivery</strong><br><small class="text-muted">Right to your door</small></div>
         </div>
-        <div class="col-6 col-md-3 feat">
+        <div class="feat fill-tile px-2">
             <i style="background:var(--kid-blue);"><i class="bi bi-shield-check"></i></i>
             <div class="mt-2"><strong>Safe & Trusted</strong><br><small class="text-muted">Quality guaranteed</small></div>
         </div>
-        <div class="col-6 col-md-3 feat">
+        <div class="feat fill-tile px-2">
             <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
             <div class="mt-2"><strong>Kid Approved</strong><br><small class="text-muted">Smiles every time</small></div>
         </div>
     </div>
 </div>
+
+@if($coupons->count())
+@php
+    $promoPalette = [
+        ['#ffd166', '#ff9f43', '#fff6e0'],   // sunshine
+        ['#4cc9f0', '#3a86ff', '#e8f7ff'],   // sky
+        ['#06d6a0', '#00b894', '#e6fbf3'],   // mint
+        ['#ff6fa3', '#ff4f8e', '#fff0f6'],   // pink
+        ['#c084fc', '#9b5de5', '#f6ecff'],   // grape
+        ['#ff8c42', '#ff6b35', '#fff1e6'],   // peach
+    ];
+@endphp
+<div class="promo-section mb-5">
+    <div class="text-center mb-4">
+        <div class="promo-title">
+            <i class="bi bi-ticket-perforated-fill"></i> Today's Promo Codes
+        </div>
+        <div class="promo-sub mt-2">Snag these special codes &amp; save on your little one's favourites!</div>
+    </div>
+    <div class="fill-row gap-3">
+        @foreach($coupons as $i => $c)
+            @php
+                [$light, $accent, $chipBg] = $promoPalette[$i % count($promoPalette)];
+            @endphp
+            <div class="fill-tile">
+                <div class="promo-ticket" style="--promo-bg:{{ $light }};">
+                    <span class="promo-notch left" style="background:{{ $light }};"></span>
+                    <span class="promo-notch right" style="background:{{ $light }};"></span>
+                    <span class="promo-save" style="background:{{ $accent }};">{{ $c->discount_label }}</span>
+                    <div class="text-center mt-3">
+                        <div class="small fw-semibold text-uppercase" style="color:{{ $accent }}; letter-spacing:1px;">{{ $c->name }}</div>
+                        <div class="promo-code-chip mt-2 mb-2">{{ strtoupper($c->code) }}</div>
+                        <div>
+                            <button type="button" class="promo-copy-btn promo-home-copy" data-code="{{ $c->code }}">
+                                <i class="bi bi-clipboard"></i> Copy code
+                            </button>
+                        </div>
+                        @if($c->minimum_order_amount)
+                            <div class="promo-min mt-3"><i class="bi bi-info-circle"></i> Min. order &#8358;{{ number_format($c->minimum_order_amount, 2) }}</div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.promo-home-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const code = btn.dataset.code;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+        setTimeout(() => { btn.innerHTML = original; }, 1500);
+    });
+});
+</script>
+@endif
 
 @if($categories->count())
 @php
@@ -53,15 +121,15 @@
 <div class="text-center mb-3">
     <span class="section-title fs-5"><i class="bi bi-grid-3x3-gap-fill text-warning"></i> Shop by Category</span>
 </div>
-<div class="row g-3 mb-5">
+<div class="fill-row gap-3 mb-5">
     @foreach($categories as $i => $c)
         @php
             $tile = $tilePalette[$i % count($tilePalette)];
             $slug = strtolower($c->slug ?? '');
             $icon = $iconMap[$slug] ?? 'bi-balloon-heart-fill';
         @endphp
-        <div class="col-6 col-md-4 col-lg-2">
-            <a href="{{ route('shop.products.index', ['category' => $c->id]) }}" class="text-decoration-none">
+        <div class="fill-tile">
+            <a href="{{ route('shop.products.index', ['category' => $c->id]) }}" class="text-decoration-none h-100 d-block">
                 <div class="kid-tile {{ $tile }} h-100">
                     <i class="bi {{ $icon }}"></i>
                     <strong>{{ $c->name }}</strong>

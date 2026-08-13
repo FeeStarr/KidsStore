@@ -127,6 +127,19 @@
                     <button class="btn btn-primary">Apply</button>
                 </div>
             </form>
+
+            @if(isset($active_coupons) && $active_coupons->count())
+                <div class="mt-3">
+                    <div class="text-muted small mb-1"><i class="bi bi-ticket-perforated"></i> Active promo codes:</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($active_coupons as $c)
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill promo-code"
+                                    data-code="{{ $c->code }}">{{ strtoupper($c->code) }}</button>
+                        @endforeach
+                    </div>
+                    <small class="text-muted d-block mt-1">Click a code to fill it in.</small>
+                </div>
+            @endif
         </div>
     </div>
 @endif
@@ -149,6 +162,15 @@
 
 @push('scripts')
 <script>
+document.querySelectorAll('.promo-code').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.querySelector('input[name="code"]');
+        if (input) {
+            input.value = btn.dataset.code;
+            input.focus();
+        }
+    });
+});
 document.querySelectorAll('form[data-cart-form]').forEach(form => {
     const input = form.querySelector('.qty-input');
     const inc   = form.querySelector('.qty-inc');

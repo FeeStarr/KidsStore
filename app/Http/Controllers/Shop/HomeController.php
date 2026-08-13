@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\CouponService;
 
 class HomeController extends Controller
 {
+    public function __construct(private CouponService $coupons)
+    {
+    }
+
     public function index()
     {
         $featured = Product::with(['primaryImage', 'variants.inventory', 'defaultVariant'])
@@ -27,6 +32,8 @@ class HomeController extends Controller
             ->take(8)
             ->get();
 
-        return view('shop.home', compact('featured', 'categories'));
+        $coupons = $this->coupons->activeForDisplay();
+
+        return view('shop.home', compact('featured', 'categories', 'coupons'));
     }
 }

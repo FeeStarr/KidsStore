@@ -84,6 +84,14 @@ class OrderService
             return $order->fresh('items.product');
         });
 
+        // Orders created straight through to confirmed (pay-at-pickup, pay-on-
+        // delivery, admin-created) never pass through confirm(), so the
+        // "order placed" email fires here. Pending-payment orders are notified
+        // when their payment is verified later in confirm().
+        if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+            $this->notifyOrderPlaced($order);
+        }
+
         return $order;
     }
 

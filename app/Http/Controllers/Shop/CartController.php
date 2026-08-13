@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\ProductVariant;
 use App\Services\CartService;
+use App\Services\CouponService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
-    public function __construct(private CartService $cart)
+    public function __construct(private CartService $cart, private CouponService $coupons)
     {
     }
 
@@ -29,6 +30,7 @@ class CartController extends Controller
             'subtotal'        => $this->cart->subtotal(),
             'coupon'          => $coupon,
             'coupon_discount' => $couponDiscount,
+            'active_coupons'  => $this->coupons->activeForDisplay(),
         ]);
     }
 

@@ -31,6 +31,20 @@ class CouponService
         return strtolower(trim($code));
     }
 
+    /**
+     * Active coupons worth showing to customers (storefront display).
+     * Excludes inactive/expired/not-yet-started coupons and any whose global
+     * usage limit has been reached.
+     */
+    public function activeForDisplay(): Collection
+    {
+        return Coupon::active()
+            ->where(fn ($q) => $q->whereNull('usage_limit')->orWhereColumn('usage_count', '<', 'usage_limit'))
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+    }
+
     public function create(array $data, array $productIds = [], array $variantIds = []): Coupon
     {
         return DB::transaction(function () use ($data, $productIds, $variantIds) {
