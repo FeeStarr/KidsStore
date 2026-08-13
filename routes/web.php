@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ReturnPolicyController as AdminReturnPolicyContro
 use App\Http\Controllers\Admin\PrivacyPolicyController as AdminPrivacyPolicyController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DealController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\Shop\AuthController as ShopAuthController;
 use App\Http\Controllers\Shop\PasswordResetController as ShopPasswordResetController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
+use App\Http\Controllers\Shop\DealController as ShopDealController;
 use App\Http\Controllers\Shop\RefundController as ShopRefundController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\ReviewController;
@@ -50,6 +52,9 @@ Route::name('shop.')->group(function () {
     Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send');
     Route::get('/shop', [ShopController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('products.show');
+
+    Route::get('/deals', [ShopDealController::class, 'index'])->name('deals.index');
+    Route::get('/deals/{deal}', [ShopDealController::class, 'show'])->name('deals.show');
 
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart/{variant}', [CartController::class, 'add'])->name('cart.add');
@@ -165,6 +170,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('variants.destroy')->middleware('permission:manage_products');
 
         Route::resource('categories', CategoryController::class)->except(['show'])->middleware('permission:manage_categories');
+
+        Route::get('deals', [DealController::class, 'index'])->name('deals.index')->middleware('permission:manage_deals');
+        Route::get('deals/create', [DealController::class, 'create'])->name('deals.create')->middleware('permission:manage_deals');
+        Route::post('deals', [DealController::class, 'store'])->name('deals.store')->middleware('permission:manage_deals');
+        Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show')->middleware('permission:manage_deals');
+        Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit')->middleware('permission:manage_deals');
+        Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update')->middleware('permission:manage_deals');
+        Route::post('deals/{deal}/cancel', [DealController::class, 'cancel'])->name('deals.cancel')->middleware('permission:manage_deals');
+        Route::post('deals/{deal}/duplicate', [DealController::class, 'duplicate'])->name('deals.duplicate')->middleware('permission:manage_deals');
+        Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy')->middleware('permission:manage_deals');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])

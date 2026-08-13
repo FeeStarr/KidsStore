@@ -23,6 +23,8 @@
 
     $avgRating = (float) ($product->reviews_avg_rating ?? 0);
     $reviewsCount = (int) ($product->reviews_count ?? 0);
+
+    $deal = app(\App\Services\DealService::class)->activeDealForProduct($product);
 @endphp
 <div class="card product-card h-100 shadow-sm border-0 {{ $stock <= 0 ? 'opacity-50' : '' }}">
     <a href="{{ route('shop.products.show', $product) }}" class="text-decoration-none text-dark">
@@ -46,7 +48,31 @@
                 <div class="small text-muted mb-1">&#9733; {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
             @endif
             <div>
-                @if($multiVariant)
+                @if($deal)
+                    @php
+                        $base = $multiVariant
+                            ? (float) $product->price_from
+                            : (float) ($defaultVariant?->selling_price ?? $product->selling_price);
+                        $dealBase = $multiVariant
+                            ? $product->variants()->where('is_active', true)->get()
+                                ->map(fn ($v) => (float) $v->selling_price)
+                                ->filter(fn ($p) => $p > 0)
+                                ->min() ?? $base
+                            : $base;
+                        $dealPrice = $deal->priceFor($dealBase);
+                        $saved     = max(0, $dealBase - $dealPrice);
+                    @endphp
+                    @if($multiVariant)
+                        <small class="text-muted">from</small>
+                    @endif
+                    <span class="price-old">&#8358;{{ number_format($dealBase, 2) }}</span>
+                    <strong class="text-danger ms-1">&#8358;{{ number_format($dealPrice, 2) }}</strong>
+                    @if($saved > 0)
+                        <div class="small text-danger fw-semibold">{{ $deal->badge_text }} &middot; Save &#8358;{{ number_format($saved, 2) }}</div>
+                    @else
+                        <span class="badge bg-danger ms-1">{{ $deal->badge_text }}</span>
+                    @endif
+                @elseif($multiVariant)
                     <small class="text-muted">from</small>
                     <strong>&#8358;{{ number_format($product->price_from, 2) }}</strong>
                     @if($displayDiscount > 0)

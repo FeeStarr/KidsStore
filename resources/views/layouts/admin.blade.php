@@ -24,6 +24,7 @@
         div.dt-buttons { margin-bottom: .75rem; }
         div.dt-buttons .btn { margin-right: .35rem; color: #fff !important; }
         div.dt-buttons .btn:hover { color: #fff !important; opacity: .92; }
+        .price-old { text-decoration: line-through; color: #aaa; font-size: .9rem; }
     </style>
 </head>
 <body>
@@ -43,6 +44,9 @@
                     @php($r = request()->route()?->getName())
                     <a href="{{ route('admin.dashboard') }}" class="{{ $r==='admin.dashboard' ? 'active':'' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
                     <a href="{{ route('admin.products.index') }}" class="{{ str_starts_with($r ?? '', 'admin.products') ? 'active':'' }}"><i class="bi bi-box-seam"></i> Products</a>
+                    @if(auth()->user()->hasPermission('manage_deals'))
+                        <a href="{{ route('admin.deals.index') }}" class="{{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
+                    @endif
                     <a href="{{ route('admin.categories.index') }}" class="{{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
                     <a href="{{ route('admin.inventory.index') }}" class="{{ str_starts_with($r ?? '', 'admin.inventory') ? 'active':'' }}"><i class="bi bi-archive"></i> Inventory</a>
                     <a href="{{ route('admin.purchases.index') }}" class="{{ str_starts_with($r ?? '', 'admin.purchases') ? 'active':'' }}"><i class="bi bi-truck"></i> Purchases</a>

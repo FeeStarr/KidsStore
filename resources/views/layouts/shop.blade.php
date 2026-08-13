@@ -111,6 +111,7 @@
         <ul class="navbar-nav me-auto">
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.about') }}">About</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.contact') }}">Contact</a></li>
         </ul>

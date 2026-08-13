@@ -208,6 +208,7 @@ class User extends Authenticatable
             'manage_payment_gateway' => [self::ROLE_SUPERADMIN],
             'view_reports' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN],
             'manage_coupons' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN],
+            'manage_deals' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN],
             'update_order_status' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN, self::ROLE_VENDOR, self::ROLE_STAFF],
             'view_customer_data' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN],
             'update_inventory' => [self::ROLE_ADMIN, self::ROLE_SUPERADMIN, self::ROLE_VENDOR, self::ROLE_STAFF],

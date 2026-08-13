@@ -118,8 +118,16 @@
                                 <small class="text-muted d-block">{{ $line->variant->options_label }}</small>
                             @endif
                             <small class="text-muted">×{{ $line->quantity }}</small>
+                            @if(!empty($line->deal_id))
+                                <span class="badge bg-danger-subtle text-danger d-inline-block mt-1">Deal Price</span>
+                            @endif
                         </span>
-                        <strong>&#8358;{{ number_format($line->line_total, 2) }}</strong>
+                        <strong>
+                            @if(!empty($line->deal_id) && !empty($line->original_unit_price))
+                                <span class="price-old d-block small">&#8358;{{ number_format($line->original_unit_price, 2) }}</span>
+                            @endif
+                            &#8358;{{ number_format($line->line_total, 2) }}
+                        </strong>
                     </li>
                 @endforeach
             </ul>

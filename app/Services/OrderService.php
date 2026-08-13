@@ -20,8 +20,10 @@ use RuntimeException;
  */
 class OrderService
 {
-    public function __construct(private InventoryServiceInterface $inventory)
-    {
+    public function __construct(
+        private InventoryServiceInterface $inventory,
+        private DealService $deals,
+    ) {
     }
 
     /**
@@ -230,12 +232,31 @@ class OrderService
     {
         $variant   = $this->resolveVariant($row);
         $product   = $variant->product;
-        $unitPrice = (float) ($row['unit_price'] ?? $variant->selling_price ?: $product->selling_price);
-        // Discount is a PERCENTAGE (0-100) applied to the unit price.
-        $discount       = (float) ($row['discount'] ?? 0);
-        $quantity       = (int) $row['quantity'];
-        $discountAmount = $unitPrice * ($discount / 100);
-        $lineTotal      = ($unitPrice - $discountAmount) * $quantity;
+
+        $quantity = (int) $row['quantity'];
+
+        // A deal reference is revalidated server-side here: only a LIVE deal
+        // may affect pricing (Rule 1). The cart/checkout price is not trusted.
+        $dealId = isset($row['deal_id']) && (int) $row['deal_id'] > 0 ? (int) $row['deal_id'] : null;
+        $deal   = $dealId ? \App\Models\Deal::find($dealId) : null;
+
+        if ($deal && $deal->is_live) {
+            // Base price is re-read from the variant, never from the client.
+            $base              = (float) ($variant->selling_price ?: $product->selling_price);
+            $unitPrice         = $deal->priceFor($base);
+            $originalUnitPrice = $base;
+            $discountAmount    = $deal->discountFor($base);
+            $discount          = 0.0;
+            $lineTotal         = $unitPrice * $quantity;
+        } else {
+            $unitPrice         = (float) ($row['unit_price'] ?? $variant->selling_price ?: $product->selling_price);
+            $discount          = (float) ($row['discount'] ?? 0);
+            $discountAmount    = $unitPrice * ($discount / 100);
+            $lineTotal         = ($unitPrice - $discountAmount) * $quantity;
+            $originalUnitPrice = $unitPrice;
+            $dealId            = null;
+        }
+
         $landedUnitCost = $this->resolveLandedUnitCost($variant->id);
         // Calculate pickup station fee for this item (if order is pickup)
         $pickupFeePct = 0.0;
@@ -253,8 +274,11 @@ class OrderService
             'selected_size'      => $variant->sizeRef?->name ?? ($row['selected_size'] ?? null),
             'quantity'           => $quantity,
             'unit_price'         => $unitPrice,
+            'original_unit_price'=> $originalUnitPrice,
             'landed_unit_cost'   => $landedUnitCost,
             'discount'           => $discount,
+            'discount_amount'    => $discountAmount,
+            'deal_id'            => $dealId,
             'line_total'         => $lineTotal,
             'pickup_station_fee' => $pickupStationFee,
         ]);

@@ -17,6 +17,10 @@ class CartService
 {
     private const SESSION_KEY = 'cart';
 
+    public function __construct(private DealService $deals)
+    {
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
 
     public function add(int $variantId, int $quantity = 1, ?string $ageGroup = null, ?string $selectedSize = null): void
@@ -116,10 +120,11 @@ class CartService
                 return null;
             }
 
-            $unit      = (float) $variant->selling_price;
-            $discount  = (float) $variant->effective_discount;
-            $netUnit   = $unit * (1 - $discount / 100);
-            $lineTotal = $netUnit * $qty;
+            $pricing    = $this->deals->priceForVariant($variant);
+            $unit       = (float) $pricing['unit_price'];
+            $discount   = (float) $pricing['discount'];
+            $netUnit    = (float) $pricing['net_unit'];
+            $lineTotal  = $netUnit * $qty;
 
             return (object) [
                 'line_key'   => $lineKey,
@@ -129,9 +134,13 @@ class CartService
                 'age_group'  => $selectedAgeGroup,
                 'selected_size' => $selectedSize,
                 'unit_price' => $unit,
+                'original_unit_price' => (float) $pricing['original_unit_price'],
                 'discount'   => $discount,
+                'discount_amount' => (float) $pricing['discount_amount'],
                 'net_unit'   => $netUnit,
                 'line_total' => $lineTotal,
+                'deal_id'    => $pricing['deal_id'],
+                'deal'       => $pricing['deal'],
             ];
         })->filter()->values();
     }

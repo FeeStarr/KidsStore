@@ -38,11 +38,13 @@
     }
 
     // Variant data for JS resolver — each row IS the full (color + age + size) combo
-    $variantsData = $variants->map(function ($v) use ($product, $cartQtys, $colorImgs) {
+    $deal = app(\App\Services\DealService::class)->activeDealForProduct($product);
+    $variantsData = $variants->map(function ($v) use ($product, $cartQtys, $colorImgs, $deal) {
         $imgs = $v->images->isNotEmpty()
             ? $v->images->map(fn ($i) => $i->url)->all()
             : ($colorImgs[$v->colorRef?->name ?? 'Default']
                 ?: $product->images->map(fn ($i) => $i->url)->all());
+        $dealPrice = $deal ? (float) $deal->priceFor((float) $v->selling_price) : null;
         return [
             'id'            => $v->id,
             'sku'           => $v->sku,
@@ -58,6 +60,8 @@
             'discount'      => (float) $v->effective_discount,
             'variant_discount' => (float) $v->discount,
             'product_discount' => (float) ($v->product?->discount ?? 0),
+            'deal_price'    => $dealPrice,
+            'deal_discount_amount' => $dealPrice !== null ? round(max(0, (float) $v->selling_price - $dealPrice), 2) : null,
             'stock'         => (int) ($v->inventory?->quantity ?? 0),
             'in_cart'       => (int) ($cartQtys[$v->id] ?? 0),
             'image_url'     => $v->image?->url,
@@ -78,6 +82,8 @@
     }
 
     $hasDiscount = (float) ($defaultVariant?->effective_discount ?? 0) > 0;
+    $defaultDealPrice = $deal ? (float) $deal->priceFor((float) ($defaultVariant?->selling_price ?? 0)) : null;
+    $hasDeal = $deal !== null && $defaultDealPrice !== null;
     $stock       = (int) ($defaultVariant?->inventory?->quantity ?? 0);
     $inCart      = (int) ($cartQtys[$defaultVariant?->id ?? 0] ?? 0);
     $remaining   = max($stock - $inCart, 0);
@@ -148,12 +154,31 @@
             <small class="text-muted">{{ number_format($avg, 1) }} ({{ $count }} reviews)</small>
         </div>
 
-        <div class="mb-3" data-pdp="price-block">
-            {{-- All 3 elements always exist in DOM so JS can show/hide for any variant --}}
-            <span class="price-old fs-5 {{ $hasDiscount ? '' : 'd-none' }}" data-pdp="price-old">&#8358;{{ number_format($defaultVariant?->selling_price ?? 0, 2) }}</span>
-            <span class="fs-3 fw-bold {{ $hasDiscount ? 'text-danger ms-2' : '' }}" data-pdp="price-net">&#8358;{{ number_format($hasDiscount ? $defaultVariant?->net_price ?? 0 : $defaultVariant?->selling_price ?? 0, 2) }}</span>
-            <span class="badge bg-danger ms-2 {{ $hasDiscount ? '' : 'd-none' }}" data-pdp="price-badge">-{{ rtrim(rtrim(number_format($defaultVariant?->discount ?? 0, 2), '0'), '.') }}%</span>
-        </div>
+        @if($hasDeal)
+            <div class="mb-3 border rounded-3 p-3" data-pdp="deal-panel">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-danger fs-6">&#128293; SPECIAL DEAL</span>
+                    <span class="badge bg-danger-subtle text-danger">{{ $deal->badge_text }}</span>
+                </div>
+                <div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="fs-3 fw-bold text-danger" data-pdp="deal-price">&#8358;{{ number_format($defaultDealPrice, 2) }}</span>
+                    <span class="price-old" data-pdp="deal-old">&#8358;{{ number_format($defaultVariant?->selling_price ?? 0, 2) }}</span>
+                </div>
+                <div class="small text-success" data-pdp="deal-saved">
+                    Save &#8358;{{ number_format(max(0, ($defaultVariant?->selling_price ?? 0) - $defaultDealPrice), 2) }}
+                </div>
+                @if($deal->ends_at)
+                    <div class="small text-muted mt-1"><i class="bi bi-clock me-1"></i>Deal ends {{ $deal->ends_at->diffForHumans(['parts' => 2, 'short' => true]) }}</div>
+                @endif
+            </div>
+        @else
+            <div class="mb-3" data-pdp="price-block">
+                {{-- All 3 elements always exist in DOM so JS can show/hide for any variant --}}
+                <span class="price-old fs-5 {{ $hasDiscount ? '' : 'd-none' }}" data-pdp="price-old">&#8358;{{ number_format($defaultVariant?->selling_price ?? 0, 2) }}</span>
+                <span class="fs-3 fw-bold {{ $hasDiscount ? 'text-danger ms-2' : '' }}" data-pdp="price-net">&#8358;{{ number_format($hasDiscount ? $defaultVariant?->net_price ?? 0 : $defaultVariant?->selling_price ?? 0, 2) }}</span>
+                <span class="badge bg-danger ms-2 {{ $hasDiscount ? '' : 'd-none' }}" data-pdp="price-badge">-{{ rtrim(rtrim(number_format($defaultVariant?->discount ?? 0, 2), '0'), '.') }}%</span>
+            </div>
+        @endif
 
         <p>{{ $product->description }}</p>
 
@@ -415,16 +440,32 @@
         const priceNet   = document.querySelector('[data-pdp="price-net"]');
         const priceOld   = document.querySelector('[data-pdp="price-old"]');
         const priceBadge = document.querySelector('[data-pdp="price-badge"]');
+        const dealPanel  = document.querySelector('[data-pdp="deal-panel"]');
+        const dealPrice  = document.querySelector('[data-pdp="deal-price"]');
+        const dealOld    = document.querySelector('[data-pdp="deal-old"]');
+        const dealSaved  = document.querySelector('[data-pdp="deal-saved"]');
         // SKU is intentionally not displayed on the product details page.
 
-        if (v.discount > 0) {
-            if (priceOld)   { priceOld.textContent = fmt(v.selling_price); priceOld.classList.remove('d-none'); }
-            if (priceBadge) { priceBadge.textContent = '-' + (v.discount % 1 === 0 ? v.discount.toFixed(0) : v.discount.toFixed(2)) + '%'; priceBadge.classList.remove('d-none'); }
-            if (priceNet)   { priceNet.textContent = fmt(v.net_price); priceNet.classList.add('text-danger', 'ms-2'); }
+        if (v.deal_price != null) {
+            const saved = Math.max(0, v.selling_price - v.deal_price);
+            if (dealPanel) dealPanel.style.display = '';
+            if (dealPrice) dealPrice.textContent = fmt(v.deal_price);
+            if (dealOld)   dealOld.textContent   = fmt(v.selling_price);
+            if (dealSaved) dealSaved.textContent = 'Save ₦' + Number(saved).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            if (priceNet && priceOld) { priceOld.classList.add('d-none'); priceNet.style.display = 'none'; }
         } else {
-            if (priceOld)   priceOld.classList.add('d-none');
-            if (priceBadge) priceBadge.classList.add('d-none');
-            if (priceNet)   { priceNet.textContent = fmt(v.selling_price); priceNet.classList.remove('text-danger', 'ms-2'); }
+            if (dealPanel) dealPanel.style.display = 'none';
+            if (priceNet)  priceNet.style.display = '';
+
+            if (v.discount > 0) {
+                if (priceOld)   { priceOld.textContent = fmt(v.selling_price); priceOld.classList.remove('d-none'); }
+                if (priceBadge) { priceBadge.textContent = '-' + (v.discount % 1 === 0 ? v.discount.toFixed(0) : v.discount.toFixed(2)) + '%'; priceBadge.classList.remove('d-none'); }
+                if (priceNet)   { priceNet.textContent = fmt(v.net_price); priceNet.classList.add('text-danger', 'ms-2'); }
+            } else {
+                if (priceOld)   priceOld.classList.add('d-none');
+                if (priceBadge) priceBadge.classList.add('d-none');
+                if (priceNet)   { priceNet.textContent = fmt(v.selling_price); priceNet.classList.remove('text-danger', 'ms-2'); }
+            }
         }
 
         // Carousel

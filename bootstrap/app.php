@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('pickups:check-expired')->dailyAt('23:00');
         $schedule->command('pickups:send-reminders')->dailyAt('09:00');
         $schedule->command('returns:check-sla')->dailyAt('08:00');
+        $schedule->command('deals:sync-status')->everyFiveMinutes();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\LogUserActivity::class);
