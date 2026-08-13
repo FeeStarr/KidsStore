@@ -157,6 +157,10 @@
 
         <p>{{ $product->description }}</p>
 
+        <div class="mb-2 small text-muted" id="pdp-color-row" data-pdp="color-row"
+             style="{{ $defaultVariant?->colorRef?->name ? '' : 'display:none' }}">
+            Color: <strong data-pdp="color-name" class="text-dark">{{ $defaultVariant?->colorRef?->name ?? '' }}</strong>
+        </div>
 
         @if($variants->count() > 1)
             {{-- Color thumbnails --}}
@@ -444,6 +448,12 @@
             b.classList.toggle('border-primary', isActive);
             b.classList.toggle('border-light',   !isActive);
         });
+
+        // Update the visible colour name label
+        const colorRow  = document.querySelector('[data-pdp="color-row"]');
+        const colorName = document.querySelector('[data-pdp="color-name"]');
+        if (colorRow)  colorRow.style.display  = v.color ? '' : 'none';
+        if (colorName) colorName.textContent = v.color || '';
     }
 
     // ── Thumbnail click ──────────────────────────────────────────────────────

@@ -15,11 +15,12 @@ class Product extends Model
     protected $fillable = [
         'category_id', 'brand_id', 'sku', 'name', 'slug', 'description', 'image', 'status',
         'age_group', 'gender', 'brand',
-        'selling_price', 'discount', 'stock_quantity', 'is_active', 'is_returnable',
+        'selling_price', 'discount', 'cost_price', 'stock_quantity', 'is_active', 'is_returnable',
     ];
 
     protected $casts = [
         'selling_price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'discount' => 'decimal:2',
         'is_active' => 'boolean',
         'is_returnable' => 'boolean',

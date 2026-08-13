@@ -257,6 +257,23 @@ class PurchaseService
             if ((float) $item->selling_price > 0) {
                 $variant->update(['selling_price' => $item->selling_price]);
             }
+
+            // Sync the product's cost price (landed unit cost) and selling price.
+            // Cost price lives on the product because it is typically the same
+            // across all variants of a product.
+            if ($product = $variant->product) {
+                $unitCost = (float) $item->cost_price
+                          + (float) $item->shipping_fee
+                          + (float) $item->packaging_cost
+                          + (float) $item->other_costs;
+                $unitCost = round($unitCost * (1 - ((float) $item->discount / 100)), 2);
+
+                $updates = ['cost_price' => $unitCost];
+                if ((float) $item->selling_price > 0) {
+                    $updates['selling_price'] = (float) $item->selling_price;
+                }
+                $product->update($updates);
+            }
         }
     }
 }

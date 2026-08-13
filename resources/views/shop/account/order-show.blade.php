@@ -6,6 +6,24 @@
     <a href="{{ route('shop.account.orders.index') }}" class="btn btn-outline-secondary btn-sm">Back to orders</a>
 </div>
 
+@if($order->payment_status === 'paid')
+<div class="card border-success mb-3" id="payment-success-panel">
+    <div class="card-body d-flex align-items-center">
+        <div class="me-3">
+            <i class="bi bi-check-circle-fill text-success" style="font-size:2.5rem"></i>
+        </div>
+        <div>
+            <h5 class="mb-1 text-success"><i class="bi bi-shield-check me-1"></i>Payment Successful</h5>
+            <p class="mb-1">Your payment has been confirmed. Thank you for your purchase!</p>
+            <small class="text-muted">
+                Amount paid: <strong>&#8358;{{ number_format($order->amount_paid, 2) }}</strong> &middot;
+                Order status: <span class="badge text-bg-primary">{{ $order->getStatusLabel() }}</span>
+            </small>
+        </div>
+    </div>
+</div>
+@endif
+
 @if(($order->payment_method === 'instant_bank_transfer' || session('show_pay_now')) && $order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled', 'expired']))
 <div class="card border-primary mb-3" id="pay-now-panel">
     <div class="card-body text-center py-4">
@@ -500,9 +518,32 @@
                             window.location.href = '{{ route("shop.paystack.callback", $order) }}?reference=' + encodeURIComponent(response.reference || '');
                         },
                         onClose: function() {
-                            payBtn.disabled = false;
-                            payBtn.innerHTML = '<i class="bi bi-credit-card me-1"></i>Pay Now';
-                            if (status) status.textContent = 'Payment window closed. If you did not finish, you can try again.';
+                            // Payment may have gone through even though the window
+                            // was closed (e.g. page refreshed on Paystack's side).
+                            // Re-check server-side so the page reflects reality.
+                            payBtn.disabled = true;
+                            payBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Confirming...';
+                            if (status) status.textContent = 'Checking payment status...';
+
+                            fetch('{{ route("shop.paystack.query", $order) }}', {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+                            })
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) {
+                                if (data.paid || data.payment_status === 'paid') {
+                                    location.reload();
+                                    return;
+                                }
+                                payBtn.disabled = false;
+                                payBtn.innerHTML = '<i class="bi bi-credit-card me-1"></i>Pay Now';
+                                if (status) status.textContent = 'Payment not completed. If you closed the window without paying, you can try again.';
+                            })
+                            .catch(function() {
+                                payBtn.disabled = false;
+                                payBtn.innerHTML = '<i class="bi bi-credit-card me-1"></i>Pay Now';
+                                if (status) status.textContent = 'Could not confirm payment status. Please click Pay Now to retry.';
+                            });
                         }
                     });
                     handler.openIframe();

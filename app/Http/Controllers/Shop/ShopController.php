@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgeRange;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -51,6 +52,11 @@ class ShopController extends Controller
             });
         }
 
+        // Filter by age range (variant-level age_range_id).
+        if ($ageRangeId = $request->integer('age_range')) {
+            $query->whereHas('variants', fn ($v) => $v->where('is_active', true)->where('age_range_id', $ageRangeId));
+        }
+
         $sort = $request->string('sort')->toString();
         match ($sort) {
             'price_asc'  => $query->orderBy('selling_price'),
@@ -66,7 +72,9 @@ class ShopController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('shop.products.index', compact('products', 'categories', 'activeCategory'));
+        $ageRanges = AgeRange::where('is_active', true)->orderBy('name')->get();
+
+        return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges'));
     }
 
     public function show(Product $product)
