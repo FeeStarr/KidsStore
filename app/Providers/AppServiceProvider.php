@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\CartService;
 use App\Services\Contracts\InventoryServiceInterface;
 use App\Services\InventoryService;
+use Illuminate\Database\Connection;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -20,6 +21,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        // Use a guarded connection that refuses destructive queries
+        // (TRUNCATE / DROP / unbounded DELETE) outside test environments,
+        // so live data can never be wiped by accident.
+        Connection::resolverFor('mysql', function ($connection, $database, $prefix, $config) {
+            return new \App\Database\SafeMysqlConnection(
+                $connection, $database, $prefix, $config
+            );
+        });
 
         View::composer('shop.*', function ($view) {
             $cart = app(CartService::class);

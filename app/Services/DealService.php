@@ -168,9 +168,14 @@ class DealService
             ->whereNotIn('status', [Deal::STATUS_DRAFT, Deal::STATUS_CANCELLED])
             ->when($ignoreDealId, fn ($q) => $q->whereKeyNot($ignoreDealId))
             ->where(function ($q) use ($start, $end) {
-                // Overlap: other.starts_at <= new.end AND other.ends_at >= new.start
+                // Overlap: other.starts_at <= (new.end OR forever) AND other.ends_at >= new.start
                 $q->where(function ($inner) use ($start, $end) {
-                    $inner->whereNull('starts_at')->orWhere('starts_at', '<=', $end);
+                    if ($end === null) {
+                        // New deal runs forever; any started deal conflicts.
+                        $inner->whereNull('starts_at')->orWhere('starts_at', '<=', $start);
+                    } else {
+                        $inner->whereNull('starts_at')->orWhere('starts_at', '<=', $end);
+                    }
                 })->where(function ($inner) use ($start) {
                     $inner->whereNull('ends_at')->orWhere('ends_at', '>', $start);
                 });
