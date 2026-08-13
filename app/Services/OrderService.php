@@ -23,6 +23,7 @@ class OrderService
     public function __construct(
         private InventoryServiceInterface $inventory,
         private DealService $deals,
+        private CouponService $coupons,
     ) {
     }
 
@@ -61,6 +62,18 @@ class OrderService
                 $this->createItem($order, $row);
             }
 
+            // Consume deal usage once per distinct deal applied on this order.
+            // Throwing rolls back the whole order and surfaces a clear error.
+            foreach ($order->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
+                if (! $this->deals->consumeUsage((int) $dealId)) {
+                    throw new RuntimeException('One of the deals in your cart has reached its usage limit and is no longer available.');
+                }
+            }
+
+            // Revalidate the coupon server-side and apportion the discount across
+            // eligible items. The client-supplied coupon_discount is never trusted.
+            $this->applyCouponToOrder($order, $data);
+
             $this->recalculateTotals($order);
 
             // Reserve stock for every order at placement. For pending-payment
@@ -91,6 +104,9 @@ class OrderService
             $prev = $order->status;
             $this->applyInventoryDecrease($order);
             $order->update(['status' => 'confirmed', 'confirmed_at' => now()]);
+
+            // Count coupon usage only once payment is verified (confirmed).
+            $this->recordCouponUsageIfAny($order->fresh());
 
             $this->notifyStatusChange($order->fresh(), $prev);
 
@@ -197,6 +213,8 @@ class OrderService
 
             if (! in_array($order->status, ['cancelled', 'expired'], true)) {
                 $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
+                $this->releaseDealUsage($order);
+                $this->coupons->releaseForOrder($order);
             }
             $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
@@ -240,7 +258,7 @@ class OrderService
         $dealId = isset($row['deal_id']) && (int) $row['deal_id'] > 0 ? (int) $row['deal_id'] : null;
         $deal   = $dealId ? \App\Models\Deal::find($dealId) : null;
 
-        if ($deal && $deal->is_live) {
+        if ($deal && $deal->is_live && $this->deals->hasUsageLeft($deal)) {
             // Base price is re-read from the variant, never from the client.
             $base              = (float) ($variant->selling_price ?: $product->selling_price);
             $unitPrice         = $deal->priceFor($base);
@@ -279,9 +297,140 @@ class OrderService
             'discount'           => $discount,
             'discount_amount'    => $discountAmount,
             'deal_id'            => $dealId,
+            'coupon_id'          => isset($row['coupon_id']) && (int) $row['coupon_id'] > 0 ? (int) $row['coupon_id'] : null,
+            'coupon_discount'    => round((float) ($row['coupon_discount'] ?? 0), 2),
             'line_total'         => $lineTotal,
             'pickup_station_fee' => $pickupStationFee,
         ]);
+    }
+
+    /**
+     * Return deal usage for every deal applied on this order (e.g. on cancel).
+     */
+    private function releaseDealUsage(Order $order): void
+    {
+        foreach ($order->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
+            $this->deals->releaseUsage((int) $dealId);
+        }
+    }
+
+    /**
+     * Authoritative coupon handling at order time. Revalidates the coupon
+     * against the real order rows, apportions the discount across eligible
+     * items and counts usage once the order is confirmed (payment verified).
+     * Throwing here rolls the whole order back.
+     */
+    private function applyCouponToOrder(Order $order, array $data): void
+    {
+        $couponId = isset($data['coupon_id']) && (int) $data['coupon_id'] > 0
+            ? (int) $data['coupon_id']
+            : null;
+
+        // Fall back to a coupon_id carried on individual item rows.
+        if ($couponId === null) {
+            $couponId = (int) $order->items()->whereNotNull('coupon_id')->value('coupon_id') ?: null;
+        }
+
+        if ($couponId === null) {
+            return;
+        }
+
+        $coupon = \App\Models\Coupon::find($couponId);
+
+        if (! $coupon) {
+            $this->dropCouponFromOrder($order);
+            return;
+        }
+
+        $lines = $this->orderLines($order);
+
+        try {
+            $this->coupons->validate($coupon, $lines, (int) $order->customer_id);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw new RuntimeException('This coupon is no longer valid. Please remove it and try again.');
+        }
+
+        $eligible     = $this->coupons->eligibleSubtotal($coupon, $lines);
+        $totalDiscount = $this->coupons->discountFor($coupon, $eligible);
+
+        if ($totalDiscount > 0) {
+            foreach ($order->items()->with('variant.product')->get() as $item) {
+                if (! $this->coupons->itemEligible($coupon, $this->itemLine($item))) {
+                    continue;
+                }
+                $share = $eligible > 0 ? (float) $item->line_total / $eligible : 0;
+                $item->update([
+                    'coupon_id'       => $coupon->id,
+                    'coupon_discount' => round($totalDiscount * $share, 2),
+                ]);
+            }
+        }
+
+        // Only count usage on an order that is already confirmed at placement.
+        if ($order->status !== 'pending payment' && (int) $order->customer_id > 0) {
+            $this->recordCouponUsageIfAny($order);
+        }
+    }
+
+    /**
+     * Record coupon usage for an order exactly once (race-safe). Failure to
+     * record (e.g. limit raced away while awaiting payment) is logged rather
+     * than blocking the confirmation.
+     */
+    private function recordCouponUsageIfAny(Order $order): void
+    {
+        $couponId = (int) $order->items()->whereNotNull('coupon_id')->value('coupon_id');
+
+        if ($couponId === 0 || (int) $order->customer_id <= 0) {
+            return;
+        }
+
+        if (\App\Models\CouponUsage::where('order_id', $order->id)->exists()) {
+            return;
+        }
+
+        $coupon = \App\Models\Coupon::find($couponId);
+        $totalDiscount = (float) $order->items()->where('coupon_id', $couponId)->sum('coupon_discount');
+
+        if (! $coupon) {
+            return;
+        }
+
+        try {
+            $this->coupons->recordUsage($coupon, (int) $order->customer_id, $order->id, $totalDiscount);
+        } catch (\RuntimeException $e) {
+            \Illuminate\Support\Facades\Log::warning('Coupon usage could not be recorded at order confirmation', [
+                'order'   => $order->reference,
+                'coupon'  => $coupon->code,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Clear a coupon that no longer exists from the order's items.
+     */
+    private function dropCouponFromOrder(Order $order): void
+    {
+        $order->items()->update(['coupon_id' => null, 'coupon_discount' => 0]);
+    }
+
+    /**
+     * Hydrate order rows into coupon-compatible line objects.
+     */
+    private function orderLines(Order $order): \Illuminate\Support\Collection
+    {
+        return $order->items()->with('variant.product')->get()->map(fn ($item) => $this->itemLine($item));
+    }
+
+    private function itemLine(\App\Models\OrderItem $item): object
+    {
+        return (object) [
+            'variant'    => $item->variant,
+            'product'    => $item->variant?->product,
+            'deal_id'    => $item->deal_id,
+            'line_total' => (float) $item->line_total,
+        ];
     }
 
     private function resolveVariant(array $row): ProductVariant
@@ -329,6 +478,8 @@ class OrderService
         $subtotal = (float) $order->items()->sum('line_total');
         // Order-level discount is also a PERCENTAGE (0-100) of the subtotal.
         $orderDiscount = $subtotal * ((float) $order->discount / 100);
+        // Coupon discount is an absolute amount apportioned across eligible items.
+        $couponDiscount = (float) $order->items()->sum('coupon_discount');
         
         // Shipping fee is per-item, so total shipping = per-item fee × total quantity
         $totalQuantity = (int) $order->items()->sum('quantity');
@@ -339,7 +490,7 @@ class OrderService
         $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
         $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
         
-        $grand = $subtotal - $orderDiscount + $totalShipping;
+        $grand = $subtotal - $orderDiscount - $couponDiscount + $totalShipping;
 
         $pickupTotal = (float) $order->items()->sum('pickup_station_fee');
 

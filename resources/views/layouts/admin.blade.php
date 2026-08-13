@@ -47,6 +47,9 @@
                     @if(auth()->user()->hasPermission('manage_deals'))
                         <a href="{{ route('admin.deals.index') }}" class="{{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
                     @endif
+                    @if(auth()->user()->hasPermission('manage_coupons'))
+                        <a href="{{ route('admin.coupons.index') }}" class="{{ str_starts_with($r ?? '', 'admin.coupons') ? 'active':'' }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
+                    @endif
                     <a href="{{ route('admin.categories.index') }}" class="{{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
                     <a href="{{ route('admin.inventory.index') }}" class="{{ str_starts_with($r ?? '', 'admin.inventory') ? 'active':'' }}"><i class="bi bi-archive"></i> Inventory</a>
                     <a href="{{ route('admin.purchases.index') }}" class="{{ str_starts_with($r ?? '', 'admin.purchases') ? 'active':'' }}"><i class="bi bi-truck"></i> Purchases</a>

@@ -48,8 +48,8 @@ class VendorApprovalController extends Controller
                 if (empty($existingRoles) && $user->role) {
                     $existingRoles = [$user->role];
                 }
-                $existingRoles[] = User::ROLE_VENDOR;
-                $user->syncRoles(array_values(array_unique($existingRoles)));
+                // Vendor becomes the primary role while preserving any existing roles.
+                $user->syncRoles(array_values(array_unique(array_merge([User::ROLE_VENDOR], $existingRoles))));
             }
         }
 

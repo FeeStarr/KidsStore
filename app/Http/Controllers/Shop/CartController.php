@@ -8,6 +8,7 @@ use App\Services\CartService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
@@ -17,10 +18,39 @@ class CartController extends Controller
 
     public function index()
     {
+        $couponDiscount = 0.0;
+        $coupon = $this->cart->coupon();
+        if ($coupon) {
+            $couponDiscount = $this->cart->couponDiscount();
+        }
+
         return view('shop.cart.index', [
-            'items'    => $this->cart->items(),
-            'subtotal' => $this->cart->subtotal(),
+            'items'           => $this->cart->items(),
+            'subtotal'        => $this->cart->subtotal(),
+            'coupon'          => $coupon,
+            'coupon_discount' => $couponDiscount,
         ]);
+    }
+
+    public function applyCoupon(Request $request): RedirectResponse
+    {
+        $code = trim((string) $request->input('code', ''));
+
+        try {
+            $coupon = $this->cart->applyCoupon($code);
+        } catch (ValidationException $e) {
+            $message = $e->errors()['code'][0] ?? 'That coupon code could not be applied.';
+            return back()->withInput()->with('error', $message);
+        }
+
+        return back()->with('success', 'Coupon applied: '.$coupon->name.'.');
+    }
+
+    public function removeCoupon(): RedirectResponse
+    {
+        $this->cart->removeCoupon();
+
+        return back()->with('success', 'Coupon removed.');
     }
 
     public function add(Request $request, ProductVariant $variant): RedirectResponse|JsonResponse

@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ReturnPolicyController as AdminReturnPolicyController;
 use App\Http\Controllers\Admin\PrivacyPolicyController as AdminPrivacyPolicyController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
 use App\Http\Controllers\Admin\InventoryController;
@@ -57,6 +58,8 @@ Route::name('shop.')->group(function () {
     Route::get('/deals/{deal}', [ShopDealController::class, 'show'])->name('deals.show');
 
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+    Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
+    Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
     Route::post('/cart/{variant}', [CartController::class, 'add'])->name('cart.add');
     Route::patch('/cart/{variant}', [CartController::class, 'update'])->name('cart.update');
     Route::delete('/cart/{variant}', [CartController::class, 'remove'])->name('cart.remove');
@@ -180,6 +183,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('deals/{deal}/cancel', [DealController::class, 'cancel'])->name('deals.cancel')->middleware('permission:manage_deals');
         Route::post('deals/{deal}/duplicate', [DealController::class, 'duplicate'])->name('deals.duplicate')->middleware('permission:manage_deals');
         Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy')->middleware('permission:manage_deals');
+
+        Route::get('coupons', [CouponController::class, 'index'])->name('coupons.index')->middleware('permission:manage_coupons');
+        Route::get('coupons/create', [CouponController::class, 'create'])->name('coupons.create')->middleware('permission:manage_coupons');
+        Route::post('coupons', [CouponController::class, 'store'])->name('coupons.store')->middleware('permission:manage_coupons');
+        Route::get('coupons/{coupon}', [CouponController::class, 'show'])->name('coupons.show')->middleware('permission:manage_coupons');
+        Route::get('coupons/{coupon}/edit', [CouponController::class, 'edit'])->name('coupons.edit')->middleware('permission:manage_coupons');
+        Route::put('coupons/{coupon}', [CouponController::class, 'update'])->name('coupons.update')->middleware('permission:manage_coupons');
+        Route::post('coupons/{coupon}/activate', [CouponController::class, 'activate'])->name('coupons.activate')->middleware('permission:manage_coupons');
+        Route::post('coupons/{coupon}/deactivate', [CouponController::class, 'deactivate'])->name('coupons.deactivate')->middleware('permission:manage_coupons');
+        Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy')->middleware('permission:manage_coupons');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])

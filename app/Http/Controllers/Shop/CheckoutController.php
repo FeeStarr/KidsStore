@@ -26,9 +26,13 @@ class CheckoutController extends Controller
         $pickupStations = PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get();
         $paymentMethods = PaymentMethod::where('is_active', true)->orderBy('key')->get();
 
+        $coupon = $this->cart->coupon();
+
         return view('shop.checkout.show', [
             'items'          => $this->cart->items(),
             'subtotal'       => $this->cart->subtotal(),
+            'coupon'         => $coupon,
+            'coupon_discount' => $coupon ? $this->cart->couponDiscount() : 0.0,
             'customer'       => Auth::user(),
             'pickupStations' => $pickupStations,
             'paymentMethods' => $paymentMethods,
@@ -90,6 +94,7 @@ class CheckoutController extends Controller
                 'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
                 'shipping_fee'      => $shippingFee,
                 'note'              => trim($data['note'] ?? '') ?: null,
+                'coupon_id'         => $this->cart->couponId(),
                 'items'             => $items,
             ]);
         } catch (\RuntimeException $e) {

@@ -134,6 +134,16 @@
             <dl class="row mb-3">
                 <dt class="col-6">Subtotal</dt>
                 <dd class="col-6 text-end">&#8358;{{ number_format($subtotal, 2) }}</dd>
+                @if($coupon)
+                    <dt class="col-6 text-success">
+                        Coupon ({{ strtoupper($coupon->code) }})
+                        <form action="{{ route('shop.cart.coupon.remove') }}" method="post" class="d-inline">
+                            @csrf @method('DELETE')
+                            <button class="btn btn-link btn-sm p-0 text-danger" title="Remove coupon">Remove</button>
+                        </form>
+                    </dt>
+                    <dd class="col-6 text-end text-success">-&#8358;{{ number_format($coupon_discount, 2) }}</dd>
+                @endif
                 @php
                     $totalQuantity = $items->sum('quantity');
                     $shippingFeePerItem = (float) \App\Models\Setting::get('shipping_fee', 0);
@@ -141,7 +151,7 @@
                     $totalShippingBeforeDiscount = $shippingFeePerItem * $totalQuantity;
                     $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
                     $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
-                    $totalAmount = $subtotal + $totalShipping;
+                    $totalAmount = $subtotal - ($coupon_discount ?? 0) + $totalShipping;
                 @endphp
                 <dt class="col-6">Shipping</dt>
                 <dd class="col-6 text-end">
@@ -170,6 +180,8 @@
                                     <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
                                 @elseif($method->key === 'pay_at_pickup')
                                     <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
+                                @elseif($method->key === 'transfer')
+                                    <div class="small text-muted mt-1">Pay on delivery is by bank transfer. Transfer to the account details shown when your order is delivered.</div>
                                 @endif
                             </label>
                         </div>
