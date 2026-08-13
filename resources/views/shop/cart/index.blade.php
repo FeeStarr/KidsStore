@@ -37,11 +37,17 @@
                 @if(!empty($line->selected_size))
                     <div class="small text-muted">Size: {{ $line->selected_size }}</div>
                 @endif
+                @if($line->deal)
+                    <span class="badge bg-danger mt-1">{{ $line->deal->badge_text }}</span>
+                @endif
             </td>
             <td class="text-end">
-                @if($line->discount > 0)
-                    <span class="price-old">&#8358;{{ number_format($line->unit_price, 2) }}</span><br>
+                @if($line->discount > 0 || $line->deal)
+                    <span class="price-old">&#8358;{{ number_format($line->deal ? $line->original_unit_price : $line->unit_price, 2) }}</span><br>
                     <strong class="text-danger">&#8358;{{ number_format($line->net_unit, 2) }}</strong>
+                    @if($line->deal && $line->discount_amount > 0)
+                        <div class="small text-success">Deal discount: -&#8358;{{ number_format($line->discount_amount, 2) }}</div>
+                    @endif
                 @else
                     <strong>&#8358;{{ number_format($line->unit_price, 2) }}</strong>
                 @endif

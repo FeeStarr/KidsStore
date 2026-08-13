@@ -252,8 +252,26 @@
                 @endif
             </td>
             <td>{{ $it->quantity }}</td>
-            <td>₦{{ number_format($it->unit_price, 2) }}</td>
-            <td>{{ number_format($it->discount, 2) }}%</td>
+            <td>
+                @if($it->deal_id)
+                    <span class="price-old d-block">₦{{ number_format($it->original_unit_price, 2) }}</span>
+                    ₦{{ number_format($it->unit_price, 2) }}
+                    <span class="badge bg-danger-subtle text-danger d-inline-block mt-1">Deal</span>
+                @else
+                    ₦{{ number_format($it->unit_price, 2) }}
+                @endif
+            </td>
+            <td>
+                @if($it->deal_id)
+                    @if($it->discount_amount > 0)
+                        -₦{{ number_format($it->discount_amount, 2) }}
+                    @else
+                        Deal
+                    @endif
+                @else
+                    {{ number_format($it->discount, 2) }}%
+                @endif
+            </td>
             <td class="text-end">₦{{ number_format($it->line_total, 2) }}</td>
         </tr>
     @endforeach

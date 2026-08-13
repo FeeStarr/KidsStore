@@ -59,7 +59,10 @@ class CheckoutController extends Controller
             'product_variant_id' => $l->variant->id,
             'quantity'           => $l->quantity,
             'unit_price'         => $l->unit_price,
+            'original_unit_price'=> $l->original_unit_price,
             'discount'           => $l->discount,
+            'discount_amount'    => $l->discount_amount,
+            'deal_id'            => $l->deal_id,
         ])->all();
 
         // Determine authoritative per-item shipping fee from general site settings
