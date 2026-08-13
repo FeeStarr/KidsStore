@@ -47,12 +47,8 @@ class DealService
 
         return DB::transaction(function () use ($deal, $data, $productIds, $variantIds) {
             $deal->update($data);
-            if (array_key_exists('product_ids', $data)) {
-                $deal->products()->sync($productIds);
-            }
-            if (array_key_exists('variant_ids', $data)) {
-                $deal->variants()->sync($variantIds);
-            }
+            $deal->products()->sync($productIds);
+            $deal->variants()->sync($variantIds);
 
             return $deal->fresh(['products', 'variants']);
         });

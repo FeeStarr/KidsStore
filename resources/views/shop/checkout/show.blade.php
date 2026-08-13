@@ -137,25 +137,21 @@
                 @if($coupon)
                     <dt class="col-6 text-success">
                         Coupon ({{ strtoupper($coupon->code) }})
-                        <form action="{{ route('shop.cart.coupon.remove') }}" method="post" class="d-inline">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-link btn-sm p-0 text-danger" title="Remove coupon">Remove</button>
-                        </form>
+                        <button type="submit" form="remove-coupon-form"
+                                class="btn btn-link btn-sm p-0 text-danger" title="Remove coupon">Remove</button>
                     </dt>
                     <dd class="col-6 text-end text-success">-&#8358;{{ number_format($coupon_discount, 2) }}</dd>
                 @endif
                 @php
-                    $totalQuantity = $items->sum('quantity');
-                    $shippingFeePerItem = (float) \App\Models\Setting::get('shipping_fee', 0);
+                    $shippingFee = (float) \App\Models\Setting::get('shipping_fee', 0);
                     $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
-                    $totalShippingBeforeDiscount = $shippingFeePerItem * $totalQuantity;
-                    $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
-                    $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
+                    $shippingDiscountAmount = $shippingFee * ($shippingDiscountPct / 100);
+                    $totalShipping = $shippingFee - $shippingDiscountAmount;
                     $totalAmount = $subtotal - ($coupon_discount ?? 0) + $totalShipping;
                 @endphp
                 <dt class="col-6">Shipping</dt>
                 <dd class="col-6 text-end">
-                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFeePerItem, 2) }} × {{ $totalQuantity }} item(s)</span>
+                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFee, 2) }} per order</span>
                     <strong>&#8358;{{ number_format($totalShipping, 2) }}</strong>
                     @if($shippingDiscountPct > 0)
                         <small class="text-success d-block">-{{ number_format($shippingDiscountPct, 0) }}% discount: -&#8358;{{ number_format($shippingDiscountAmount, 2) }}</small>
@@ -194,6 +190,11 @@
             </button>
         </div></div>
     </div>
+</form>
+
+<form id="remove-coupon-form" action="{{ route('shop.cart.coupon.remove') }}" method="post" class="d-none">
+    @csrf
+    @method('DELETE')
 </form>
 
 @push('scripts')

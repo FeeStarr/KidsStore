@@ -107,7 +107,7 @@ class RefundService
         $includeShipping = in_array($reason, RefundRequest::SHIPPING_REFUND_REASONS);
 
         if ($item && $includeShipping) {
-            $shippingRefundBeforeDiscount = (float) $order->shipping_fee * $quantity;
+            $shippingRefundBeforeDiscount = (float) $order->shipping_fee;
             $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
             $shippingRefund = $shippingRefundBeforeDiscount * (1 - $shippingDiscountPct / 100);
             $amount = round($itemPrice + $shippingRefund, 2);

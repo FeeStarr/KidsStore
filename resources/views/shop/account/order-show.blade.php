@@ -155,18 +155,16 @@
                 <dt class="col-6">Subtotal</dt><dd class="col-6 text-end">&#8358;{{ number_format($order->subtotal, 2) }}</dd>
                 <dt class="col-6">Discount</dt><dd class="col-6 text-end">{{ number_format($order->discount, 2) }}%</dd>
                 @php
-                    $totalQuantity = $order->items->sum('quantity');
-                    $shippingFeePerItem = (float) $order->shipping_fee;
-                    $totalShippingBeforeDiscount = $shippingFeePerItem * $totalQuantity;
+                    $shippingFee = (float) $order->shipping_fee;
                     $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
-                    $shippingDiscountAmount = $totalShippingBeforeDiscount * ($shippingDiscountPct / 100);
-                    $totalShipping = $totalShippingBeforeDiscount - $shippingDiscountAmount;
+                    $shippingDiscountAmount = $shippingFee * ($shippingDiscountPct / 100);
+                    $totalShipping = $shippingFee - $shippingDiscountAmount;
                     $orderDiscountAmount = $order->subtotal * ((float) $order->discount / 100);
                     $totalAmount = $order->subtotal - $orderDiscountAmount + $totalShipping;
                 @endphp
                 <dt class="col-6">Shipping</dt>
                 <dd class="col-6 text-end">
-                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFeePerItem, 2) }} × {{ $totalQuantity }} item(s)</span>
+                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFee, 2) }} per order</span>
                     <strong>&#8358;{{ number_format($totalShipping, 2) }}</strong>
                     @if($shippingDiscountPct > 0)
                         <small class="text-success d-block">-{{ number_format($shippingDiscountPct, 0) }}% discount: -&#8358;{{ number_format($shippingDiscountAmount, 2) }}</small>
