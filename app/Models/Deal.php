@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
 class Deal extends Model
 {
     use SoftDeletes;
@@ -43,6 +42,12 @@ class Deal extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'deal_products')
+            ->withTimestamps();
+    }
+
+    public function variants(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductVariant::class, 'deal_variants')
             ->withTimestamps();
     }
 

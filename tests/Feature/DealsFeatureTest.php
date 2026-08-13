@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Deal;
 use App\Models\Inventory;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -308,5 +309,112 @@ class DealsFeatureTest extends TestCase
         $this->assertEquals(1000.00, $item->unit_price);
         $this->assertEquals(10.0, $item->discount);
         $this->assertNull($item->deal_id);
+    }
+
+    private function createCappedDeal(int $productId, int $maxUses, int $initialUses = 0): Deal
+    {
+        return app(DealService::class)->create([
+            'title'         => 'Capped Deal',
+            'slug'          => 'capped-' . uniqid(),
+            'discount_type' => Deal::TYPE_PERCENTAGE,
+            'discount_value' => 10,
+            'starts_at'     => now()->subHour(),
+            'ends_at'       => now()->addDay(),
+            'status'        => Deal::STATUS_ACTIVE,
+            'max_uses'      => $maxUses,
+            'current_uses'  => $initialUses,
+        ], [$productId]);
+    }
+
+    private function placeOrder(int $productId, int $variantId, ?int $dealId): Order
+    {
+        return app(OrderService::class)->create([
+            'customer_id'     => User::factory()->create()->id,
+            'order_date'      => now()->toDateString(),
+            'status'          => 'confirmed',
+            'delivery_method' => 'delivery',
+            'items'           => [[
+                'product_id'          => $productId,
+                'product_variant_id'  => $variantId,
+                'quantity'            => 1,
+                'unit_price'          => 100,
+                'original_unit_price' => 100,
+                'discount'            => 0,
+                'discount_amount'     => 0,
+                'deal_id'             => $dealId,
+            ]],
+        ]);
+    }
+
+    public function test_exhausted_deal_is_not_applied_to_pricing(): void
+    {
+        [$product, $variant] = $this->makeProduct(1000);
+
+        $deal = $this->createCappedDeal($product->id, maxUses: 1, initialUses: 1);
+
+        // Cap reached -> pricing falls back to the static discount path.
+        $pricing = app(DealService::class)->priceForVariant($variant);
+        $this->assertNull($pricing['deal_id']);
+        $this->assertEquals(0.0, $pricing['discount']);
+        $this->assertEquals(1000.00, $pricing['net_unit']);
+
+        $this->assertNull(app(DealService::class)->activeDealForProduct($product));
+    }
+
+    public function test_deal_usage_increments_on_order_placement(): void
+    {
+        [$product, $variant] = $this->makeProduct(100);
+
+        $deal = $this->createCappedDeal($product->id, maxUses: 3);
+
+        $this->placeOrder($product->id, $variant->id, $deal->id);
+
+        $this->assertEquals(1, $deal->fresh()->current_uses);
+        $this->assertEquals(3, $deal->fresh()->max_uses);
+    }
+
+    public function test_order_placement_falls_back_when_cap_reached(): void
+    {
+        [$product, $variant] = $this->makeProduct(100);
+
+        $deal = $this->createCappedDeal($product->id, maxUses: 1);
+
+        $this->placeOrder($product->id, $variant->id, $deal->id);
+        $this->assertEquals(1, $deal->fresh()->current_uses);
+
+        // Second order with the same capped deal: no deal pricing, no throw,
+        // no double-count. It degrades to the client-supplied discount.
+        $order = $this->placeOrder($product->id, $variant->id, $deal->id);
+
+        $item = $order->items()->first();
+        $this->assertNull($item->deal_id);
+        $this->assertEquals(100.00, $item->unit_price);
+        $this->assertEquals(1, $deal->fresh()->current_uses);
+        $this->assertEquals(2, Order::count());
+    }
+
+    public function test_consume_usage_guard_blocks_oversell_atomically(): void
+    {
+        [$product] = $this->makeProduct(100);
+
+        $deal = $this->createCappedDeal($product->id, maxUses: 1);
+
+        $this->assertTrue(app(DealService::class)->consumeUsage($deal));
+        $this->assertFalse(app(DealService::class)->consumeUsage($deal));
+        $this->assertEquals(1, $deal->fresh()->current_uses);
+    }
+
+    public function test_cancel_releases_deal_usage(): void
+    {
+        [$product, $variant] = $this->makeProduct(100);
+
+        $deal = $this->createCappedDeal($product->id, maxUses: 2);
+
+        $order = $this->placeOrder($product->id, $variant->id, $deal->id);
+        $this->assertEquals(1, $deal->fresh()->current_uses);
+
+        app(OrderService::class)->cancel($order);
+
+        $this->assertEquals(0, $deal->fresh()->current_uses);
     }
 }

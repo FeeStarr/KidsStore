@@ -29,6 +29,10 @@
     @endif
 </div>
 
+@if($deal->max_uses !== null && $deal->current_uses >= $deal->max_uses)
+    <div class="alert alert-warning">This deal has reached its usage limit and will no longer be applied to new orders.</div>
+@endif
+
 <div class="row g-3">
     <div class="col-md-6">
         <div class="card mb-3"><div class="card-body">
@@ -39,7 +43,17 @@
                 <dt class="col-4">Starts</dt><dd class="col-8">{{ $deal->starts_at ? $deal->starts_at->format('M d, Y g:i A') : '—' }}</dd>
                 <dt class="col-4">Ends</dt><dd class="col-8">{{ $deal->ends_at ? $deal->ends_at->format('M d, Y g:i A') : '—' }}</dd>
                 <dt class="col-4">Featured</dt><dd class="col-8">{{ $deal->is_featured ? 'Yes' : 'No' }}</dd>
-                <dt class="col-4">Uses</dt><dd class="col-8">{{ $deal->max_uses ? "{$deal->current_uses} / {$deal->max_uses}" : "{$deal->current_uses} (unlimited)" }}</dd>
+                <dt class="col-4">Uses</dt>
+                <dd class="col-8">
+                    @if($deal->max_uses)
+                        {{ $deal->current_uses }} / {{ $deal->max_uses }}
+                        @if($deal->max_uses !== null && $deal->current_uses >= $deal->max_uses)
+                            <span class="badge text-bg-warning">Used up</span>
+                        @endif
+                    @else
+                        {{ $deal->current_uses }} (unlimited)
+                    @endif
+                </dd>
                 <dt class="col-4">Created By</dt><dd class="col-8">{{ $deal->createdBy?->name ?? '—' }}</dd>
             </dl>
         </div></div>

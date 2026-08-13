@@ -81,9 +81,55 @@
             <td class="text-end fw-bold">&#8358;{{ number_format($subtotal, 2) }}</td>
             <td></td>
         </tr>
+        @if($coupon)
+            <tr>
+                <td colspan="4" class="text-end fw-bold">
+                    Coupon <span class="text-success">({{ strtoupper($coupon->code) }})</span>
+                </td>
+                <td class="text-end fw-bold text-success">
+                    -&#8358;{{ number_format($coupon_discount, 2) }}
+                </td>
+                <td>
+                    <form action="{{ route('shop.cart.coupon.remove') }}" method="post">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i> Remove</button>
+                    </form>
+                </td>
+            </tr>
+        @endif
     </tfoot>
 </table>
 </div>
+
+@if($coupon)
+    <div class="d-flex justify-content-end mt-2">
+        <strong class="text-muted">Estimated total (before shipping):</strong>
+        <strong class="ms-2">&#8358;{{ number_format(max(0, $subtotal - $coupon_discount), 2) }}</strong>
+    </div>
+@endif
+
+@if(! $coupon)
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+            <form action="{{ route('shop.cart.coupon.apply') }}" method="post" class="row g-2 align-items-center">
+                @csrf
+                <div class="col-auto">
+                    <i class="bi bi-ticket-perforated text-primary"></i>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label fw-semibold mb-0">Have a coupon?</label>
+                </div>
+                <div class="col-sm-4 col-lg-3">
+                    <input type="text" name="code" class="form-control" placeholder="Enter code"
+                           value="{{ old('code') }}" required>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary">Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+@endif
 
 <div class="d-flex justify-content-between mt-3">
     <a href="{{ route('shop.products.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Continue shopping</a>

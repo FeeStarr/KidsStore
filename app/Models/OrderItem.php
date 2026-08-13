@@ -9,7 +9,8 @@ class OrderItem extends Model
 {
     protected $fillable = [
         'order_id', 'product_id', 'product_variant_id', 'quantity',
-        'unit_price', 'original_unit_price', 'landed_unit_cost', 'discount', 'discount_amount', 'deal_id', 'line_total',
+        'unit_price', 'original_unit_price', 'landed_unit_cost', 'discount', 'discount_amount', 'deal_id', 'coupon_id',
+        'coupon_discount', 'line_total',
         'selected_age_group', 'selected_size',
         'pickup_station_fee', 'pickup_station_fee_paid', 'pickup_station_fee_paid_at',
         'pickup_status', 'pickup_status_changed_at',
@@ -22,6 +23,7 @@ class OrderItem extends Model
         'landed_unit_cost' => 'decimal:2',
         'discount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'coupon_discount' => 'decimal:2',
         'line_total' => 'decimal:2',
         'pickup_station_fee' => 'decimal:2',
         'pickup_station_fee_paid' => 'boolean',
@@ -37,6 +39,11 @@ class OrderItem extends Model
     public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class, 'deal_id');
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class, 'coupon_id');
     }
 
     public function product(): BelongsTo

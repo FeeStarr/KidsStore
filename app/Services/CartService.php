@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Coupon;
 use App\Models\ProductVariant;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Hybrid cart: database-backed for logged-in users, session-backed for guests.
@@ -16,8 +18,9 @@ use Illuminate\Support\Facades\Session;
 class CartService
 {
     private const SESSION_KEY = 'cart';
+    private const COUPON_SESSION_KEY = 'cart_coupon';
 
-    public function __construct(private DealService $deals)
+    public function __construct(private DealService $deals, private CouponService $coupons)
     {
     }
 
@@ -45,6 +48,7 @@ class CartService
         } else {
             $this->sessionUpdateByLineKey($lineKey, $quantity);
         }
+        $this->refreshAppliedCoupon();
     }
 
     public function remove(int $variantId, ?string $ageGroup = null, ?string $selectedSize = null): void
@@ -60,6 +64,7 @@ class CartService
         } else {
             $this->sessionRemoveByLineKey($lineKey);
         }
+        $this->refreshAppliedCoupon();
     }
 
     public function clear(): void
@@ -69,6 +74,7 @@ class CartService
         } else {
             Session::forget(self::SESSION_KEY);
         }
+        $this->setCouponId(null);
     }
 
     public function isEmpty(): bool
@@ -109,7 +115,7 @@ class CartService
             ->get()
             ->keyBy('id');
 
-        return collect($raw)->map(function (array $line, string $lineKey) use ($variants) {
+        $lines = collect($raw)->map(function (array $line, string $lineKey) use ($variants) {
             $variantId = (int) ($line['variant_id'] ?? 0);
             $qty = (int) ($line['quantity'] ?? 0);
             $selectedAgeGroup = $line['age_group'] ?? null;
@@ -143,11 +149,87 @@ class CartService
                 'deal'       => $pricing['deal'],
             ];
         })->filter()->values();
+
+        // Drop the applied coupon if items/eligibility changed and it is no longer valid.
+        if ($this->couponId() !== null) {
+            $coupon = Coupon::find($this->couponId());
+            if ($coupon) {
+                try {
+                    $this->coupons->validate($coupon, $lines, Auth::id());
+                } catch (ValidationException $e) {
+                    $this->setCouponId(null);
+                }
+            } else {
+                $this->setCouponId(null);
+            }
+        }
+
+        return $lines;
     }
 
     public function subtotal(): float
     {
         return (float) $this->items()->sum('line_total');
+    }
+
+    // ── Coupons ──────────────────────────────────────────────────────────────
+
+    /**
+     * Validate and attach a coupon to the cart. Throws ValidationException on failure.
+     */
+    public function applyCoupon(string $code): Coupon
+    {
+        $coupon = $this->coupons->findByCode($code);
+
+        if (! $coupon) {
+            throw ValidationException::withMessages(['code' => 'That coupon code is invalid.']);
+        }
+
+        $this->coupons->validate($coupon, $this->items(), Auth::id());
+
+        $this->setCouponId($coupon->id);
+
+        return $coupon->fresh();
+    }
+
+    public function removeCoupon(): void
+    {
+        $this->setCouponId(null);
+    }
+
+    public function couponId(): ?int
+    {
+        if (Auth::check()) {
+            $id = Cart::where('user_id', Auth::id())->value('coupon_id');
+            return $id ? (int) $id : null;
+        }
+
+        $id = Session::get(self::COUPON_SESSION_KEY);
+        return $id ? (int) $id : null;
+    }
+
+    public function coupon(): ?Coupon
+    {
+        $id = $this->couponId();
+        return $id ? Coupon::find($id) : null;
+    }
+
+    /**
+     * Authoritative coupon discount for the current cart contents.
+     */
+    public function couponDiscount(): float
+    {
+        $coupon = $this->coupon();
+        if (! $coupon) {
+            return 0.0;
+        }
+
+        $items = $this->items();
+
+        return $this->coupons->discountFor(
+            $coupon,
+            $this->coupons->eligibleSubtotal($coupon, $items)
+        );
     }
 
     // ── Guest → Authenticated merge ──────────────────────────────────────────
@@ -163,6 +245,13 @@ class CartService
         }
 
         $cart = Cart::firstOrCreate(['user_id' => Auth::id()]);
+
+        // Carry the guest session coupon into the persisted cart.
+        $sessionCouponId = Session::get(self::COUPON_SESSION_KEY);
+        if ($sessionCouponId && $cart->coupon_id === null) {
+            $cart->update(['coupon_id' => (int) $sessionCouponId]);
+        }
+        Session::forget(self::COUPON_SESSION_KEY);
 
         foreach ($sessionCart as $line) {
             $variantId = (int) ($line['variant_id'] ?? 0);
@@ -359,6 +448,41 @@ class CartService
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Re-run coupon validation after a cart mutation; drop it if no longer valid.
+     */
+    private function refreshAppliedCoupon(): void
+    {
+        $couponId = $this->couponId();
+        if ($couponId === null) {
+            return;
+        }
+
+        $coupon = Coupon::find($couponId);
+        if (! $coupon) {
+            $this->setCouponId(null);
+            return;
+        }
+
+        try {
+            $this->coupons->validate($coupon, $this->items(), Auth::id());
+        } catch (ValidationException $e) {
+            $this->setCouponId(null);
+        }
+    }
+
+    private function setCouponId(?int $couponId): void
+    {
+        if (Auth::check()) {
+            $cart = Cart::firstOrCreate(['user_id' => Auth::id()]);
+            $cart->update(['coupon_id' => $couponId]);
+        } elseif ($couponId === null) {
+            Session::forget(self::COUPON_SESSION_KEY);
+        } else {
+            Session::put(self::COUPON_SESSION_KEY, $couponId);
+        }
+    }
 
     private function raw(): array
     {
