@@ -41,6 +41,7 @@ class ProductRequest extends FormRequest
 
             'images.*'             => ['image', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price'    => ['nullable', 'numeric', 'min:0'],
             'discount'      => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active'     => ['nullable', 'boolean'],
             'is_returnable' => ['nullable', 'boolean'],
@@ -59,6 +60,14 @@ class ProductRequest extends FormRequest
             'selling_price' => $this->filled('selling_price') ? $this->input('selling_price') : 0,
             'status' => $this->input('status', $this->boolean('is_active', false) ? 'active' : 'inactive'),
         ]);
+
+        // Only include cost_price when provided so edits don't clobber the
+        // auto-set value from the most recent purchase.
+        if ($this->filled('cost_price')) {
+            $this->merge(['cost_price' => $this->input('cost_price')]);
+        } else {
+            $this->request->remove('cost_price');
+        }
 
         if ($this->has('variants') && is_array($this->input('variants'))) {
             $variants = array_map(function ($v) {

@@ -38,6 +38,7 @@
                 <dt class="col-sm-4">Brand</dt><dd class="col-sm-8">{{ $product->brand ?? 'â€”' }}</dd>
                 <dt class="col-sm-4">Status</dt><dd class="col-sm-8"><span class="badge {{ $product->isInactive() ? 'text-bg-danger' : 'text-bg-success' }}">{{ $product->status ?? 'inactive' }}</span></dd>
                 <dt class="col-sm-4">Selling Price</dt><dd class="col-sm-8">₦{{ number_format($product->selling_price, 2) }}</dd>
+                <dt class="col-sm-4">Cost Price</dt><dd class="col-sm-8">₦{{ number_format($product->cost_price, 2) }}</dd>
                 <dt class="col-sm-4">Product Discount</dt><dd class="col-sm-8">{{ number_format($product->discount, 2) }}% <small class="text-muted">(global)</small></dd>
                 <dt class="col-sm-4">Stock</dt><dd class="col-sm-8">{{ $product->inventory?->quantity ?? 0 }} (reorder at {{ $product->inventory?->reorder_level ?? 'â€”' }})</dd>
             </dl>

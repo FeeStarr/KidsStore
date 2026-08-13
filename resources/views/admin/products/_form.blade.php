@@ -163,6 +163,10 @@
                         <input type="number" step="0.01" name="selling_price" class="form-control"
                                value="{{ old('selling_price', $product->selling_price ?? '') }}"
                                placeholder="Leave blank — auto-set when first purchase is received"></div>
+                    <div class="mb-3"><label class="form-label">Cost Price <small class="text-muted">(auto-updated when a purchase is received)</small></label>
+                        <input type="number" step="0.01" min="0" name="cost_price" class="form-control"
+                               value="{{ old('cost_price', $product->cost_price ?? '') }}"
+                               placeholder="Auto-set from purchase"></div>
                     <div class="mb-3"><label class="form-label">Discount (%) <small class="text-muted">(applies to all variants for this product)</small></label>
                         <input type="number" step="0.01" min="0" max="100" name="discount" class="form-control"
                                value="{{ old('discount', $product->discount ?? 0) }}"></div>

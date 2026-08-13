@@ -42,6 +42,15 @@
                     @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                     <h6 class="text-uppercase text-muted small">Search</h6>
                     <input type="search" name="q" value="{{ request('q') }}" class="form-control form-control-sm mb-2" placeholder="Keyword">
+                    @if($ageRanges->count())
+                        <h6 class="text-uppercase text-muted small">Age Range</h6>
+                        <select name="age_range" class="form-select form-select-sm mb-2" onchange="this.form.submit()">
+                            <option value="">All ages</option>
+                            @foreach($ageRanges as $age)
+                                <option value="{{ $age->id }}" @selected((int) request('age_range') === (int) $age->id)>{{ $age->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                     <h6 class="text-uppercase text-muted small">Sort by</h6>
                     <select name="sort" class="form-select form-select-sm mb-2" onchange="this.form.submit()">
                         @php($sort = request('sort'))
