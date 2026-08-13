@@ -25,6 +25,10 @@
         div.dt-buttons .btn { margin-right: .35rem; color: #fff !important; }
         div.dt-buttons .btn:hover { color: #fff !important; opacity: .92; }
         .price-old { text-decoration: line-through; color: #aaa; font-size: .9rem; }
+        .sidebar a.sub { padding-left: 2.5rem; font-size: .92rem; }
+        .sidebar .chevron { float: right; transition: transform .2s ease; }
+        .sidebar a[aria-expanded="true"] { background: #2c3e50; color: #fff; }
+        .sidebar a[aria-expanded="true"] .chevron { transform: rotate(180deg); }
     </style>
 </head>
 <body>
@@ -41,49 +45,93 @@
                     </small>
                 </div>
                 <div class="px-2">
-                    @php($r = request()->route()?->getName())
-                    <a href="{{ route('admin.dashboard') }}" class="{{ $r==='admin.dashboard' ? 'active':'' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
-                    <a href="{{ route('admin.products.index') }}" class="{{ str_starts_with($r ?? '', 'admin.products') ? 'active':'' }}"><i class="bi bi-box-seam"></i> Products</a>
-                    @if(auth()->user()->hasPermission('manage_deals'))
-                        <a href="{{ route('admin.deals.index') }}" class="{{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
-                    @endif
-                    @if(auth()->user()->hasPermission('manage_coupons'))
-                        <a href="{{ route('admin.coupons.index') }}" class="{{ str_starts_with($r ?? '', 'admin.coupons') ? 'active':'' }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
-                    @endif
-                    <a href="{{ route('admin.categories.index') }}" class="{{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
-                    <a href="{{ route('admin.inventory.index') }}" class="{{ str_starts_with($r ?? '', 'admin.inventory') ? 'active':'' }}"><i class="bi bi-archive"></i> Inventory</a>
-                    <a href="{{ route('admin.purchases.index') }}" class="{{ str_starts_with($r ?? '', 'admin.purchases') ? 'active':'' }}"><i class="bi bi-truck"></i> Purchases</a>
-                    <a href="{{ route('admin.suppliers.index') }}" class="{{ str_starts_with($r ?? '', 'admin.suppliers') ? 'active':'' }}"><i class="bi bi-building"></i> Suppliers</a>
-                    <a href="{{ route('admin.payment-methods.index') }}" class="{{ str_starts_with($r ?? '', 'admin.payment-methods') ? 'active':'' }}"><i class="bi bi-wallet2"></i> Payment Methods</a>
-                    <a href="{{ route('admin.orders.index') }}" class="{{ str_starts_with($r ?? '', 'admin.orders') ? 'active':'' }}"><i class="bi bi-bag-check"></i> Orders</a>
-                    <a href="{{ route('admin.pickup-stations.index') }}" class="{{ str_starts_with($r ?? '', 'admin.pickup-stations') ? 'active':'' }}"><i class="bi bi-geo-alt"></i> Pickup Stations</a>
-                    <a href="{{ route('admin.pickup-payouts.index') }}" class="{{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
-                    <a href="{{ route('admin.refunds.index') }}" class="{{ str_starts_with($r ?? '', 'admin.refunds') ? 'active':'' }}">
-                        <i class="bi bi-arrow-counterclockwise"></i> Refunds
-                        @php($pendingRefunds = \App\Models\RefundRequest::whereIn('status', ['requested', 'pending_review', 'awaiting_evidence'])->count())
-                        @if($pendingRefunds > 0)
-                            <span class="badge bg-danger ms-1">{{ $pendingRefunds }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('admin.users.index') }}" class="{{ str_starts_with($r ?? '', 'admin.users') ? 'active':'' }}"><i class="bi bi-people"></i> Users</a>
-                    @if(auth()->user()->hasRole(\App\Models\User::ROLE_SUPERADMIN))
-                        <a href="{{ route('admin.reports.profit') }}" class="{{ str_starts_with($r ?? '', 'admin.reports') ? 'active':'' }}"><i class="bi bi-graph-up-arrow"></i> Profit Report</a>
-                    @endif
-                    <a href="{{ route('admin.about.edit') }}" class="{{ $r==='admin.about.edit' ? 'active':'' }}"><i class="bi bi-info-circle"></i> About Page</a>
-                    <a href="{{ route('admin.contact.edit') }}" class="{{ str_starts_with($r ?? '', 'admin.contact') ? 'active':'' }}">
-                        <i class="bi bi-envelope"></i> Contact Page
-                        @php($unreadCount = \App\Models\ContactMessage::where('read', false)->count())
-                        @if($unreadCount > 0)
-                            <span class="badge bg-danger ms-1">{{ $unreadCount }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('admin.return-policy.edit') }}" class="{{ $r==='admin.return-policy.edit' ? 'active':'' }}"><i class="bi bi-arrow-counterclockwise"></i> Return Policy</a>
-                    <a href="{{ route('admin.privacy-policy.edit') }}" class="{{ $r==='admin.privacy-policy.edit' ? 'active':'' }}"><i class="bi bi-shield-lock"></i> Privacy Policy</a>
-                    @if(auth()->user()->hasPermission('manage_settings'))
-                        <a href="{{ route('admin.settings.edit') }}" class="{{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
-                        <a href="{{ route('admin.bank-accounts.index') }}" class="{{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
-                    @endif
-                    <hr class="my-3">
+@php($r = request()->route()?->getName())
+
+<a href="{{ route('admin.dashboard') }}" class="{{ $r==='admin.dashboard' ? 'active':'' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+
+@php($catalogActive = str_starts_with($r ?? '', 'admin.products') || str_starts_with($r ?? '', 'admin.categories') || str_starts_with($r ?? '', 'admin.deals') || str_starts_with($r ?? '', 'admin.coupons'))
+<a href="#menu-catalog" data-bs-toggle="collapse" role="button" aria-expanded="{{ $catalogActive ? 'true' : 'false' }}" class="{{ $catalogActive ? 'active' : '' }}">
+    <i class="bi bi-box-seam"></i> Catalog <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $catalogActive ? 'show' : '' }}" id="menu-catalog">
+    <a href="{{ route('admin.products.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.products') ? 'active':'' }}"><i class="bi bi-box-seam"></i> Products</a>
+    <a href="{{ route('admin.categories.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
+    @if(auth()->user()->hasPermission('manage_deals'))
+        <a href="{{ route('admin.deals.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
+    @endif
+    @if(auth()->user()->hasPermission('manage_coupons'))
+        <a href="{{ route('admin.coupons.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.coupons') ? 'active':'' }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
+    @endif
+</div>
+
+@php($supplyActive = str_starts_with($r ?? '', 'admin.inventory') || str_starts_with($r ?? '', 'admin.purchases') || str_starts_with($r ?? '', 'admin.suppliers'))
+<a href="#menu-supply" data-bs-toggle="collapse" role="button" aria-expanded="{{ $supplyActive ? 'true' : 'false' }}" class="{{ $supplyActive ? 'active' : '' }}">
+    <i class="bi bi-archive"></i> Inventory &amp; Supply <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $supplyActive ? 'show' : '' }}" id="menu-supply">
+    <a href="{{ route('admin.inventory.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.inventory') ? 'active':'' }}"><i class="bi bi-archive"></i> Inventory</a>
+    <a href="{{ route('admin.purchases.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.purchases') ? 'active':'' }}"><i class="bi bi-truck"></i> Purchases</a>
+    <a href="{{ route('admin.suppliers.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.suppliers') ? 'active':'' }}"><i class="bi bi-building"></i> Suppliers</a>
+</div>
+
+@php($ordersActive = str_starts_with($r ?? '', 'admin.orders') || str_starts_with($r ?? '', 'admin.refunds') || str_starts_with($r ?? '', 'admin.pickup-stations') || str_starts_with($r ?? '', 'admin.pickup-payouts'))
+<a href="#menu-orders" data-bs-toggle="collapse" role="button" aria-expanded="{{ $ordersActive ? 'true' : 'false' }}" class="{{ $ordersActive ? 'active' : '' }}">
+    <i class="bi bi-bag-check"></i> Orders &amp; Fulfillment <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $ordersActive ? 'show' : '' }}" id="menu-orders">
+    <a href="{{ route('admin.orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.orders') ? 'active':'' }}"><i class="bi bi-bag-check"></i> Orders</a>
+    <a href="{{ route('admin.refunds.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.refunds') ? 'active':'' }}">
+        <i class="bi bi-arrow-counterclockwise"></i> Refunds
+        @php($pendingRefunds = \App\Models\RefundRequest::whereIn('status', ['requested', 'pending_review', 'awaiting_evidence'])->count())
+        @if($pendingRefunds > 0)
+            <span class="badge bg-danger ms-1">{{ $pendingRefunds }}</span>
+        @endif
+    </a>
+    <a href="{{ route('admin.pickup-stations.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-stations') ? 'active':'' }}"><i class="bi bi-geo-alt"></i> Pickup Stations</a>
+    <a href="{{ route('admin.pickup-payouts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
+</div>
+
+@php($peopleActive = str_starts_with($r ?? '', 'admin.users') || str_starts_with($r ?? '', 'admin.reports'))
+<a href="#menu-people" data-bs-toggle="collapse" role="button" aria-expanded="{{ $peopleActive ? 'true' : 'false' }}" class="{{ $peopleActive ? 'active' : '' }}">
+    <i class="bi bi-people"></i> Customers &amp; Reports <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $peopleActive ? 'show' : '' }}" id="menu-people">
+    <a href="{{ route('admin.users.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.users') ? 'active':'' }}"><i class="bi bi-people"></i> Users</a>
+    @if(auth()->user()->hasRole(\App\Models\User::ROLE_SUPERADMIN))
+        <a href="{{ route('admin.reports.profit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.reports') ? 'active':'' }}"><i class="bi bi-graph-up-arrow"></i> Profit Report</a>
+    @endif
+</div>
+
+@php($contentActive = str_starts_with($r ?? '', 'admin.about') || str_starts_with($r ?? '', 'admin.contact') || str_starts_with($r ?? '', 'admin.return-policy') || str_starts_with($r ?? '', 'admin.privacy-policy'))
+<a href="#menu-content" data-bs-toggle="collapse" role="button" aria-expanded="{{ $contentActive ? 'true' : 'false' }}" class="{{ $contentActive ? 'active' : '' }}">
+    <i class="bi bi-layout-text-window"></i> Store Pages <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $contentActive ? 'show' : '' }}" id="menu-content">
+    <a href="{{ route('admin.about.edit') }}" class="sub {{ $r==='admin.about.edit' ? 'active':'' }}"><i class="bi bi-info-circle"></i> About Page</a>
+    <a href="{{ route('admin.contact.edit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.contact') ? 'active':'' }}">
+        <i class="bi bi-envelope"></i> Contact Page
+        @php($unreadCount = \App\Models\ContactMessage::where('read', false)->count())
+        @if($unreadCount > 0)
+            <span class="badge bg-danger ms-1">{{ $unreadCount }}</span>
+        @endif
+    </a>
+    <a href="{{ route('admin.return-policy.edit') }}" class="sub {{ $r==='admin.return-policy.edit' ? 'active':'' }}"><i class="bi bi-arrow-counterclockwise"></i> Return Policy</a>
+    <a href="{{ route('admin.privacy-policy.edit') }}" class="sub {{ $r==='admin.privacy-policy.edit' ? 'active':'' }}"><i class="bi bi-shield-lock"></i> Privacy Policy</a>
+</div>
+
+@php($settingsActive = str_starts_with($r ?? '', 'admin.settings') || str_starts_with($r ?? '', 'admin.bank-accounts') || str_starts_with($r ?? '', 'admin.payment-methods'))
+<a href="#menu-settings" data-bs-toggle="collapse" role="button" aria-expanded="{{ $settingsActive ? 'true' : 'false' }}" class="{{ $settingsActive ? 'active' : '' }}">
+    <i class="bi bi-gear"></i> Settings <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $settingsActive ? 'show' : '' }}" id="menu-settings">
+    <a href="{{ route('admin.payment-methods.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.payment-methods') ? 'active':'' }}"><i class="bi bi-wallet2"></i> Payment Methods</a>
+    @if(auth()->user()->hasPermission('manage_settings'))
+        <a href="{{ route('admin.settings.edit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
+        <a href="{{ route('admin.bank-accounts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
+    @endif
+</div>
+
+<hr class="my-3">
                     <form method="post" action="{{ route('admin.logout') }}" class="px-2">
                         @csrf
                         <button type="submit" class="btn btn-outline-danger w-100">
