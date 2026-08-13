@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('pickups:send-reminders')->dailyAt('09:00');
         $schedule->command('returns:check-sla')->dailyAt('08:00');
         $schedule->command('deals:sync-status')->everyFiveMinutes();
+        $schedule->command('app:backup --db-only')->dailyAt('03:30')->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\LogUserActivity::class);
