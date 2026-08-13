@@ -28,10 +28,10 @@
     </div>
 
     <div class="mb-3 row">
-        <label class="col-sm-4 col-form-label">Pickup Shipping Fee per item (₦)</label>
+        <label class="col-sm-4 col-form-label">Shipping Fee per order (₦)</label>
         <div class="col-sm-4">
             <input type="number" step="0.01" min="0" name="shipping_fee" class="form-control" value="{{ old('shipping_fee', $shippingFee) }}">
-            <small class="text-muted">Flat fee charged per item for pickup orders</small>
+            <small class="text-muted">Flat fee charged once per order</small>
         </div>
     </div>
 

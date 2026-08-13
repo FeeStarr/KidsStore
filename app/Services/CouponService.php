@@ -50,12 +50,8 @@ class CouponService
     {
         return DB::transaction(function () use ($coupon, $data, $productIds, $variantIds) {
             $coupon->update($data);
-            if (array_key_exists('product_ids', $data)) {
-                $coupon->products()->sync($productIds);
-            }
-            if (array_key_exists('variant_ids', $data)) {
-                $coupon->variants()->sync($variantIds);
-            }
+            $coupon->products()->sync($productIds);
+            $coupon->variants()->sync($variantIds);
 
             return $coupon->fresh(['products', 'variants']);
         });

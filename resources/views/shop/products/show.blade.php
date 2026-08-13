@@ -244,7 +244,7 @@
             @if((float) \App\Models\Setting::get('shipping_fee', 0) > 0)
                 <span data-pdp="shipping-fee">
                     <i class="bi bi-truck me-1"></i>
-                    Shipping: &#8358;{{ number_format((float) \App\Models\Setting::get('shipping_fee', 0), 2) }} per item
+                    Shipping: &#8358;{{ number_format((float) \App\Models\Setting::get('shipping_fee', 0), 2) }} per order
                 </span>
             @endif
             <span><i class="bi bi-shield-check me-1"></i>Secure Checkout</span>

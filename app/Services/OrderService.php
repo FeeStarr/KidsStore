@@ -481,9 +481,8 @@ class OrderService
         // Coupon discount is an absolute amount apportioned across eligible items.
         $couponDiscount = (float) $order->items()->sum('coupon_discount');
         
-        // Shipping fee is per-item, so total shipping = per-item fee × total quantity
-        $totalQuantity = (int) $order->items()->sum('quantity');
-        $totalShippingBeforeDiscount = (float) $order->shipping_fee * $totalQuantity;
+        // Shipping is a flat per-order fee.
+        $totalShippingBeforeDiscount = (float) $order->shipping_fee;
         
         // Apply shipping discount from site settings
         $shippingDiscountPct = (float) \App\Models\Setting::get('shipping_discount', 0);
