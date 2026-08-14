@@ -5,19 +5,12 @@ namespace App\Jobs;
 use App\Models\Order;
 use App\Notifications\NotificationRecipients;
 use App\Notifications\OrderPlacedNotification;
-use Illuminate\Bus\Dispatcher;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Bus\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class SendOrderPlacedNotifications implements ShouldQueue
+class SendOrderPlacedNotifications
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-    public int $timeout = 30;
+    use Dispatchable, SerializesModels;
 
     public function __construct(public readonly int $orderId)
     {
@@ -25,7 +18,7 @@ class SendOrderPlacedNotifications implements ShouldQueue
 
     public function handle(): void
     {
-        $order = Order::with('customer', 'items.product', 'items.variant', 'pickupStation')->find($this->orderId);
+        $order = Order::with('customer', 'items.product', 'items.variant.image', 'items.variant.images', 'pickupStation')->find($this->orderId);
 
         if (! $order) {
             return;
