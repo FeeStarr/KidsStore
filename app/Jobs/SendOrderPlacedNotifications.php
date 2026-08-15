@@ -25,15 +25,39 @@ class SendOrderPlacedNotifications
         }
 
         if ($order->customer) {
-            $order->customer->notify(new OrderPlacedNotification($order));
+            try {
+                $order->customer->notify(new OrderPlacedNotification($order));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('OrderPlaced notification to customer failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $order->reference,
+                    'email' => $order->customer->email,
+                ]);
+            }
         }
 
         foreach (NotificationRecipients::adminUsers() as $admin) {
-            $admin->notify(new OrderPlacedNotification($order));
+            try {
+                $admin->notify(new OrderPlacedNotification($order));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('OrderPlaced notification to admin failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $order->reference,
+                    'email' => $admin->email,
+                ]);
+            }
         }
 
         foreach (NotificationRecipients::internalStaff() as $staff) {
-            $staff->notify(new OrderPlacedNotification($order));
+            try {
+                $staff->notify(new OrderPlacedNotification($order));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('OrderPlaced notification to staff failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $order->reference,
+                    'email' => $staff->email,
+                ]);
+            }
         }
     }
 }
