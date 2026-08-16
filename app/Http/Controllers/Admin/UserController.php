@@ -15,7 +15,7 @@ class UserController extends Controller
 {
     public function index(): View
     {
-        $users = User::with('roles')->orderBy('created_at', 'desc')->get();
+        $users = User::with('roles')->orderBy('created_at', 'desc')->limit(2000)->get();
 
         return view('admin.users.index', compact('users'));
     }

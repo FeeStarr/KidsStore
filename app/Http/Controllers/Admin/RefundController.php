@@ -22,7 +22,7 @@ class RefundController extends Controller
             'order.customer',
             'orderItem.product',
             'reviewer',
-        ])->latest()->get();
+        ])->latest()->limit(2000)->get();
 
         $pending = $requests->whereIn('status', [
             RefundRequest::STATUS_REQUESTED,
@@ -161,5 +161,37 @@ class RefundController extends Controller
         }
 
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Replacement marked as shipped.');
+    }
+
+    public function evidence(RefundRequest $refundRequest)
+    {
+        abort_unless($refundRequest->evidence_path, 404);
+
+        $fullPath = storage_path('app/' . $refundRequest->evidence_path);
+
+        if (!file_exists($fullPath)) {
+            abort(404);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => mime_content_type($fullPath),
+            'Content-Disposition' => 'inline',
+        ]);
+    }
+
+    public function evidenceVideo(RefundRequest $refundRequest)
+    {
+        abort_unless($refundRequest->evidence_video_path, 404);
+
+        $fullPath = storage_path('app/' . $refundRequest->evidence_video_path);
+
+        if (!file_exists($fullPath)) {
+            abort(404);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => mime_content_type($fullPath),
+            'Content-Disposition' => 'inline',
+        ]);
     }
 }

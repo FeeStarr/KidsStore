@@ -19,6 +19,7 @@ class AccountController extends Controller
         $orders = Order::with('items.product')
             ->where('customer_id', Auth::id())
             ->latest()
+            ->limit(500)
             ->get();
 
         return view('shop.account.orders', compact('orders'));

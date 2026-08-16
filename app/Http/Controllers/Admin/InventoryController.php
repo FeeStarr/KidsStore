@@ -22,7 +22,7 @@ class InventoryController extends Controller
             $query->whereRaw('COALESCE(quantity_on_hand, quantity) <= reorder_level');
         }
 
-        $inventories = $query->get();
+        $inventories = $query->limit(2000)->get();
 
         return view('admin.inventory.index', compact('inventories'));
     }

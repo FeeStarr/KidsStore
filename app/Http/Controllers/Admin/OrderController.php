@@ -24,7 +24,7 @@ class OrderController extends Controller
 
     public function index(): View
     {
-        $orders = Order::with('customer')->latest()->get();
+        $orders = Order::with('customer')->latest()->limit(2000)->get();
 
         return view('admin.orders.index', compact('orders'));
     }

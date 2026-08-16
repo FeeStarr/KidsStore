@@ -197,14 +197,14 @@ class RefundRequest extends Model
     public function getEvidenceUrlAttribute(): ?string
     {
         return $this->evidence_path
-            ? asset($this->evidence_path)
+            ? route('admin.refunds.evidence', $this)
             : null;
     }
 
     public function getEvidenceVideoUrlAttribute(): ?string
     {
         return $this->evidence_video_path
-            ? asset($this->evidence_video_path)
+            ? route('admin.refunds.evidence-video', $this)
             : null;
     }
 

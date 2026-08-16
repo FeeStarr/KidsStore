@@ -13,6 +13,7 @@ use App\Services\PaystackService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
 use App\Services\PickupStationService;
+use Illuminate\Support\Facades\Log;
 use App\Services\RefundService;
 use App\Models\Payment;
 use App\Models\PickupPayout;
@@ -651,7 +652,8 @@ class PickupPortalController extends Controller
         try {
             $transaction = $this->paystack->initiate($order);
         } catch (\RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            Log::warning('Pickup portal payment initiation failed', ['order' => $order->reference, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Unable to initiate payment. Please try again.'], 422);
         }
 
         $payload = $transaction->opay_payload['data'] ?? [];

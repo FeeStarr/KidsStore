@@ -619,18 +619,12 @@ class RefundService
     }
 
     /**
-     * Store an uploaded file directly in the public directory (bypasses storage symlink issues on nginx).
+     * Store an uploaded file in private storage (not publicly accessible).
      *
-     * @return string Relative path from public/ (e.g. "evidence/refunds/photo.jpg")
+     * @return string Storage path relative to the private disk (e.g. "evidence/refunds/photo.jpg")
      */
     private function storeInPublic(UploadedFile $file, string $directory): string
     {
-        $targetDir = public_path($directory);
-        File::ensureDirectoryExists($targetDir);
-
-        $filename = $file->hashName();
-        $file->move($targetDir, $filename);
-
-        return $directory . '/' . $filename;
+        return $file->store($directory, 'local');
     }
 }
