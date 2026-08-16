@@ -20,5 +20,6 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\ColorSeeder::class);
         $this->call(\Database\Seeders\SizeSeeder::class);
         $this->call(KidsStoreSeeder::class);
+        $this->call(\Database\Seeders\CustomOrderLookupSeeder::class);
     }
 }

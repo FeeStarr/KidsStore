@@ -91,6 +91,14 @@
     <a href="{{ route('admin.pickup-payouts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
 </div>
 
+@php($customActive = str_starts_with($r ?? '', 'admin.custom-orders'))
+<a href="#menu-custom" data-bs-toggle="collapse" role="button" aria-expanded="{{ $customActive ? 'true' : 'false' }}" class="{{ $customActive ? 'active' : '' }}">
+    <i class="bi bi-stars"></i> Custom Orders <i class="bi bi-chevron-down chevron"></i>
+</a>
+<div class="collapse {{ $customActive ? 'show' : '' }}" id="menu-custom">
+    <a href="{{ route('admin.custom-orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.custom-orders') ? 'active':'' }}"><i class="bi bi-list-ul"></i> All Requests</a>
+</div>
+
 @php($peopleActive = str_starts_with($r ?? '', 'admin.users') || str_starts_with($r ?? '', 'admin.reports'))
 <a href="#menu-people" data-bs-toggle="collapse" role="button" aria-expanded="{{ $peopleActive ? 'true' : 'false' }}" class="{{ $peopleActive ? 'active' : '' }}">
     <i class="bi bi-people"></i> Customers &amp; Reports <i class="bi bi-chevron-down chevron"></i>
@@ -110,7 +118,7 @@
     <a href="{{ route('admin.about.edit') }}" class="sub {{ $r==='admin.about.edit' ? 'active':'' }}"><i class="bi bi-info-circle"></i> About Page</a>
     <a href="{{ route('admin.contact.edit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.contact') ? 'active':'' }}">
         <i class="bi bi-envelope"></i> Contact Page
-        @php($unreadCount = \App\Models\ContactMessage::where('read', false)->count())
+        @php($unreadCount = \App\Models\ContactMessage::where('status', 'new')->count())
         @if($unreadCount > 0)
             <span class="badge bg-danger ms-1">{{ $unreadCount }}</span>
         @endif

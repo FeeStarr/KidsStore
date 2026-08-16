@@ -50,7 +50,7 @@ Route::name('shop.')->group(function () {
     Route::get('/contact', [ShopContactController::class, 'show'])->name('contact');
     Route::get('/return-policy', [ShopReturnPolicyController::class, 'show'])->name('return-policy');
     Route::get('/privacy-policy', [ShopPrivacyPolicyController::class, 'show'])->name('privacy-policy');
-    Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send');
+    Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send')->middleware('throttle:5,1');
     Route::get('/shop', [ShopController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('products.show');
 
@@ -109,6 +109,17 @@ Route::name('shop.')->group(function () {
         Route::post('/account/addresses/{address}/default', [AccountController::class, 'setDefaultAddress'])->name('account.addresses.default');
 
         Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('products.reviews.store');
+
+        // Custom Frock
+        Route::get('/custom-frock', [\App\Http\Controllers\Shop\CustomOrderController::class, 'index'])->name('custom-frock.index');
+        Route::get('/custom-frock/create', [\App\Http\Controllers\Shop\CustomOrderController::class, 'create'])->name('custom-frock.create');
+        Route::post('/custom-frock', [\App\Http\Controllers\Shop\CustomOrderController::class, 'store'])->name('custom-frock.store')->middleware('throttle:10,1');
+        Route::get('/custom-frock/{customOrder}', [\App\Http\Controllers\Shop\CustomOrderController::class, 'show'])->name('custom-frock.show');
+        Route::post('/custom-frock/{customOrder}/approve-quote', [\App\Http\Controllers\Shop\CustomOrderController::class, 'approveQuote'])->name('custom-frock.approve-quote')->middleware('throttle:5,1');
+        Route::get('/custom-frock/{customOrder}/payment', [\App\Http\Controllers\Shop\CustomOrderController::class, 'payment'])->name('custom-frock.payment');
+        Route::post('/custom-frock/{customOrder}/request-changes', [\App\Http\Controllers\Shop\CustomOrderController::class, 'requestChanges'])->name('custom-frock.request-changes')->middleware('throttle:10,1');
+        Route::post('/custom-frock/{customOrder}/cancel', [\App\Http\Controllers\Shop\CustomOrderController::class, 'cancel'])->name('custom-frock.cancel');
+        Route::get('/custom-frock/{customOrder}/files/{file}', [\App\Http\Controllers\Shop\CustomOrderFileController::class, 'show'])->name('custom-frock.file');
     });
 });
 
@@ -148,6 +159,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('contact', [AdminContactController::class, 'update'])->name('contact.update');
         Route::get('contact/messages', [AdminContactController::class, 'messages'])->name('contact.messages');
         Route::get('contact/messages/{message}', [AdminContactController::class, 'showMessage'])->name('contact.messages.show');
+        Route::post('contact/messages/{message}/spam', [AdminContactController::class, 'markAsSpam'])->name('contact.messages.spam');
+        Route::post('contact/messages/{message}/replied', [AdminContactController::class, 'markAsReplied'])->name('contact.messages.replied');
+        Route::post('contact/messages/{message}/archive', [AdminContactController::class, 'archive'])->name('contact.messages.archive');
         Route::delete('contact/messages/{message}', [AdminContactController::class, 'destroyMessage'])->name('contact.messages.destroy');
 
         Route::get('return-policy', [AdminReturnPolicyController::class, 'edit'])->name('return-policy.edit');
@@ -193,6 +207,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('coupons/{coupon}/activate', [CouponController::class, 'activate'])->name('coupons.activate')->middleware('permission:manage_coupons');
         Route::post('coupons/{coupon}/deactivate', [CouponController::class, 'deactivate'])->name('coupons.deactivate')->middleware('permission:manage_coupons');
         Route::delete('coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy')->middleware('permission:manage_coupons');
+
+        // Custom Orders
+        Route::get('custom-orders', [\App\Http\Controllers\Admin\CustomOrderController::class, 'index'])->name('custom-orders.index')->middleware('permission:manage_orders');
+        Route::get('custom-orders/{customOrder}', [\App\Http\Controllers\Admin\CustomOrderController::class, 'show'])->name('custom-orders.show')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/review', [\App\Http\Controllers\Admin\CustomOrderController::class, 'review'])->name('custom-orders.review')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/request-info', [\App\Http\Controllers\Admin\CustomOrderController::class, 'requestInfo'])->name('custom-orders.request-info')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/approve-for-quote', [\App\Http\Controllers\Admin\CustomOrderController::class, 'approveForQuote'])->name('custom-orders.approve-for-quote')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/reject', [\App\Http\Controllers\Admin\CustomOrderController::class, 'reject'])->name('custom-orders.reject')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/quote', [\App\Http\Controllers\Admin\CustomOrderController::class, 'storeQuote'])->name('custom-orders.quote')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/start-production', [\App\Http\Controllers\Admin\CustomOrderController::class, 'startProduction'])->name('custom-orders.start-production')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/submit-for-qc', [\App\Http\Controllers\Admin\CustomOrderController::class, 'submitForQc'])->name('custom-orders.submit-for-qc')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/quality-check', [\App\Http\Controllers\Admin\CustomOrderController::class, 'qualityCheck'])->name('custom-orders.quality-check')->middleware('permission:manage_orders');
+        Route::patch('custom-orders/{customOrder}/qc-checks/{check}', [\App\Http\Controllers\Admin\CustomOrderController::class, 'updateQcCheck'])->name('custom-orders.qc-check.update')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/mark-ready', [\App\Http\Controllers\Admin\CustomOrderController::class, 'markReady'])->name('custom-orders.mark-ready')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/mark-shipped', [\App\Http\Controllers\Admin\CustomOrderController::class, 'markShipped'])->name('custom-orders.mark-shipped')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/complete', [\App\Http\Controllers\Admin\CustomOrderController::class, 'complete'])->name('custom-orders.complete')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/message', [\App\Http\Controllers\Admin\CustomOrderController::class, 'sendMessage'])->name('custom-orders.message')->middleware('throttle:30,1');
+        Route::patch('custom-orders/{customOrder}/notes', [\App\Http\Controllers\Admin\CustomOrderController::class, 'updateNotes'])->name('custom-orders.update-notes')->middleware('permission:manage_orders');
+        Route::get('custom-orders/{customOrder}/files/{file}', [\App\Http\Controllers\Admin\CustomOrderController::class, 'serveFile'])->name('custom-orders.file')->middleware('permission:manage_orders');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])

@@ -118,8 +118,10 @@ class OrderService
 
             $this->notifyStatusChange($order->fresh(), $prev);
 
-            // Send order placed notification after payment confirmation (non-critical)
-            $this->notifyOrderPlaced($order->fresh());
+            // Send order placed notification (skip for custom orders — they have their own notifications)
+            if (!$order->custom_order_id) {
+                $this->notifyOrderPlaced($order->fresh());
+            }
 
             return $order->fresh();
         });

@@ -38,6 +38,11 @@
 
                 <form method="POST" action="{{ route('shop.contact.send') }}">
                     @csrf
+                    {{-- Honeypot: hidden from real users, bots fill it --}}
+                    <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;overflow:hidden;" aria-hidden="true">
+                        <label for="website_url">Leave this empty</label>
+                        <input type="text" name="website_url" id="website_url" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Your Name</label>

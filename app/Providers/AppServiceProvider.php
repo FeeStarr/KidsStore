@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Order;
+use App\Observers\OrderObserver;
 use App\Services\CartService;
 use App\Services\Contracts\InventoryServiceInterface;
 use App\Services\InventoryService;
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        Order::observe(OrderObserver::class);
 
         // Use a guarded connection that refuses destructive queries
         // (TRUNCATE / DROP / unbounded DELETE) outside test environments,

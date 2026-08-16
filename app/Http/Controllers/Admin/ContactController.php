@@ -14,7 +14,7 @@ class ContactController extends Controller
     public function edit(): View
     {
         $contact  = ContactPage::instance();
-        $unread   = ContactMessage::where('read', false)->count();
+        $unread   = ContactMessage::new()->count();
 
         return view('admin.contact.edit', compact('contact', 'unread'));
     }
@@ -38,18 +38,52 @@ class ContactController extends Controller
 
     public function messages(Request $request): View
     {
-        $messages = ContactMessage::latest()->paginate(20);
+        $query = ContactMessage::query();
 
-        return view('admin.contact.messages', compact('messages'));
+        $filter = $request->get('filter', 'all');
+        if ($filter === 'new') {
+            $query->new();
+        } elseif ($filter === 'spam') {
+            $query->where('status', ContactMessage::STATUS_SPAM);
+        } elseif ($filter === 'archived') {
+            $query->where('status', ContactMessage::STATUS_ARCHIVED);
+        } elseif ($filter === 'replied') {
+            $query->where('status', ContactMessage::STATUS_REPLIED);
+        }
+
+        $messages = $query->latest()->paginate(20)->withQueryString();
+
+        return view('admin.contact.messages', compact('messages', 'filter'));
     }
 
     public function showMessage(ContactMessage $message): View
     {
-        if (! $message->read) {
-            $message->update(['read' => true, 'read_at' => now()]);
+        if ($message->status === ContactMessage::STATUS_NEW) {
+            $message->markAsRead();
         }
 
         return view('admin.contact.message', compact('message'));
+    }
+
+    public function markAsSpam(ContactMessage $message): RedirectResponse
+    {
+        $message->markAsSpam();
+
+        return back()->with('success', 'Message marked as spam.');
+    }
+
+    public function markAsReplied(ContactMessage $message): RedirectResponse
+    {
+        $message->markAsReplied();
+
+        return back()->with('success', 'Message marked as replied.');
+    }
+
+    public function archive(ContactMessage $message): RedirectResponse
+    {
+        $message->archive();
+
+        return back()->with('success', 'Message archived.');
     }
 
     public function destroyMessage(ContactMessage $message): RedirectResponse
