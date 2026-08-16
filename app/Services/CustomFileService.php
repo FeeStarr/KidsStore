@@ -10,9 +10,27 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CustomFileService
 {
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+
+    private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
     public function upload(CustomOrder $order, UploadedFile $file, string $type, int $userId): CustomOrderFile
     {
-        $filename = uniqid('', true) . '.' . $file->getClientOriginalExtension();
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        if (! in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
+            throw new \InvalidArgumentException('File type not allowed.');
+        }
+
+        // Validate actual MIME type using finfo (server-side), not client-reported
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $realMime = $finfo->file($file->getRealPath());
+        if (! in_array($realMime, self::ALLOWED_MIME_TYPES, true)) {
+            throw new \InvalidArgumentException('File content does not match allowed types.');
+        }
+
+        // Cryptographically random filename
+        $filename = bin2hex(random_bytes(16)) . '.' . $ext;
 
         $path = $file->storeAs(
             "custom-orders/{$order->id}",
@@ -25,7 +43,7 @@ class CustomFileService
             'file_type' => $type,
             'file_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => $realMime,
             'file_size' => $file->getSize(),
             'uploaded_by' => $userId,
             'created_at' => now(),
@@ -42,13 +60,22 @@ class CustomFileService
     {
         $fullPath = Storage::disk('custom_orders')->path($file->file_path);
 
+        // Path containment check — prevent path traversal even if DB is compromised
+        $basePath = realpath(Storage::disk('custom_orders')->path(''));
+        if ($basePath === false || strpos(realpath($fullPath), $basePath) !== 0) {
+            abort(403, 'Invalid file path.');
+        }
+
         if (!file_exists($fullPath)) {
             return null;
         }
 
+        // Sanitize filename for Content-Disposition header
+        $safeName = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', $file->original_filename ?? basename($file->file_path));
+
         return response()->file($fullPath, [
             'Content-Type' => $file->mime_type,
-            'Content-Disposition' => 'inline; filename="' . ($file->original_filename ?? basename($file->file_path)) . '"',
+            'Content-Disposition' => 'attachment; filename="' . $safeName . '"',
         ]);
     }
 
@@ -64,6 +91,6 @@ class CustomFileService
 
     public function getAllowedMimeTypes(): array
     {
-        return ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        return self::ALLOWED_MIME_TYPES;
     }
 }

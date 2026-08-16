@@ -68,6 +68,7 @@ class PickupPortalController extends Controller
 
         RateLimiter::clear($throttleKey);
 
+        $request->session()->regenerate();
         session([
             'portal_station_id'   => $station->id,
             'portal_station_name' => $station->name,
@@ -80,6 +81,8 @@ class PickupPortalController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         $request->session()->forget(['portal_station_id', 'portal_station_name']);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         return redirect()->route('pickup-portal.login');
     }
 
@@ -361,7 +364,7 @@ class PickupPortalController extends Controller
         }
 
         $data = $request->validate([
-            'item_ids' => ['required', 'array'],
+            'item_ids' => ['required', 'array', 'max:50'],
             'item_ids.*' => ['integer', 'exists:order_items,id'],
         ]);
 
@@ -395,7 +398,7 @@ class PickupPortalController extends Controller
         }
 
         $data = $request->validate([
-            'item_ids' => ['required', 'array'],
+            'item_ids' => ['required', 'array', 'max:50'],
             'item_ids.*' => ['integer', 'exists:order_items,id'],
         ]);
 

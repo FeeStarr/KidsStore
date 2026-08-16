@@ -598,32 +598,39 @@ class PaystackService
 
     private function markTransactionSuccess(PaymentTransaction $transaction, array $rawPayload): void
     {
-        $transaction->update([
-            'status'       => 'success',
-            'opay_payload' => $rawPayload,
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($transaction, $rawPayload) {
+            $transaction->update([
+                'status'       => 'success',
+                'opay_payload' => $rawPayload,
+            ]);
 
-        // Update the parent order
-        $order = $transaction->order;
-        if (! $order || $order->payment_status === 'paid') {
-            return;
-        }
-
-        $paid = round((float) $order->amount_paid + (float) $transaction->amount, 2);
-        $order->update([
-            'amount_paid'    => $paid,
-            'payment_status' => $paid >= (float) $order->grand_total ? 'paid' : 'partial',
-        ]);
-
-        // Auto-confirm pending-payment orders.
-        // OrderService::confirm() decreases inventory and dispatches notifications.
-        if ($order->payment_status === 'paid' && in_array($order->status, ['pending payment', 'pending confirmation', 'ordered'], true)) {
-            try {
-                app(OrderService::class)->confirm($order->fresh());
-            } catch (\Throwable $e) {
-                Log::error('Auto-confirm failed after payment', ['order' => $order->reference, 'error' => $e->getMessage()]);
+            // Update the parent order with row-level lock to prevent race conditions
+            $order = $transaction->order;
+            if (! $order) {
+                return;
             }
-        }
+
+            $order = $order->lockForUpdate()->first();
+            if ($order->payment_status === 'paid') {
+                return;
+            }
+
+            $paid = round((float) $order->amount_paid + (float) $transaction->amount, 2);
+            $order->update([
+                'amount_paid'    => $paid,
+                'payment_status' => $paid >= (float) $order->grand_total ? 'paid' : 'partial',
+            ]);
+
+            // Auto-confirm pending-payment orders.
+            // OrderService::confirm() decreases inventory and dispatches notifications.
+            if ($order->payment_status === 'paid' && in_array($order->status, ['pending payment', 'pending confirmation', 'ordered'], true)) {
+                try {
+                    app(OrderService::class)->confirm($order->fresh());
+                } catch (\Throwable $e) {
+                    Log::error('Auto-confirm failed after payment', ['order' => $order->reference, 'error' => $e->getMessage()]);
+                }
+            }
+        });
     }
 
     private function markUnderReview(PaymentTransaction $transaction, array $rawPayload, string $reason): void
@@ -675,12 +682,11 @@ class PaystackService
         $match = hash_equals($expected, $receivedSignature);
 
         if (! $match) {
-            Log::warning('Paystack webhook signature debug', [
+            Log::warning('Paystack webhook signature mismatch', [
                 'received_sig'   => $receivedSignature,
                 'expected_sig'   => $expected,
                 'raw_body_len'   => strlen($rawBody),
                 'raw_body_head'  => substr($rawBody, 0, 80),
-                'key_prefix'     => substr($this->secretKey, 0, 8),
             ]);
         }
 
