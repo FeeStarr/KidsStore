@@ -239,6 +239,9 @@ class OrderService
     public function recordPayment(Order $order, float $amount): Order
     {
         return DB::transaction(function () use ($order, $amount) {
+            // Lock the order row to prevent concurrent payment race conditions
+            $order = $order->lockForUpdate()->first();
+
             $paid = round(((float) $order->amount_paid) + $amount, 2);
             $order->update([
                 'amount_paid' => $paid,

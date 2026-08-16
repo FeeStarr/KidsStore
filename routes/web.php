@@ -67,17 +67,17 @@ Route::name('shop.')->group(function () {
 
     Route::middleware('guest')->group(function () {
         Route::get('/login',    [ShopAuthController::class, 'showLogin'])->name('login');
-        Route::post('/login',   [ShopAuthController::class, 'login']);
+        Route::post('/login',   [ShopAuthController::class, 'login'])->middleware('throttle:10,1');
         Route::get('/register', [ShopAuthController::class, 'showRegister'])->name('register');
-        Route::post('/register',[ShopAuthController::class, 'register']);
+        Route::post('/register',[ShopAuthController::class, 'register'])->middleware('throttle:3,1');
         Route::get('/login/2fa',  [ShopAuthController::class, 'show2FA'])->name('2fa.show');
-        Route::post('/login/2fa', [ShopAuthController::class, 'verify2FA'])->name('2fa.verify');
+        Route::post('/login/2fa', [ShopAuthController::class, 'verify2FA'])->name('2fa.verify')->middleware('throttle:10,1');
         
         // Password reset
         Route::get('/forgot-password',  [ShopPasswordResetController::class, 'showForgotForm'])->name('password.request');
-        Route::post('/forgot-password', [ShopPasswordResetController::class, 'sendResetLink'])->name('password.email');
+        Route::post('/forgot-password', [ShopPasswordResetController::class, 'sendResetLink'])->name('password.email')->middleware('throttle:3,1');
         Route::get('/reset-password/{token}', [ShopPasswordResetController::class, 'showResetForm'])->name('password.reset');
-        Route::post('/reset-password', [ShopPasswordResetController::class, 'resetPassword'])->name('password.update');
+        Route::post('/reset-password', [ShopPasswordResetController::class, 'resetPassword'])->name('password.update')->middleware('throttle:5,1');
     });
     Route::post('/logout', [ShopAuthController::class, 'logout'])
         ->middleware('auth')->name('logout');
@@ -124,7 +124,7 @@ Route::name('shop.')->group(function () {
 });
 
 // Paystack webhook — no auth, no CSRF (exempted in bootstrap/app.php)
-Route::post('/paystack/webhook', [PaystackController::class, 'webhook'])->name('paystack.webhook');
+Route::post('/paystack/webhook', [PaystackController::class, 'webhook'])->name('paystack.webhook')->middleware('throttle:60,1');
 
 /*
 |--------------------------------------------------------------------------
@@ -135,15 +135,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         
         // Password reset
         Route::get('/forgot-password',  [AdminPasswordResetController::class, 'showForgotForm'])->name('password.request');
-        Route::post('/forgot-password', [AdminPasswordResetController::class, 'sendResetLink'])->name('password.email');
+        Route::post('/forgot-password', [AdminPasswordResetController::class, 'sendResetLink'])->name('password.email')->middleware('throttle:3,1');
         Route::get('/reset-password/{token}', [AdminPasswordResetController::class, 'showResetForm'])->name('password.reset');
-        Route::post('/reset-password', [AdminPasswordResetController::class, 'resetPassword'])->name('password.update');
+        Route::post('/reset-password', [AdminPasswordResetController::class, 'resetPassword'])->name('password.update')->middleware('throttle:5,1');
     // Admin authentication (outside auth middleware)
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
-        Route::post('/login', [AdminAuthController::class, 'login']);
+        Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:10,1');
         Route::get('/login/2fa', [AdminAuthController::class, 'showTwoFactorForm'])->name('login.2fa');
-        Route::post('/login/2fa', [AdminAuthController::class, 'verifyTwoFactor'])->name('login.verify-2fa');
+        Route::post('/login/2fa', [AdminAuthController::class, 'verifyTwoFactor'])->name('login.verify-2fa')->middleware('throttle:10,1');
     });
     Route::match(['get', 'post'], '/logout', [AdminAuthController::class, 'logout'])
         ->middleware('auth.admin')->name('logout');
@@ -223,7 +223,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('custom-orders/{customOrder}/mark-ready', [\App\Http\Controllers\Admin\CustomOrderController::class, 'markReady'])->name('custom-orders.mark-ready')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/mark-shipped', [\App\Http\Controllers\Admin\CustomOrderController::class, 'markShipped'])->name('custom-orders.mark-shipped')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/complete', [\App\Http\Controllers\Admin\CustomOrderController::class, 'complete'])->name('custom-orders.complete')->middleware('permission:manage_orders');
-        Route::post('custom-orders/{customOrder}/message', [\App\Http\Controllers\Admin\CustomOrderController::class, 'sendMessage'])->name('custom-orders.message')->middleware('throttle:30,1');
+        Route::post('custom-orders/{customOrder}/message', [\App\Http\Controllers\Admin\CustomOrderController::class, 'sendMessage'])->name('custom-orders.message')->middleware(['permission:manage_orders', 'throttle:10,1']);
         Route::patch('custom-orders/{customOrder}/notes', [\App\Http\Controllers\Admin\CustomOrderController::class, 'updateNotes'])->name('custom-orders.update-notes')->middleware('permission:manage_orders');
         Route::get('custom-orders/{customOrder}/files/{file}', [\App\Http\Controllers\Admin\CustomOrderController::class, 'serveFile'])->name('custom-orders.file')->middleware('permission:manage_orders');
 
@@ -291,17 +291,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('settings', [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update')->middleware('permission:manage_settings');
         Route::post('pickup-stations/apply-shipping-fee', [PickupStationController::class, 'applyShippingFeeAll'])->name('pickup-stations.apply-shipping-fee')->middleware('permission:manage_settings');
         Route::resource('bank-accounts', App\Http\Controllers\Admin\BankAccountController::class)->only(['index','store','update','destroy'])->middleware('permission:manage_settings');
-        Route::get('pickup-payouts', [App\Http\Controllers\Admin\PickupPayoutController::class, 'index'])->name('pickup-payouts.index');
-        Route::get('pickup-payouts/records', [App\Http\Controllers\Admin\PickupPayoutController::class, 'records'])->name('pickup-payouts.records');
-        Route::get('pickup-payouts/records/export', [App\Http\Controllers\Admin\PickupPayoutController::class, 'export'])->name('pickup-payouts.export');
-        Route::get('pickup-payouts/{pickupStation}', [App\Http\Controllers\Admin\PickupPayoutController::class, 'show'])->name('pickup-payouts.show');
-        Route::get('pickup-payouts/{pickupStation}/data', [App\Http\Controllers\Admin\PickupPayoutController::class, 'showData'])->name('pickup-payouts.show-data');
-        Route::post('pickup-payouts/{pickupStation}/mark-paid', [App\Http\Controllers\Admin\PickupPayoutController::class, 'markPaid'])->name('pickup-payouts.mark-paid');
-        Route::post('pickup-payouts/{pickupPayout}/reverse', [App\Http\Controllers\Admin\PickupPayoutController::class, 'reverse'])->name('pickup-payouts.reverse');
-        Route::resource('suppliers', SupplierController::class)->except(['show']);
-        Route::resource('payment-methods', App\Http\Controllers\Admin\PaymentMethodController::class)->only(['index','update']);
+        Route::get('pickup-payouts', [App\Http\Controllers\Admin\PickupPayoutController::class, 'index'])->name('pickup-payouts.index')->middleware('permission:manage_settings');
+        Route::get('pickup-payouts/records', [App\Http\Controllers\Admin\PickupPayoutController::class, 'records'])->name('pickup-payouts.records')->middleware('permission:manage_settings');
+        Route::get('pickup-payouts/records/export', [App\Http\Controllers\Admin\PickupPayoutController::class, 'export'])->name('pickup-payouts.export')->middleware('permission:manage_settings');
+        Route::get('pickup-payouts/{pickupStation}', [App\Http\Controllers\Admin\PickupPayoutController::class, 'show'])->name('pickup-payouts.show')->middleware('permission:manage_settings');
+        Route::get('pickup-payouts/{pickupStation}/data', [App\Http\Controllers\Admin\PickupPayoutController::class, 'showData'])->name('pickup-payouts.show-data')->middleware('permission:manage_settings');
+        Route::post('pickup-payouts/{pickupStation}/mark-paid', [App\Http\Controllers\Admin\PickupPayoutController::class, 'markPaid'])->name('pickup-payouts.mark-paid')->middleware('permission:manage_settings');
+        Route::post('pickup-payouts/{pickupPayout}/reverse', [App\Http\Controllers\Admin\PickupPayoutController::class, 'reverse'])->name('pickup-payouts.reverse')->middleware('permission:manage_settings');
+        Route::resource('suppliers', SupplierController::class)->except(['show'])->middleware('permission:manage_inventory');
+        Route::resource('payment-methods', App\Http\Controllers\Admin\PaymentMethodController::class)->only(['index','update'])->middleware('permission:manage_settings');
         Route::get('pickup-stations/{pickupStation}/payouts', [PickupStationController::class, 'payouts'])
-            ->name('pickup-stations.payouts');
+            ->name('pickup-stations.payouts')->middleware('permission:manage_settings');
 
         // Station management routes
         Route::post('pickup-stations/{pickupStation}/toggle-availability', [PickupStationController::class, 'toggleAvailability'])
@@ -315,15 +315,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('orders/{order}/reassign-station', [PickupStationController::class, 'reassignOrder'])
             ->name('orders.reassign-station')->middleware('permission:manage_settings');
 
-        Route::get('refunds',                                  [AdminRefundController::class, 'index'])->name('refunds.index');
-        Route::get('refunds/{refundRequest}',                  [AdminRefundController::class, 'show'])->name('refunds.show');
-        Route::post('refunds/{refundRequest}/request-evidence',[AdminRefundController::class, 'requestEvidence'])->name('refunds.request-evidence');
-        Route::post('refunds/{refundRequest}/approve',         [AdminRefundController::class, 'approve'])->name('refunds.approve');
-        Route::post('refunds/{refundRequest}/reject',          [AdminRefundController::class, 'reject'])->name('refunds.reject');
-        Route::post('refunds/{refundRequest}/mark-received',   [AdminRefundController::class, 'markReceived'])->name('refunds.mark-received');
-        Route::post('refunds/{refundRequest}/inspect',         [AdminRefundController::class, 'inspect'])->name('refunds.inspect');
-        Route::post('refunds/{refundRequest}/process-refund',  [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund');
-        Route::post('refunds/{refundRequest}/mark-replacement-shipped', [AdminRefundController::class, 'markReplacementShipped'])->name('refunds.mark-replacement-shipped');
+        Route::get('refunds',                                  [AdminRefundController::class, 'index'])->name('refunds.index')->middleware('permission:manage_orders');
+        Route::get('refunds/{refundRequest}',                  [AdminRefundController::class, 'show'])->name('refunds.show')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/request-evidence',[AdminRefundController::class, 'requestEvidence'])->name('refunds.request-evidence')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/approve',         [AdminRefundController::class, 'approve'])->name('refunds.approve')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/reject',          [AdminRefundController::class, 'reject'])->name('refunds.reject')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/mark-received',   [AdminRefundController::class, 'markReceived'])->name('refunds.mark-received')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/inspect',         [AdminRefundController::class, 'inspect'])->name('refunds.inspect')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/process-refund',  [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/mark-replacement-shipped', [AdminRefundController::class, 'markReplacementShipped'])->name('refunds.mark-replacement-shipped')->middleware('permission:manage_orders');
     });
 });
 
@@ -370,8 +370,8 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         Route::post('/returns/{refundRequest}/collect', [PickupPortalController::class, 'collectReturn'])->name('returns.collect');
 
         // Reminder routes
-        Route::post('/orders/{order}/send-reminder', [PickupPortalController::class, 'sendReminder'])->name('send-reminder');
-        Route::post('/returns/{return}/send-reminder', [PickupPortalController::class, 'sendReturnReminder'])->name('send-return-reminder');
+        Route::post('/orders/{order}/send-reminder', [PickupPortalController::class, 'sendReminder'])->name('send-reminder')->middleware('throttle:3,1');
+        Route::post('/returns/{return}/send-reminder', [PickupPortalController::class, 'sendReturnReminder'])->name('send-return-reminder')->middleware('throttle:3,1');
 
         // Payment verification
         Route::post('/orders/{order}/submit-payment', [PickupPortalController::class, 'submitPaymentVerification'])->name('submit-payment');

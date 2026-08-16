@@ -30,28 +30,27 @@ class PasswordResetController extends Controller
     public function sendResetLink(Request $request): RedirectResponse
     {
         $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
+            'email' => ['required', 'email'],
         ]);
 
+        // Always return the same message to prevent user enumeration
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !$user->isCustomer()) {
-            return back()->withErrors(['email' => 'This email is not associated with a customer account.']);
+        if ($user && $user->isCustomer()) {
+            $token = Str::random(64);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $user->email],
+                [
+                    'token' => Hash::make($token),
+                    'created_at' => now(),
+                ]
+            );
+
+            $user->notify(new PasswordResetNotification($token));
         }
 
-        $token = Str::random(64);
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $user->email],
-            [
-                'token' => Hash::make($token),
-                'created_at' => now(),
-            ]
-        );
-
-        $user->notify(new PasswordResetNotification($token));
-
-        return back()->with('status', 'Password reset link sent to your email. Check your inbox and spam folder.');
+        return back()->with('status', 'If an account exists with that email, a password reset link has been sent.');
     }
 
     /**

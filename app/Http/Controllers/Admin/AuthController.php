@@ -60,7 +60,7 @@ class AuthController extends Controller
 
         if (! $user->is_active) {
             RateLimiter::hit($throttleKey, 60);
-            return back()->withErrors(['email' => 'Your account has been deactivated.'])->onlyInput('email');
+            return back()->withErrors(['email' => $genericError])->onlyInput('email');
         }
 
         RateLimiter::clear($throttleKey);

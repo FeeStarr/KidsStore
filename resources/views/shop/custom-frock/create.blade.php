@@ -482,6 +482,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+    }
+
     function buildSummary() {
         const fd = new FormData(form);
         let html = '<h6 class="fw-bold text-primary mb-3">CUSTOM FROCK REQUEST</h6>';
@@ -503,20 +509,20 @@ document.addEventListener('DOMContentLoaded', function() {
             "Delivery": fd.get('delivery_method') === 'pickup' ? 'Pickup Station' : 'Home Delivery',
         };
         for (const [k, v] of Object.entries(fields)) {
-            html += `<tr><td class="text-muted">${k}</td><td class="fw-bold">${v}</td></tr>`;
+            html += `<tr><td class="text-muted">${escapeHtml(k)}</td><td class="fw-bold">${escapeHtml(v)}</td></tr>`;
         }
         if (fd.get('measurement_type') === 'custom') {
             document.querySelectorAll('.measurement-row').forEach(row => {
                 const type = row.querySelector('input[type="hidden"]')?.value;
                 const val = row.querySelector('input[type="number"]')?.value;
                 const unit = row.querySelector('select')?.value || 'cm';
-                if (val) html += `<tr><td class="text-muted">${type}</td><td>${val} ${unit}</td></tr>`;
+                if (val) html += `<tr><td class="text-muted">${escapeHtml(type)}</td><td>${escapeHtml(val)} ${escapeHtml(unit)}</td></tr>`;
             });
         } else {
-            html += `<tr><td class="text-muted">Size</td><td>${fd.get('standard_size') || 'Standard'}</td></tr>`;
+            html += `<tr><td class="text-muted">Size</td><td>${escapeHtml(fd.get('standard_size') || 'Standard')}</td></tr>`;
         }
         if (fd.get('customer_notes')) {
-            html += `<tr><td class="text-muted">Notes</td><td>${fd.get('customer_notes')}</td></tr>`;
+            html += `<tr><td class="text-muted">Notes</td><td>${escapeHtml(fd.get('customer_notes'))}</td></tr>`;
         }
         html += '</table>';
         document.getElementById('summaryContent').innerHTML = html;
