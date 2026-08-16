@@ -140,6 +140,25 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
 </div>
 @endif
 
+<div class="promo-section mb-5" style="background: linear-gradient(120deg, #ff6fa3, #9b5de5 50%, #4cc9f0);">
+    <div class="row align-items-center position-relative" style="z-index:1;">
+        <div class="col-md-8">
+            <div class="promo-title mb-2" style="font-size:1.5rem;">
+                <i class="bi bi-stars"></i> Design Your Own Custom Frock
+            </div>
+            <p class="promo-sub mb-3" style="font-size:1rem; color:rgba(255,255,255,.9);">
+                Pick your style, fabric, colours & embellishments. We bring your dream frock to life — measured perfectly for your little one.
+            </p>
+            <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-light btn-lg" style="border-radius:50px; font-weight:600; color:var(--kid-purple);">
+                <i class="bi bi-palette-fill"></i> Start Designing
+            </a>
+        </div>
+        <div class="col-md-4 text-center d-none d-md-block">
+            <span class="floaty" style="font-size:7rem;">&#127870;</span>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <span class="section-title fs-5"><i class="bi bi-stars text-warning"></i> Latest Goodies</span>
     <a href="{{ route('shop.products.index') }}" class="btn btn-sm btn-outline-primary" style="border-radius:50px;">View all <i class="bi bi-arrow-right"></i></a>

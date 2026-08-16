@@ -27,7 +27,7 @@ class Order extends Model
     public const DELIVERY_METHOD_DELIVERY = 'delivery';
 
     protected $fillable = [
-        'reference', 'customer_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
+        'reference', 'customer_id', 'custom_order_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
         'pickup_station_id', 'delivery_address',
         'courier_name', 'tracking_number', 'tracking_url',
         'total_amount',
@@ -65,6 +65,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function customOrder(): BelongsTo
+    {
+        return $this->belongsTo(CustomOrder::class);
     }
 
     /**

@@ -185,6 +185,7 @@
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-stars me-1"></i>Custom Frock</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.about') }}">About</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.contact') }}">Contact</a></li>
         </ul>
@@ -212,6 +213,7 @@
                         @endif
                         <li><a class="dropdown-item" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
+                        <li><a class="dropdown-item" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-stars me-1"></i>Custom Frock</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf
