@@ -1,51 +1,102 @@
-*.log
-.DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/node_modules
+# ═══════════════════════════════════════════════════════════════
+# KidsStore .gitignore
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Environment & Secrets ───────────────────────────────────
+.env*
+!.env.example
+/config/*.local.php
+*.key
+*.secret
+*.pem
+credentials.json
+appkey.txt
+
+# ─── Laravel ─────────────────────────────────────────────────
+/vendor
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
-Homestead.json
-Homestead.yaml
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+
+# ─── Dependencies ────────────────────────────────────────────
+/node_modules
+/package-lock.json
+
+# ─── IDE & Editor ────────────────────────────────────────────
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+/.phpactor.json
+.styleci.yml
+.editorconfig
+.vscode/
+
+# ─── OS ──────────────────────────────────────────────────────
+.DS_Store
 Thumbs.db
 
-# Local spec and planning files - keep out of git
+# ─── Debug/Utility Scripts (should not be in repo) ──────────
+check_2fa.php
+check_session_driver.php
+check_unpaid_fees.php
+clear_cache.php
+list_tables.php
+reset_db.php
+seed_roles.php
+set_station_fee.php
+update_user_role.php
+test_email.php
+test_db.php
+test_db_connection.php
+run_migration.php
+backfill_pickup_fees.php
+ensure_test_db.php
+
+# ─── Windows Scripts ─────────────────────────────────────────
+*.ps1
+*.bat
+start.bat
+start.ps1
+bk_script.ps1
+run_migrations.ps1
+run_server.ps1
+
+# ─── Temporary & Backup Files ───────────────────────────────
+/tmp_*
+*.bundle
+*.zip
+app.zip
+
+# ─── Documentation (keep README.md) ─────────────────────────
+CHANGELOG.md
+README_RUN.md
+README_TESTS.md
+PASSWORD_RESET_FEATURE.md
+MIGRATION_CONSOLIDATION.md
+PRODUCTION_ENV_SETUP.md
+PRODUCTION_READINESS.md
 SPECIFICATION.md
 user_stories.csv
 
-# Local config and secret files
-.env*
-!.env.example
-config/*.local.php
-*.key
-*.secret
-*.pem
-credentials.json
+# ─── Test Config ─────────────────────────────────────────────
+phpunit.xml
+tests/
 
-# Backups and temporary files
+# ─── Build Config (assets pre-built) ────────────────────────
+vite.config.js
+package.json
+package-lock.json
+
+# ─── Deployment Backups ──────────────────────────────────────
 /KIdsFlairr_Prod/
 /KIdsFlairr_Prod.zip
 /KidsStore1/
 /KidsStore1.zip
-/tmp_*
-appkey.txt
-*.bundle
-*.zip
-bk_script.ps1
-check_session_driver.php
-ensure_test_db.php
-test_db_connection.php
+/*.broken
