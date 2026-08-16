@@ -32,7 +32,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->latest()->get();
+        $products = $query->latest()->limit(2000)->get();
 
         return view('admin.products.index', compact('products'));
     }

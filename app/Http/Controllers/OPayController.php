@@ -34,10 +34,11 @@ class OPayController extends Controller
         try {
             $transaction = $this->opay->initiate($order);
         } catch (\RuntimeException $e) {
+            Log::warning('OPay initiate failed', ['order' => $order->reference, 'error' => $e->getMessage()]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+                return response()->json(['success' => false, 'message' => 'Unable to initiate payment. Please try again.'], 422);
             }
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', 'Unable to initiate payment. Please try again.');
         }
 
         if ($request->wantsJson()) {

@@ -9,6 +9,7 @@ use App\Services\Contracts\InventoryServiceInterface;
 use App\Services\InventoryService;
 use Illuminate\Database\Connection;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +24,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        // Superadmin bypasses all authorization checks
+        Gate::before(function ($user, $ability) {
+            if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
+                return true;
+            }
+        });
 
         Order::observe(OrderObserver::class);
 

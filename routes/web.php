@@ -324,6 +324,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('refunds/{refundRequest}/inspect',         [AdminRefundController::class, 'inspect'])->name('refunds.inspect')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/process-refund',  [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/mark-replacement-shipped', [AdminRefundController::class, 'markReplacementShipped'])->name('refunds.mark-replacement-shipped')->middleware('permission:manage_orders');
+        Route::get('refunds/{refundRequest}/evidence', [AdminRefundController::class, 'evidence'])->name('refunds.evidence')->middleware('permission:manage_orders');
+        Route::get('refunds/{refundRequest}/evidence-video', [AdminRefundController::class, 'evidenceVideo'])->name('refunds.evidence-video')->middleware('permission:manage_orders');
     });
 });
 

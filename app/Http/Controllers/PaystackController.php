@@ -34,10 +34,11 @@ class PaystackController extends Controller
         try {
             $transaction = $this->paystack->initiate($order);
         } catch (\RuntimeException $e) {
+            Log::warning('Paystack initiate failed', ['order' => $order->reference, 'error' => $e->getMessage()]);
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+                return response()->json(['success' => false, 'message' => 'Unable to initiate payment. Please try again.'], 422);
             }
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', 'Unable to initiate payment. Please try again.');
         }
 
         $payload = $transaction->opay_payload['data'] ?? [];

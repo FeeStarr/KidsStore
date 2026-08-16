@@ -20,7 +20,7 @@ class PurchaseController extends Controller
 
     public function index(): View
     {
-        $purchases = Purchase::with('supplier')->latest()->get();
+        $purchases = Purchase::with('supplier')->latest()->limit(2000)->get();
 
         return view('admin.purchases.index', compact('purchases'));
     }
