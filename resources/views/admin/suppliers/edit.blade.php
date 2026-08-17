@@ -36,6 +36,34 @@
         <textarea name="address" class="form-control" rows="3">{{ old('address', $supplier->address) }}</textarea>
     </div>
 
+    <h5 class="mb-3"><i class="bi bi-share-fill me-1"></i> Social Media Handles</h5>
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label">WhatsApp</label>
+            <input name="social_whatsapp" class="form-control" value="{{ old('social_whatsapp', $supplier->social_whatsapp) }}" placeholder="+234...">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Instagram</label>
+            <input name="social_instagram" class="form-control" value="{{ old('social_instagram', $supplier->social_instagram) }}" placeholder="@username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Facebook</label>
+            <input name="social_facebook" class="form-control" value="{{ old('social_facebook', $supplier->social_facebook) }}" placeholder="Page URL or username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">TikTok</label>
+            <input name="social_tiktok" class="form-control" value="{{ old('social_tiktok', $supplier->social_tiktok) }}" placeholder="@username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Twitter / X</label>
+            <input name="social_twitter" class="form-control" value="{{ old('social_twitter', $supplier->social_twitter) }}" placeholder="@handle">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Website</label>
+            <input name="social_website" class="form-control" type="url" value="{{ old('social_website', $supplier->social_website) }}" placeholder="https://...">
+        </div>
+    </div>
+
     <button class="btn btn-primary" type="submit">Save</button>
     <a href="{{ route('admin.suppliers.index') }}" class="btn btn-link">Cancel</a>
 </form>

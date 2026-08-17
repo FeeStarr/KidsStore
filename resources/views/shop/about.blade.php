@@ -38,48 +38,43 @@
 
 </div>
 
-{{-- Why Us --}}
-<div class="text-center mb-4">
-    <span class="section-title fs-5"><i class="bi bi-stars text-warning"></i> Why Parents Love Us</span>
-</div>
-<div class="row g-3 mb-5">
-    <div class="col-6 col-md-3">
-        <div class="kid-tile tile-pink h-100">
-            <i class="bi bi-shield-check"></i>
-            <strong>Safe Products</strong>
-            <small>Every item quality-tested</small>
-        </div>
+{{-- Why Us — feature strip style (matching home page) --}}
+<div class="feature-strip p-3 p-md-4 mb-5">
+    <div class="text-center mb-3">
+        <span class="section-title fs-5"><i class="bi bi-stars text-warning"></i> Why Parents Love Us</span>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="kid-tile tile-blue h-100">
-            <i class="bi bi-truck"></i>
-            <strong>Fast Delivery</strong>
-            <small>Right to your door</small>
+    <div class="fill-row gap-3 text-center">
+        <div class="feat fill-tile px-2">
+            <i style="background:var(--kid-pink);"><i class="bi bi-shield-check"></i></i>
+            <div class="mt-2"><strong>Safe Products</strong><br><small class="text-muted">Every item quality-tested</small></div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="kid-tile tile-green h-100">
-            <i class="bi bi-arrow-repeat"></i>
-            <strong>Easy Returns</strong>
-            <small>No-stress policy</small>
+        <div class="feat fill-tile px-2">
+            <i style="background:var(--kid-blue);"><i class="bi bi-truck"></i></i>
+            <div class="mt-2"><strong>Fast Delivery</strong><br><small class="text-muted">Right to your door</small></div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="kid-tile tile-purple h-100">
-            <i class="bi bi-emoji-smile"></i>
-            <strong>Kid Approved</strong>
-            <small>Smiles every time</small>
+        <div class="feat fill-tile px-2">
+            <i style="background:var(--kid-green);"><i class="bi bi-arrow-repeat"></i></i>
+            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy</small></div>
+        </div>
+        <div class="feat fill-tile px-2">
+            <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
+            <div class="mt-2"><strong>Kid Approved</strong><br><small class="text-muted">Smiles every time</small></div>
         </div>
     </div>
 </div>
 
-{{-- Contact --}}
-@if($about->email || $about->phone || $about->address)
+{{-- Contact — fetched from global settings --}}
+@php
+    $contactEmail   = \App\Models\Setting::get('contact_email', '');
+    $contactPhone   = \App\Models\Setting::get('contact_phone', '');
+    $contactAddress = \App\Models\Setting::get('contact_address', '');
+@endphp
+@if($contactEmail || $contactPhone || $contactAddress)
 <div class="card border-0 shadow-sm mb-5" style="border-radius:1.25rem;">
     <div class="card-body p-4">
         <h4 class="mb-4" style="font-family:'Fredoka',sans-serif;"><i class="bi bi-envelope-heart-fill text-danger me-2"></i>Get in Touch</h4>
         <div class="row g-3">
-            @if($about->email)
+            @if($contactEmail)
             <div class="col-md-4 d-flex align-items-center gap-3">
                 <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                       style="width:44px;height:44px;background:var(--kid-pink);color:#fff;font-size:1.2rem;">
@@ -87,11 +82,11 @@
                 </span>
                 <div>
                     <div class="small text-muted">Email</div>
-                    <a href="mailto:{{ $about->email }}" class="fw-semibold text-decoration-none text-dark">{{ $about->email }}</a>
+                    <a href="mailto:{{ $contactEmail }}" class="fw-semibold text-decoration-none text-dark">{{ $contactEmail }}</a>
                 </div>
             </div>
             @endif
-            @if($about->phone)
+            @if($contactPhone)
             <div class="col-md-4 d-flex align-items-center gap-3">
                 <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                       style="width:44px;height:44px;background:var(--kid-blue);color:#fff;font-size:1.2rem;">
@@ -99,11 +94,11 @@
                 </span>
                 <div>
                     <div class="small text-muted">Phone</div>
-                    <a href="tel:{{ preg_replace('/\s+/', '', $about->phone) }}" class="fw-semibold text-decoration-none text-dark">{{ $about->phone }}</a>
+                    <a href="tel:{{ preg_replace('/\s+/', '', $contactPhone) }}" class="fw-semibold text-decoration-none text-dark">{{ $contactPhone }}</a>
                 </div>
             </div>
             @endif
-            @if($about->address)
+            @if($contactAddress)
             <div class="col-md-4 d-flex align-items-center gap-3">
                 <span class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                       style="width:44px;height:44px;background:var(--kid-green);color:#fff;font-size:1.2rem;">
@@ -111,7 +106,7 @@
                 </span>
                 <div>
                     <div class="small text-muted">Address</div>
-                    <span class="fw-semibold">{{ $about->address }}</span>
+                    <span class="fw-semibold">{{ $contactAddress }}</span>
                 </div>
             </div>
             @endif

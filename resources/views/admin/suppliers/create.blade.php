@@ -35,6 +35,34 @@
         <textarea name="address" class="form-control" rows="3"></textarea>
     </div>
 
+    <h5 class="mb-3"><i class="bi bi-share-fill me-1"></i> Social Media Handles</h5>
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label">WhatsApp</label>
+            <input name="social_whatsapp" class="form-control" placeholder="+234...">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Instagram</label>
+            <input name="social_instagram" class="form-control" placeholder="@username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Facebook</label>
+            <input name="social_facebook" class="form-control" placeholder="Page URL or username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">TikTok</label>
+            <input name="social_tiktok" class="form-control" placeholder="@username">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Twitter / X</label>
+            <input name="social_twitter" class="form-control" placeholder="@handle">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Website</label>
+            <input name="social_website" class="form-control" type="url" placeholder="https://...">
+        </div>
+    </div>
+
     <button class="btn btn-primary" type="submit">Create Supplier</button>
     <a href="{{ route('admin.suppliers.index') }}" class="btn btn-link">Cancel</a>
 </form>

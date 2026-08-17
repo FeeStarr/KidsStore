@@ -33,6 +33,10 @@
             <div class="mt-2"><strong>Safe & Trusted</strong><br><small class="text-muted">Quality guaranteed</small></div>
         </div>
         <div class="feat fill-tile px-2">
+            <i style="background:var(--kid-green);"><i class="bi bi-arrow-repeat"></i></i>
+            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy</small></div>
+        </div>
+        <div class="feat fill-tile px-2">
             <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
             <div class="mt-2"><strong>Kid Approved</strong><br><small class="text-muted">Smiles every time</small></div>
         </div>
