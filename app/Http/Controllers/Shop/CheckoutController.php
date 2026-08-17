@@ -97,14 +97,14 @@ class CheckoutController extends Controller
                 'coupon_id'         => $this->cart->couponId(),
                 'items'             => $items,
             ]);
-        } catch (\RuntimeException $e) {
+
+            $this->cart->clear();
+        } catch (\Throwable $e) {
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('error', $e->getMessage() ?: 'One or more items are out of stock. Please adjust your cart and try again.');
+                ->with('error', $e->getMessage() ?: 'Could not place order. Please try again.');
         }
-
-        $this->cart->clear();
 
         $redirect = redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: '.$order->reference);

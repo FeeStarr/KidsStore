@@ -5,17 +5,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderColour;
-use App\Models\CustomOrderEmbellishment;
-use App\Models\CustomOrderFabric;
-use App\Models\CustomOrderLength;
-use App\Models\CustomOrderMeasurementField;
-use App\Models\CustomOrderNeckline;
-use App\Models\CustomOrderSleeve;
-use App\Models\CustomOrderSkirt;
-use App\Models\CustomOrderStyle;
-use App\Models\CustomOrderWaist;
 use App\Models\Product;
-use App\Models\Setting;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomPaymentService;
@@ -63,31 +53,17 @@ class CustomOrderController extends Controller
     {
         $data = $request->validate([
             'child_name' => ['required', 'string', 'max:100'],
-            'child_age' => ['required', 'integer', 'min:0', 'max:18'],
-            'child_gender' => ['required', 'in:boy,girl'],
             'delivery_method' => ['required', 'in:pickup,delivery'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
             'delivery_address' => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
             'customer_notes' => ['nullable', 'string', 'max:1000'],
             'base_product_id' => ['nullable', 'exists:products,id'],
-            'design_type' => ['required', 'in:existing,reference'],
-            'dress_style' => ['nullable', 'string', 'max:128'],
-            'sleeve' => ['nullable', 'string', 'max:128'],
-            'neckline' => ['nullable', 'string', 'max:128'],
-            'skirt' => ['nullable', 'string', 'max:128'],
-            'length' => ['nullable', 'string', 'max:128'],
-            'waist' => ['nullable', 'string', 'max:128'],
-            'fabric' => ['nullable', 'string', 'max:128'],
             'primary_colour' => ['required', 'string', 'max:128'],
             'secondary_colour' => ['nullable', 'string', 'max:128'],
             'accent_colour' => ['nullable', 'string', 'max:128'],
             'custom_colour_description' => ['nullable', 'string', 'max:500'],
-            'measurement_type' => ['nullable', 'in:standard,custom'],
-            'standard_size' => ['required_if:measurement_type,standard', 'nullable', 'string', 'max:64'],
-            'measurements' => ['nullable', 'array'],
-            'measurements.*.type' => ['required_with:measurements', 'string', 'max:64'],
-            'measurements.*.value' => ['required_with:measurements', 'numeric', 'min:0'],
-            'measurements.*.unit' => ['required_with:measurements', 'in:cm,in'],
+            'standard_size' => ['required', 'string', 'max:64'],
+            'child_size' => ['nullable', 'string', 'max:64'],
             'reference_files' => ['nullable', 'array'],
             'reference_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
             'colour_files' => ['nullable', 'array'],
@@ -95,40 +71,27 @@ class CustomOrderController extends Controller
             'return_policy_acknowledged' => ['required', 'accepted'],
         ]);
 
-        $measurements = $data['measurement_type'] === 'custom'
-            ? ($data['measurements'] ?? [])
-            : [];
-
         $customizations = array_filter([
-            'dress_style' => $data['dress_style'] ?? null,
-            'sleeve' => $data['sleeve'] ?? null,
-            'neckline' => $data['neckline'] ?? null,
-            'skirt' => $data['skirt'] ?? null,
-            'length' => $data['length'] ?? null,
-            'waist' => $data['waist'] ?? null,
-            'fabric' => $data['fabric'] ?? null,
             'primary_colour' => $data['primary_colour'] ?? null,
             'secondary_colour' => $data['secondary_colour'] ?? null,
             'accent_colour' => $data['accent_colour'] ?? null,
+            'standard_size' => $data['standard_size'] ?? null,
+            'child_size' => $data['child_size'] ?? null,
         ], fn($v) => !empty($v));
-
-        if ($data['measurement_type'] === 'standard' && !empty($data['standard_size'])) {
-            $customizations['standard_size'] = $data['standard_size'];
-        }
 
         $order = $this->customOrderService->create([
             'user_id' => Auth::id(),
+            'item_type' => 'frock',
             'base_product_id' => $data['base_product_id'] ?? null,
-            'child_name' => $data['child_name'] ?? null,
-            'child_age' => $data['child_age'] ?? null,
-            'child_gender' => $data['child_gender'] ?? null,
+            'child_name' => $data['child_name'],
+            'child_gender' => 'girl',
             'delivery_method' => $data['delivery_method'],
             'pickup_station_id' => $data['pickup_station_id'] ?? null,
             'delivery_address' => $data['delivery_address'] ?? null,
             'customer_notes' => $data['customer_notes'] ?? null,
             'custom_colour_description' => $data['custom_colour_description'] ?? null,
             'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
-        ], $measurements, $customizations);
+        ], [], $customizations);
 
         // Handle file uploads
         $this->uploadFiles($order, $data, Auth::id());
@@ -259,15 +222,7 @@ class CustomOrderController extends Controller
     private function getFormOptions(): array
     {
         return [
-            'styles' => CustomOrderStyle::active()->get(),
-            'sleeves' => CustomOrderSleeve::active()->get(),
-            'necklines' => CustomOrderNeckline::active()->get(),
-            'skirts' => CustomOrderSkirt::active()->get(),
-            'lengths' => CustomOrderLength::active()->get(),
-            'waists' => CustomOrderWaist::active()->get(),
-            'fabrics' => CustomOrderFabric::available()->get(),
-            'colours' => CustomOrderColour::active()->get(),
-            'measurementFields' => CustomOrderMeasurementField::active()->get(),
+            'colours' => \App\Models\CustomOrderColour::active()->get(),
             'pickupStations' => \App\Models\PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
         ];
     }
