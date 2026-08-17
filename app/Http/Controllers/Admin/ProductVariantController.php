@@ -19,9 +19,41 @@ class ProductVariantController extends Controller
     public function store(ProductVariantRequest $request, Product $product): RedirectResponse
     {
         DB::transaction(function () use ($request, $product) {
-            $data    = $this->prepareData($request, $product);
+            $data = $this->prepareData($request, $product);
 
-            // Ensure SKU exists: allow blank in form and auto-generate here for admin-created variants
+            // Multi-select age ranges: create one variant per age range
+            $ageRangeIds = $request->input('age_range_ids', []);
+            if (!empty($ageRangeIds) && !isset($data['age_range_id'])) {
+                $svc = new ProductService();
+                $created = 0;
+
+                foreach ($ageRangeIds as $ageId) {
+                    $variantData = $data;
+                    $variantData['age_range_id'] = $ageId;
+
+                    if (empty($variantData['sku'])) {
+                        $candidate = $svc->generateVariantSku($product, $variantData);
+                        $variantData['sku'] = $svc->ensureUniqueSku($candidate);
+                    }
+
+                    $variant = $product->variants()->create($variantData);
+
+                    Inventory::create([
+                        'product_id'         => $product->id,
+                        'product_variant_id' => $variant->id,
+                        'quantity'           => 0,
+                        'reorder_level'      => 5,
+                    ]);
+
+                    $this->syncGallery($variant, $request->input('image_ids', []));
+                    $created++;
+                }
+
+                $product->refreshStock();
+                return back()->with('success', $created . ' variants added (one per age range).');
+            }
+
+            // Single age range (or none): original behaviour
             if (empty($data['sku'])) {
                 $svc = new ProductService();
                 $candidate = $svc->generateVariantSku($product, $data);
@@ -38,7 +70,6 @@ class ProductVariantController extends Controller
             ]);
 
             $this->syncGallery($variant, $request->input('image_ids', []));
-
             $product->refreshStock();
         });
 
@@ -156,7 +187,7 @@ class ProductVariantController extends Controller
         $data['options'] = $options ?: null;
 
         // image_ids handled separately via syncGallery().
-        unset($data['image_ids'], $data['color_name'], $data['color_text'], $data['size_name'], $data['size_text']);
+        unset($data['image_ids'], $data['color_name'], $data['color_text'], $data['size_name'], $data['size_text'], $data['age_range_ids']);
 
         return $data;
     }

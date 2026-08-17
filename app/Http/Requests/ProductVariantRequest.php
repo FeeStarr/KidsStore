@@ -21,6 +21,8 @@ class ProductVariantRequest extends FormRequest
                 Rule::unique('product_variants', 'sku')->ignore($variantId)],
             'name'          => ['nullable', 'string', 'max:120'],
             'age_range_id'  => ['nullable', 'integer', 'exists:age_ranges,id'],
+            'age_range_ids' => ['nullable', 'array'],
+            'age_range_ids.*' => ['integer', 'exists:age_ranges,id'],
             'size_id'       => ['nullable', 'integer', 'exists:sizes,id'],
             'color_id'      => ['nullable', 'integer', 'exists:colors,id'],
             'size_text'     => ['nullable', 'string', 'max:60'],
