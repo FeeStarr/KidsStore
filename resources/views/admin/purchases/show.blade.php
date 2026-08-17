@@ -44,15 +44,28 @@
 </div>
 
 <div class="card"><div class="card-header">Items</div>
-<table class="table mb-0">
+<table class="table mb-0 align-middle">
     <thead><tr>
+        <th style="width:40px">#</th>
+        <th style="width:44px"></th>
         <th>Product</th><th>Qty</th>
         <th>Cost</th><th>Shipping</th><th>Packaging</th><th>Other</th>
         <th>Selling</th><th>Discount %</th><th class="text-end">Line Total</th>
     </tr></thead>
     <tbody>
     @foreach($purchase->items as $it)
+        @php
+            $thumb = $it->variant?->image?->url ?? $it->product->images->first()?->url ?? '';
+        @endphp
         <tr>
+            <td class="text-muted">{{ $loop->iteration }}</td>
+            <td>
+                @if($thumb)
+                    <img src="{{ $thumb }}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;" alt="">
+                @else
+                    <span class="d-inline-flex align-items-center justify-content-center bg-light text-muted" style="width:36px;height:36px;border-radius:.375rem;font-size:.7rem;"><i class="bi bi-image"></i></span>
+                @endif
+            </td>
             <td>
                 {{ $it->product->name }}
                 @if($it->variant && $it->variant->options_label)

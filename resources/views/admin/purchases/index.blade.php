@@ -9,6 +9,7 @@
 <table id="purchases-table" class="table align-middle w-100">
     <thead>
     <tr>
+        <th data-dt-no-export>#</th>
         <th>Purchase Number</th>
         <th>Date</th>
         <th>Supplier</th>
@@ -20,6 +21,7 @@
     <tbody>
     @foreach($purchases as $p)
         <tr>
+            <td>{{ $loop->iteration }}</td>
             <td>{{ $p->display_number }}</td>
             <td>{{ $p->purchase_date->format('Y-m-d') }}</td>
             <td>{{ $p->supplier?->name ?? '-' }}</td>
@@ -38,10 +40,11 @@
 <script>
 $(function () {
     $('#purchases-table').DataTable({
-        order: [[1, 'desc']],
+        order: [[2, 'desc']],
         pageLength: 15,
         lengthMenu: [[10, 15, 25, 50, 100, -1], [10, 15, 25, 50, 100, 'All']],
         columnDefs: [
+            { targets: 0, orderable: false, searchable: false, width: '40px' },
             { targets: -1, orderable: false, searchable: false }
         ],
         layout: {

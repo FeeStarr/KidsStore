@@ -26,6 +26,7 @@
     $fColorText    = $useOld ? old('color_text',   $variant?->colorRef?->name ?? '') : ($variant?->colorRef?->name ?? '');
     $fSizeText     = $useOld ? old('size_text',    $variant?->sizeRef?->name  ?? '') : ($variant?->sizeRef?->name ?? '');
     $fAgeRangeId   = $useOld ? old('age_range_id', $variant?->age_range_id  ?? '') : ($variant?->age_range_id ?? '');
+    $fAgeRangeIds  = $useOld ? old('age_range_ids', []) : [];
     $fSellingPrice = $useOld ? old('selling_price',$variant?->selling_price ?? '') : ($variant?->selling_price ?? '');
     $fDiscount     = $useOld ? old('discount',     $variant?->discount      ?? 0)  : ($variant?->discount ?? 0);
     $fImageId      = $useOld ? old('image_id',     $variant?->image_id)             : ($variant?->image_id ?? null);
@@ -39,6 +40,8 @@
     $colorOptions = $colors ?? collect();
     $sizeOptions  = $sizes ?? collect();
     $ageOptions   = $ageRanges ?? collect();
+
+    $isEdit = $variant !== null;
 
     // Extra options — exclude reserved keys
     $extraOpts = [];
@@ -100,13 +103,23 @@
 
                 {{-- Age Range --}}
                 <div class="col-md-4">
-                    <label class="form-label"><i class="bi bi-people me-1"></i>Age Range</label>
-                    <select name="age_range_id" class="form-select">
-                        <option value="">— Select Age Range —</option>
-                        @foreach($ageOptions as $age)
-                            <option value="{{ $age->id }}" @selected((string) $fAgeRangeId === (string) $age->id)>{{ $age->name }}</option>
-                        @endforeach
-                    </select>
+                    @if($isEdit)
+                        <label class="form-label"><i class="bi bi-people me-1"></i>Age Range</label>
+                        <select name="age_range_id" class="form-select">
+                            <option value="">— Select Age Range —</option>
+                            @foreach($ageOptions as $age)
+                                <option value="{{ $age->id }}" @selected((string) $fAgeRangeId === (string) $age->id)>{{ $age->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <label class="form-label"><i class="bi bi-people me-1"></i>Age Range <small class="text-muted">(select multiple to create one variant per age)</small></label>
+                        <select name="age_range_ids[]" class="form-select" multiple size="4">
+                            @foreach($ageOptions as $age)
+                                <option value="{{ $age->id }}" @selected(in_array((string) $age->id, $fAgeRangeIds))>{{ $age->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple. One variant will be created per age range (same price, color, size).</div>
+                    @endif
                 </div>
 
                 {{-- Size --}}

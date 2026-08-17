@@ -62,12 +62,12 @@ class CustomOrderController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'child_name' => ['nullable', 'string', 'max:100'],
-            'child_age' => ['nullable', 'integer', 'min:0', 'max:18'],
-            'child_gender' => ['nullable', 'in:boy,girl'],
+            'child_name' => ['required', 'string', 'max:100'],
+            'child_age' => ['required', 'integer', 'min:0', 'max:18'],
+            'child_gender' => ['required', 'in:boy,girl'],
             'delivery_method' => ['required', 'in:pickup,delivery'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
-            'delivery_address' => ['required_if:design_step,1', 'nullable', 'string', 'max:500'],
+            'delivery_address' => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
             'customer_notes' => ['nullable', 'string', 'max:1000'],
             'base_product_id' => ['nullable', 'exists:products,id'],
             'design_type' => ['required', 'in:existing,reference'],
@@ -78,12 +78,12 @@ class CustomOrderController extends Controller
             'length' => ['nullable', 'string', 'max:128'],
             'waist' => ['nullable', 'string', 'max:128'],
             'fabric' => ['nullable', 'string', 'max:128'],
-            'primary_colour' => ['nullable', 'string', 'max:128'],
+            'primary_colour' => ['required', 'string', 'max:128'],
             'secondary_colour' => ['nullable', 'string', 'max:128'],
             'accent_colour' => ['nullable', 'string', 'max:128'],
             'custom_colour_description' => ['nullable', 'string', 'max:500'],
             'measurement_type' => ['nullable', 'in:standard,custom'],
-            'standard_size' => ['nullable', 'string', 'max:64'],
+            'standard_size' => ['required_if:measurement_type,standard', 'nullable', 'string', 'max:64'],
             'measurements' => ['nullable', 'array'],
             'measurements.*.type' => ['required_with:measurements', 'string', 'max:64'],
             'measurements.*.value' => ['required_with:measurements', 'numeric', 'min:0'],
@@ -134,7 +134,11 @@ class CustomOrderController extends Controller
         $this->uploadFiles($order, $data, Auth::id());
 
         // Submit immediately
-        $this->customOrderService->submit($order);
+        try {
+            $this->customOrderService->submit($order);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Custom order submit failed: ' . $e->getMessage());
+        }
 
         return redirect()->route('shop.custom-frock.show', $order)
             ->with('success', 'Your custom frock request has been submitted! Order number: ' . $order->custom_order_number);
