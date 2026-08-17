@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Models\Order;
 use App\Notifications\NotificationRecipients;
 use App\Notifications\OrderPlacedNotification;
-use Illuminate\Bus\Dispatchable;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class SendOrderPlacedNotifications
