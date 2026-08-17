@@ -7,6 +7,7 @@
 $productsJson = $products->map(fn($p) => [
     'id'       => $p->id,
     'name'     => $p->name,
+    'image'    => $p->images->first()?->url ?? '',
     'variants' => $p->variants->map(fn($v) => [
         'id'            => $v->id,
         'sku'           => $v->sku,
@@ -15,6 +16,7 @@ $productsJson = $products->map(fn($p) => [
         'size'          => $v->sizeRef?->name ?? '',
         'selling_price' => (float) $v->selling_price,
         'label'         => $v->options_label,
+        'image'         => $v->image?->url ?? $p->images->first()?->url ?? '',
     ])->values(),
 ])->values();
 @endphp
@@ -196,6 +198,26 @@ $productsJson = $products->map(fn($p) => [
         if (el) el.textContent = fmt(total);
     }
 
+    // ── Sync product dropdowns — disable already-selected products in other groups
+    function syncProductDropdowns() {
+        const allGroups = document.querySelectorAll('.group-card');
+        const selectedIds = new Set();
+        allGroups.forEach(g => {
+            const val = g.querySelector('.gp-product')?.value;
+            if (val) selectedIds.add(val);
+        });
+        allGroups.forEach(g => {
+            const sel = g.querySelector('.gp-product');
+            if (!sel) return;
+            const currentVal = sel.value;
+            Array.from(sel.options).forEach(opt => {
+                if (!opt.value) return; // skip placeholder
+                // Disable if selected in ANOTHER group (not this one)
+                opt.disabled = selectedIds.has(opt.value) && opt.value !== currentVal;
+            });
+        });
+    }
+
     // ── Build a group card ────────────────────────────────────────────────────
     function addGroup() {
         const id = gid++;
@@ -212,12 +234,17 @@ $productsJson = $products->map(fn($p) => [
 
         card.innerHTML = `
             <div class="row g-2 align-items-end mb-2">
-                <div class="col-md-5">
-                    <label class="form-label form-label-sm fw-semibold">Product</label>
-                    <select class="form-select form-select-sm gp-product">
-                        <option value="">— Select Product —</option>
-                        ${pOpts}
-                    </select>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <div class="gp-thumb flex-shrink-0 d-none" style="width:56px;height:56px;border-radius:.5rem;overflow:hidden;border:1px solid #dee2e6;background:#f8f9fa;">
+                        <img src="" style="width:100%;height:100%;object-fit:cover" alt="">
+                    </div>
+                    <div class="flex-grow-1">
+                        <label class="form-label form-label-sm fw-semibold">Product</label>
+                        <select class="form-select form-select-sm gp-product">
+                            <option value="">— Select Product —</option>
+                            ${pOpts}
+                        </select>
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label form-label-sm fw-semibold">Color / Style</label>
@@ -233,8 +260,8 @@ $productsJson = $products->map(fn($p) => [
                     <label class="form-label form-label-sm fw-semibold">Markup %</label>
                     <input type="number" step="0.01" min="0" class="form-control form-control-sm gp-markup" value="30">
                 </div>
-                <div class="col-md-1 d-flex gap-1 align-items-end">
-                    <button type="button" class="btn btn-sm btn-outline-danger gp-remove w-100" title="Remove group">
+                <div class="col-md-2 d-flex gap-1 align-items-end justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger gp-remove" title="Remove group">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -251,9 +278,9 @@ $productsJson = $products->map(fn($p) => [
                 <table class="table table-sm table-bordered mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:44px"></th>
                             <th>Age Range</th>
                             <th>Size</th>
-                            <th>Age Range</th>
                             <th style="width:80px">Qty</th>
                             <th style="width:110px">Unit Cost (₦)</th>
                             <th style="width:80px">Markup %</th>
@@ -279,13 +306,26 @@ $productsJson = $products->map(fn($p) => [
         const varWrap    = card.querySelector('.gp-variants-wrap');
         const tbody      = card.querySelector('.gp-tbody');
 
-        // Product → populate colors
+        // Product → populate colors + show thumbnail
         productSel.addEventListener('change', () => {
             const product = PRODUCTS.find(p => p.id == productSel.value);
             colorSel.innerHTML = '<option value="">— Select Color —</option>';
             tbody.innerHTML = '';
             varWrap.style.display = 'none';
             applyRow.style.setProperty('display', 'none', 'important');
+
+            // Show/hide product thumbnail
+            const thumb = card.querySelector('.gp-thumb');
+            if (thumb) {
+                if (product && product.image) {
+                    thumb.querySelector('img').src = product.image;
+                    thumb.classList.remove('d-none');
+                } else {
+                    thumb.classList.add('d-none');
+                }
+            }
+
+            syncProductDropdowns();
 
             if (!product) { colorSel.disabled = true; return; }
 
@@ -331,6 +371,7 @@ $productsJson = $products->map(fn($p) => [
                 msg.textContent = 'Click "Add Product Group" to start adding items.';
                 document.getElementById('groups-container').appendChild(msg);
             }
+            syncProductDropdowns();
             updateGrandTotal();
         });
     }
@@ -352,13 +393,13 @@ $productsJson = $products->map(fn($p) => [
             tr.dataset.othr = 0;
 
             tr.innerHTML = `
+                <td><img src="${v.image || ''}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;${v.image ? '' : 'display:none'}" class="vthumb" alt=""></td>
                 <td class="small">${v.age || '<span class="text-muted">—</span>'}</td>
                 <td class="small">${v.size || '<span class="text-muted">—</span>'}</td>
-                <td class="text-muted small">${v.age || '<span class="text-muted">—</span>'}</td>
-                <td><input type="number" min="0" value="0" class="form-control form-control-sm vqty"></td>
-                <td><input type="number" step="0.01" min="0" value="${flt(costInp.value).toFixed(2)}" class="form-control form-control-sm vcost"></td>
+                <td><input type="number" min="0" value="" placeholder="—" class="form-control form-control-sm vqty"></td>
+                <td><input type="number" step="0.01" min="0" value="" placeholder="—" class="form-control form-control-sm vcost"></td>
                 <td><input type="number" step="0.01" min="0" value="${flt(markupInp.value)}" class="form-control form-control-sm vmarkup"></td>
-                <td><input type="number" step="0.01" min="0" value="${v.selling_price.toFixed(2)}" class="form-control form-control-sm vsell"></td>
+                <td><input type="number" step="0.01" min="0" value="" placeholder="—" class="form-control form-control-sm vsell"></td>
                 <td class="text-end vline text-muted">—</td>
                 <td class="text-end vmargin small text-muted">—</td>
                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger vrow-delete" title="Delete this item"><i class="bi bi-trash"></i></button></td>`;

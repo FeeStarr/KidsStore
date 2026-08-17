@@ -49,12 +49,12 @@ class ProductController extends Controller
     {
         $data = $this->mergeVariantFilesIntoData($request);
 
-        $this->products->create(
+        $product = $this->products->create(
             $data,
             $request->file('images', [])
         );
 
-        return redirect()->route('admin.products.index')->with('success', 'Product created.');
+        return redirect()->route('admin.products.show', $product)->with('success', 'Product created.');
     }
 
     public function show(Product $product): View

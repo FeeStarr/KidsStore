@@ -140,6 +140,7 @@
         @endif
         <div class="text-muted small mb-2">
             @if($productBrand) Brand: {{ $productBrand }} @endif
+            @if($product->gender && $product->gender !== 'Unisex') &middot; Gender: {{ $product->gender }} @endif
         </div>
 
         <div class="mb-2">
@@ -204,13 +205,13 @@
                     </button>
                 @endforeach
             </div>
-
-            {{-- Age + Size pickers (rendered by JS) --}}
-            <div id="agePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
-            <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
-            {{-- Custom options pickers (rendered by JS) --}}
-            <div id="customOptionPickers" class="d-flex flex-wrap flex-column gap-1 mb-2"></div>
         @endif
+
+        {{-- Age + Size pickers (always rendered; JS populates from variantsData) --}}
+        <div id="agePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
+        <div id="sizePicker" class="d-flex flex-wrap gap-1 mb-2" style="display:none!important"></div>
+        {{-- Custom options pickers (rendered by JS) --}}
+        <div id="customOptionPickers" class="d-flex flex-wrap flex-column gap-1 mb-2"></div>
 
         @if($defaultVariant)
         <form id="addToCartForm" action="{{ route('shop.cart.add', $defaultVariant) }}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
@@ -252,7 +253,6 @@
     </div>
 </div>
 
-@if($variants->count() > 1)
 @push('scripts')
 <script>
 (function () {
@@ -508,14 +508,20 @@
     });
 
     // ── Boot ─────────────────────────────────────────────────────────────────
+    // If there are colour thumbnails, clicking the first one triggers the full
+    // resolve chain.  With a single variant (no colour picker) we call the
+    // resolver directly so age / size / custom pickers still render.
     setTimeout(() => {
         const firstBtn = document.querySelector('#variantPicker [data-color]');
-        if (firstBtn) firstBtn.click();
+        if (firstBtn) {
+            firstBtn.click();
+        } else {
+            resolveAndSelect();
+        }
     }, 0);
 })();
 </script>
 @endpush
-@endif
 
 <hr>
 

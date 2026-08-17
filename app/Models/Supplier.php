@@ -9,6 +9,8 @@ class Supplier extends Model
 {
     protected $fillable = [
         'name', 'contact_name', 'email', 'phone', 'address', 'is_active',
+        'social_whatsapp', 'social_instagram', 'social_facebook',
+        'social_tiktok', 'social_twitter', 'social_website',
     ];
 
     protected $casts = ['is_active' => 'boolean'];
