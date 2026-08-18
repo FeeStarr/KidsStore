@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\Contracts\InventoryServiceInterface;
+use App\Services\DealService;
+use App\Services\CouponService;
 class Order extends Model
 {
     // Order Status Constants
@@ -125,10 +128,21 @@ class Order extends Model
 
             foreach ($stale as $o) {
                 $o->update(['status' => self::STATUS_EXPIRED]);
-                \App\Models\InventoryMovement::where('reference_type', static::class)
-                    ->where('reference_id', $o->id)
-                    ->where('quantity', '<', 0)
-                    ->delete();
+
+                // Restore stock for each item
+                $inventory = app(InventoryServiceInterface::class);
+                $inventory->reverseMovementsFor(static::class, $o->id, 'Order expired — unpaid');
+
+                // Release deal usage
+                foreach ($o->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
+                    app(DealService::class)->releaseUsage((int) $dealId);
+                }
+
+                // Release coupon usage
+                app(CouponService::class)->releaseForOrder($o);
+
+                // Expire pending payment transactions
+                $o->paymentTransactions()->where('status', 'pending')->update(['status' => 'expired']);
             }
         });
     }
