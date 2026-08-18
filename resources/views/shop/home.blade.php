@@ -118,7 +118,7 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
         'toys' => 'bi-puzzle-fill',
         'clothing' => 'bi-bag-heart-fill',
         'books' => 'bi-book-half',
-        'shoes' => 'bi-bicycle',
+        'shoes' => 'bi-handbag-fill',
         'accessories' => 'bi-gem',
     ];
 @endphp
