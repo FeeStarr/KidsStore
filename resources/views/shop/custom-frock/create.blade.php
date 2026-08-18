@@ -68,7 +68,7 @@
                                 </div>
                                 <div class="col-12 delivery-field">
                                     <label for="delivery_address" class="form-label">Delivery Address <span class="text-danger">*</span></label>
-                                    <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2" maxlength="500" required>{{ old('delivery_address') }}</textarea>
+                                    <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2" maxlength="500">{{ old('delivery_address') }}</textarea>
                                 </div>
                                 <div class="col-12">
                                     <label for="customer_notes" class="form-label">Notes (optional)</label>
@@ -273,11 +273,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return valid;
     }
 
-    // Delivery method toggle
+    // Delivery method toggle — set initial required state
+    const deliveryRadio = document.getElementById('delivery_home');
+    if (deliveryRadio && deliveryRadio.checked) {
+        document.getElementById('delivery_address').required = true;
+    }
+
     document.querySelectorAll('input[name="delivery_method"]').forEach(r => {
         r.addEventListener('change', function() {
-            document.querySelector('.pickup-field').style.display = this.value === 'pickup' ? 'block' : 'none';
-            document.querySelector('.delivery-field').style.display = this.value === 'delivery' ? 'block' : 'none';
+            const isPickup = this.value === 'pickup';
+            document.querySelector('.pickup-field').style.display = isPickup ? 'block' : 'none';
+            document.querySelector('.delivery-field').style.display = isPickup ? 'none' : 'block';
+            document.getElementById('delivery_address').required = !isPickup;
+            document.getElementById('pickup_station_id').required = isPickup;
         });
     });
 
