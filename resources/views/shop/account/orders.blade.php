@@ -10,7 +10,7 @@
         <tr>
             <td>{{ $loop->iteration }}</td>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
-            <td>{{ $o->order_date->format('M d, Y g:i A') }}</td>
+            <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '—' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
                 'cancelled' => 'text-bg-danger',
@@ -24,7 +24,7 @@
             <td class="text-end"><a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
         </tr>
     @empty
-        <tr><td colspan="7" class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>
+        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>
     @endforelse
     </tbody>
 </table>
