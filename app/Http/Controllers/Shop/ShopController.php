@@ -39,6 +39,11 @@ class ShopController extends Controller
                 $activeCategory = null;
             } else {
                 $ids = array_merge([$activeCategory->id], $activeCategory->children->pluck('id')->toArray());
+                // If this is a subcategory, also include its parent so products
+                // assigned to the parent still appear when filtering by child.
+                if ($activeCategory->parent_id) {
+                    $ids[] = $activeCategory->parent_id;
+                }
                 $query->whereIn('category_id', $ids);
             }
         }

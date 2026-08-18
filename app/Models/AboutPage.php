@@ -24,7 +24,7 @@ class AboutPage extends Model
     public static function instance(): static
     {
         return static::firstOrCreate(['id' => 1], [
-            'hero_title'    => 'About Kids Store',
+            'hero_title'    => 'About KidsFlairr',
             'hero_subtitle' => 'Where little dreams come to play!',
         ]);
     }
