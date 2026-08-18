@@ -116,7 +116,7 @@
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
-                                <td>{{ $order->submitted_at?->format('d M Y') ?: '—' }}</td>
+                                <td>{{ $order->submitted_at?->format('d M Y g:i A') ?: '—' }}</td>
                                 <td>
                                     <a href="{{ route('admin.custom-orders.show', $order) }}" class="btn btn-sm btn-outline-primary">View</a>
                                 </td>

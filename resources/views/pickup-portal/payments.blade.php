@@ -11,7 +11,7 @@
         <tbody>
         @foreach($payments as $p)
             <tr>
-                <td>{{ $p->payment_date->toDateString() }}</td>
+                <td>{{ $p->payment_date->format('M d, Y g:i A') }}</td>
                 <td><a href="{{ route('pickup-portal.dashboard') }}">{{ $p->order->reference }}</a></td>
                 <td>{{ $p->order->customer?->name }}</td>
                 <td class="text-end">₦{{ number_format($p->amount,2) }}</td>

@@ -53,7 +53,7 @@
                 <td class="text-end">₦{{ number_format($r->amount, 2) }}</td>
                 <td><span class="badge {{ $badge }}">{{ ucfirst(str_replace('_', ' ', $r->status)) }}</span></td>
                 <td data-order="{{ $r->created_at->timestamp }}" class="small text-muted">
-                    {{ $r->created_at->format('M d, Y') }}
+                    {{ $r->created_at->format('M d, Y g:i A') }}
                 </td>
                 <td class="text-end">
                     <a href="{{ route('admin.refunds.show', $r) }}" class="btn btn-sm btn-outline-secondary">Review</a>

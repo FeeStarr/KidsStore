@@ -43,8 +43,8 @@ class Order extends Model
     ];
 
     protected $casts = [
-        'order_date'              => 'date',
-        'expected_delivery_date'  => 'date',
+        'order_date'              => 'datetime',
+        'expected_delivery_date'  => 'datetime',
         'total_amount'            => 'decimal:2',
         'subtotal'                => 'decimal:2',
         'discount'                => 'decimal:2',
@@ -293,7 +293,7 @@ class Order extends Model
         if ($this->status === 'ready for pick up') {
             $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
             $latest = $this->addWorkingDays($readyAt, 4);
-            return 'Collect by ' . $latest->format('M d, Y');
+            return 'Collect by ' . $latest->format('M d, Y g:i A');
         }
 
         // Use timestamp-based estimates when available
@@ -314,9 +314,9 @@ class Order extends Model
         $latest = $estimates['latest'];
 
         if ($earliest->format('M Y') === $latest->format('M Y')) {
-            return $earliest->format('M d') . '–' . $latest->format('d, Y');
+            return $earliest->format('M d, Y g:i A') . '–' . $latest->format('d, Y g:i A');
         }
-        return $earliest->format('M d') . ' – ' . $latest->format('M d, Y');
+        return $earliest->format('M d, Y g:i A') . ' – ' . $latest->format('M d, Y g:i A');
     }
 
     /**

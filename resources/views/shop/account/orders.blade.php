@@ -10,7 +10,7 @@
         <tr>
             <td>{{ $loop->iteration }}</td>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
-            <td>{{ $o->order_date->format('M d, Y') }}</td>
+            <td>{{ $o->order_date->format('M d, Y g:i A') }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
                 'cancelled' => 'text-bg-danger',

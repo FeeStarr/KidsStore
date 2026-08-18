@@ -160,7 +160,7 @@
                         <div>
                             <input type="checkbox" class="select-all me-2" {{ $filter === 'pending' && !$canReceive ? 'disabled' : '' }}>
                             <strong>{{ $order->reference }}</strong>
-                            <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y') }}</span>
+                            <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y g:i A') }}</span>
                             @if($filter === 'pending')
                                 <span class="badge bg-secondary ms-2">Order: {{ $order->status }}</span>
                                 @if(!$canReceive)
@@ -250,7 +250,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <strong>{{ $order->reference }}</strong>
-                        <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y') }}</span>
+                        <span class="small text-muted ms-2">Ordered {{ $order->order_date?->format('M d, Y g:i A') }}</span>
                         @if($isPaid)
                             <span class="badge bg-success ms-2"><i class="bi bi-check-circle me-1"></i>Paid</span>
                         @elseif($isVerificationPending)
@@ -445,7 +445,7 @@
                 <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
                     <div>
                         <strong><i class="bi bi-arrow-counterclockwise me-1"></i>Return — {{ $order->reference }}</strong>
-                        <span class="small text-muted ms-2">Approved {{ $rr->reviewed_at?->format('M d, Y') }}</span>
+                        <span class="small text-muted ms-2">Approved {{ $rr->reviewed_at?->format('M d, Y g:i A') }}</span>
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
                         <span>Customer: {{ $order->customer?->name ?? '—' }}</span>

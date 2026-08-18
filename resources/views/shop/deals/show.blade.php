@@ -28,7 +28,7 @@
                 <i class="bi bi-calendar-event me-1"></i> Starts {{ $deal->starts_at->format('M d, Y g:i A') }}
             @else
                 <i class="bi bi-calendar-event me-1"></i>
-                @if($deal->starts_at) From {{ $deal->starts_at->format('M d, Y') }} &middot; @endif
+                @if($deal->starts_at) From {{ $deal->starts_at->format('M d, Y g:i A') }} &middot; @endif
                 @if($deal->ends_at) Ends {{ $deal->ends_at->format('M d, Y g:i A') }} ({{ $deal->ends_at->diffForHumans(['parts' => 2, 'short' => true]) }}) @endif
             @endif
         </div>

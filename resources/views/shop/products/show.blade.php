@@ -575,7 +575,7 @@
                         @endfor
                     </span>
                 </div>
-                <small class="text-muted">{{ $rev->created_at->format('M d, Y') }}
+                <small class="text-muted">{{ $rev->created_at->format('M d, Y g:i A') }}
                     @if($rev->verified_purchase) <span class="badge bg-success-subtle text-success">Verified Purchase</span> @endif
                 </small>
                 @if($rev->title)<div class="fw-semibold mt-1">{{ $rev->title }}</div>@endif

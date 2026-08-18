@@ -28,7 +28,7 @@
                     </table>
 
                     @if ($quote->valid_until)
-                        <small class="text-muted">Quote valid until: {{ $quote->valid_until->format('d M Y') }}</small>
+                        <small class="text-muted">Quote valid until: {{ $quote->valid_until->format('d M Y g:i A') }}</small>
                     @endif
                 </div>
             </div>

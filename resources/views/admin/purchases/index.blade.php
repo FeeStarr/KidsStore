@@ -23,7 +23,7 @@
         <tr>
             <td>{{ $loop->iteration }}</td>
             <td>{{ $p->display_number }}</td>
-            <td>{{ $p->purchase_date->format('Y-m-d') }}</td>
+            <td>{{ $p->purchase_date->format('Y-m-d H:i') }}</td>
             <td>{{ $p->supplier?->name ?? '-' }}</td>
             <td>{{ $p->status }}</td>
             <td class="text-end">{{ number_format($p->total_cost, 2) }}</td>

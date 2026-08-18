@@ -90,7 +90,7 @@ class PickupPayoutController extends Controller
             $isPaid = $item->pickup_station_fee_paid;
             return [
                 'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '—',
-                'order_date' => $item->order?->order_date?->format('M d, Y'),
+                'order_date' => $item->order?->order_date?->format('M d, Y g:i A'),
                 'product' => e($item->product?->name ?? '—'),
                 'variant' => e($item->variant?->options_label ?? '—'),
                 'quantity' => $item->quantity,

@@ -89,7 +89,7 @@
                     <span class="badge text-bg-info">{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</span>
                 @endif
             </p>
-            <small class="text-muted">Placed on {{ $order->order_date->format('M d, Y') }}</small>
+            <small class="text-muted">Placed on {{ $order->order_date->format('M d, Y g:i A') }}</small>
 
             @if(! in_array($order->status, ['delivered', 'cancelled']))
                 <div class="mt-2 p-2 bg-light rounded small">

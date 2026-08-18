@@ -200,7 +200,7 @@
                         </tr>
                     </table>
                     @if ($latestQuote->valid_until)
-                        <small class="text-muted">Valid until: {{ $latestQuote->valid_until->format('d M Y') }}</small>
+                        <small class="text-muted">Valid until: {{ $latestQuote->valid_until->format('d M Y g:i A') }}</small>
                     @endif
                     @if ($latestQuote->notes)
                         <div class="mt-2 small">{{ $latestQuote->notes }}</div>
