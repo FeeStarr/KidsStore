@@ -105,7 +105,35 @@ class Order extends Model
                 $order->{$column} = now();
             }
         });
+
+        // Self-healing: expire stale pending-payment orders once per hour.
+        // On shared hosting without a system cron, the Laravel scheduler never
+        // runs. This ensures orders past their 24h payment window are cleaned
+        // up on the next page visit.
+        static::retrieved(function (Order $order) {
+            // Only run once per request and at most once per hour
+            if (static::$expireRan || \Illuminate\Support\Facades\Cache::get('order_expire_ran')) {
+                return;
+            }
+            static::$expireRan = true;
+            \Illuminate\Support\Facades\Cache::put('order_expire_ran', true, 3600);
+
+            $cutoff = now()->subHours(24);
+            $stale = static::where('status', self::STATUS_PENDING_PAYMENT)
+                ->where('created_at', '<=', $cutoff)
+                ->get();
+
+            foreach ($stale as $o) {
+                $o->update(['status' => self::STATUS_EXPIRED]);
+                \App\Models\InventoryMovement::where('reference_type', static::class)
+                    ->where('reference_id', $o->id)
+                    ->where('quantity', '<', 0)
+                    ->delete();
+            }
+        });
     }
+
+    private static bool $expireRan = false;
 
     public function pickupStation(): BelongsTo
     {
