@@ -2,10 +2,16 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::command('payments:expire-pending')->hourly();
+Schedule::command('pickups:check-expired')->daily();
+Schedule::command('check-custom-quote-expiry')->daily();
+Schedule::command('sync-deal-statuses')->hourly();
 
 // Backfill pickup fees from order_items into orders.pickup_station_fee_total
 Artisan::command('backfill:pickup-fees {--batch=500} {--dry-run}', function () {
