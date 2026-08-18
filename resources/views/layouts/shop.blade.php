@@ -186,9 +186,15 @@
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
-            <li class="nav-item"><span class="nav-link text-muted" style="cursor:default"><i class="bi bi-scissors me-1"></i>Custom Orders <span class="badge bg-secondary bg-opacity-25 text-secondary ms-1" style="font-size:.65rem">Coming Soon</span></span></li>
-            <li class="nav-item"><a class="nav-link" href="{{ route('shop.about') }}">About</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ route('shop.contact') }}">Contact</a></li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">More</a>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ route('shop.about') }}">About</a></li>
+                    <li><a class="dropdown-item" href="{{ route('shop.contact') }}">Contact</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><span class="dropdown-item text-muted" style="cursor:default"><i class="bi bi-scissors me-1"></i>Custom Orders <span class="badge bg-secondary bg-opacity-25 text-secondary ms-1" style="font-size:.6rem">Coming Soon</span></span></li>
+                </ul>
+            </li>
         </ul>
         <form class="d-flex me-3" action="{{ route('shop.products.index') }}">
             <input class="form-control form-control-sm" type="search" name="q" placeholder="Search products..." value="{{ request('q') }}">
