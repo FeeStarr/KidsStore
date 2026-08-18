@@ -22,7 +22,7 @@
     @foreach($orders as $o)
         <tr>
             <td>{{ $o->reference }}</td>
-            <td>{{ $o->order_date->format('Y-m-d') }}</td>
+            <td>{{ $o->order_date->format('Y-m-d H:i') }}</td>
             <td>{{ $o->customer?->name ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',

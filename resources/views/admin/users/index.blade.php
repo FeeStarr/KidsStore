@@ -68,7 +68,7 @@
                             @endif
                         </td>
                         <td data-order="{{ $user->created_at->timestamp }}">
-                            {{ $user->created_at->format('M d, Y') }}
+                            {{ $user->created_at->format('M d, Y g:i A') }}
                         </td>
                         <td class="text-end text-nowrap">
                             <a href="{{ route('admin.users.show', $user) }}" class="btn btn-sm btn-outline-primary">View</a>

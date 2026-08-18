@@ -37,7 +37,7 @@
                             <div class="fw-semibold">{{ $approval->user?->name ?? 'Unknown' }}</div>
                             <div class="text-muted small">{{ $approval->user?->email ?? '-' }}</div>
                         </td>
-                        <td>{{ $approval->created_at->format('M d, Y') }}</td>
+                        <td>{{ $approval->created_at->format('M d, Y g:i A') }}</td>
                         <td>
                             @php
                                 $badge = match($approval->status) {

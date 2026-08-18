@@ -78,7 +78,7 @@
                             @endif
                             <div>
                                 <strong>{{ $order->reference }}</strong>
-                                <span class="small text-muted ms-2">{{ $order->order_date?->format('M d, Y') }}</span>
+                                <span class="small text-muted ms-2">{{ $order->order_date?->format('M d, Y g:i A') }}</span>
                             </div>
                             @if($allPaid)
                                 <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid</span>

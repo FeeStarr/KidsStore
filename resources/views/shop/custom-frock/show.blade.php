@@ -123,7 +123,7 @@
                             </tr>
                         </table>
                         @if ($quote->valid_until)
-                            <small class="text-muted">Valid until: {{ $quote->valid_until->format('d M Y') }}</small>
+                            <small class="text-muted">Valid until: {{ $quote->valid_until->format('d M Y g:i A') }}</small>
                         @endif
                         @if ($quote->notes)
                             <div class="mt-2 small text-muted">{{ $quote->notes }}</div>

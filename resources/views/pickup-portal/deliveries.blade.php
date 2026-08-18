@@ -10,7 +10,7 @@
         <div class="card-body d-flex justify-content-between">
             <div>
                 <div class="fw-semibold">{{ $order->reference }} — {{ $order->customer?->name }}</div>
-                <div class="small text-muted">Placed: {{ $order->order_date->toDateString() }} — Status: {{ $order->getStatusLabel() }}</div>
+                <div class="small text-muted">Placed: {{ $order->order_date->format('M d, Y g:i A') }} — Status: {{ $order->getStatusLabel() }}</div>
             </div>
             <div class="text-end">
                 <div class="fw-bold">₦{{ number_format($order->grand_total,2) }}</div>

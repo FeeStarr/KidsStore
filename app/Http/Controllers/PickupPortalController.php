@@ -484,7 +484,7 @@ class PickupPortalController extends Controller
             return [
                 'id' => $p->id,
                 'reference' => $p->reference,
-                'date' => $p->created_at?->format('M d, Y'),
+                'date' => $p->created_at?->format('M d, Y g:i A'),
                 'amount' => '₦' . number_format($p->amount, 2),
                 'status' => $p->is_reversed ? 'Reversed' : 'Paid',
                 'status_class' => $p->is_reversed ? 'bg-danger' : 'bg-success',

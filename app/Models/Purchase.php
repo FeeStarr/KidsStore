@@ -17,7 +17,7 @@ class Purchase extends Model
     ];
 
     protected $casts = [
-        'purchase_date' => 'date',
+        'purchase_date' => 'datetime',
         'total_cost' => 'decimal:2',
         'total_cost_price' => 'decimal:2',
         'total_shipping_fee' => 'decimal:2',

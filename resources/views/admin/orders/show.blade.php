@@ -88,7 +88,7 @@
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
             <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '—' }}</dd>
-            <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d') }}</dd>
+            <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d H:i') }}</dd>
             <dt class="col-4">Status</dt>
             <dd class="col-8"><span class="badge {{ match($order->status) {
                 'delivered' => 'text-bg-success',
@@ -202,7 +202,7 @@
                 <div class="small text-muted mb-1"><i class="bi bi-calendar-event me-1"></i>Expected Delivery</div>
                 <div class="fw-semibold">
                     @if($order->expected_delivery_date)
-                        {{ $order->expected_delivery_date->format('M d, Y') }}
+                        {{ $order->expected_delivery_date->format('M d, Y g:i A') }}
                         <small class="text-muted">({{ $order->expected_delivery_date->diffForHumans() }})</small>
                     @else
                         <span class="text-muted">Not set</span>
@@ -340,7 +340,7 @@
     @forelse($order->payments as $p)
         <tr>
             <td>{{ $p->reference }}</td>
-            <td>{{ $p->payment_date->format('Y-m-d') }}</td>
+            <td>{{ $p->payment_date->format('Y-m-d H:i') }}</td>
             <td>{{ $p->method }}</td>
             <td>{{ $p->transaction_id ?? '—' }}</td>
             <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
