@@ -36,6 +36,22 @@
     </div>
     @endif
 
+    {{-- Our Vision --}}
+    <div class="col-md-6">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius:1.25rem;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center me-3"
+                          style="width:48px;height:48px;background:var(--kid-blue);color:#fff;font-size:1.4rem;">
+                        <i class="bi bi-eye-fill"></i>
+                    </span>
+                    <h4 class="mb-0" style="font-family:'Fredoka',sans-serif;">Our Vision</h4>
+                </div>
+                <p class="text-muted mb-0" style="line-height:1.8;">To be the most loved and trusted kids brand in Nigeria — where every parent finds something special for their child, and every child feels the joy of being celebrated.</p>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 {{-- Why Us — feature strip style (matching home page) --}}
