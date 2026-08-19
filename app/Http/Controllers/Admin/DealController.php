@@ -7,20 +7,21 @@ use App\Http\Requests\DealRequest;
 use App\Models\Deal;
 use App\Models\Product;
 use App\Services\DealService;
+use App\Services\ImageOptimizationService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class DealController extends Controller
 {
     private const IMAGE_DISK = 'public';
-    private const IMAGE_DIR  = 'deals';
 
-    public function __construct(private DealService $deals)
-    {
-    }
+    private const IMAGE_DIR = 'deals';
+
+    public function __construct(
+        private DealService $deals,
+        private ImageOptimizationService $optimizer,
+    ) {}
 
     public function index()
     {
@@ -34,9 +35,9 @@ class DealController extends Controller
         $products = Product::with('primaryImage', 'defaultVariant')
             ->where(function ($q) {
                 $q->where('status', 'active')
-                  ->orWhere(function ($legacy) {
-                      $legacy->whereNull('status')->where('is_active', true);
-                  });
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('status')->where('is_active', true);
+                    });
             })
             ->orderBy('name')
             ->get();
@@ -69,9 +70,9 @@ class DealController extends Controller
         $products = Product::with('primaryImage', 'defaultVariant')
             ->where(function ($q) {
                 $q->where('status', 'active')
-                  ->orWhere(function ($legacy) {
-                      $legacy->whereNull('status')->where('is_active', true);
-                  });
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('status')->where('is_active', true);
+                    });
             })
             ->orderBy('name')
             ->get();
@@ -131,16 +132,18 @@ class DealController extends Controller
         $data['status'] = $status;
 
         $data['starts_at'] = $this->parseDateTime($request->input('starts_at'));
-        $data['ends_at']   = $this->parseDateTime($request->input('ends_at'));
+        $data['ends_at'] = $this->parseDateTime($request->input('ends_at'));
 
         // Images: replace only when a new file is uploaded.
-        $data['banner_image']    = $deal?->banner_image;
+        $data['banner_image'] = $deal?->banner_image;
         $data['thumbnail_image'] = $deal?->thumbnail_image;
         if ($request->hasFile('banner_image')) {
-            $data['banner_image'] = $request->file('banner_image')->store(self::IMAGE_DIR, self::IMAGE_DISK);
+            $result = $this->optimizer->optimizeUploadedFile($request->file('banner_image'), self::IMAGE_DISK);
+            $data['banner_image'] = $result['path'];
         }
         if ($request->hasFile('thumbnail_image')) {
-            $data['thumbnail_image'] = $request->file('thumbnail_image')->store(self::IMAGE_DIR, self::IMAGE_DISK);
+            $result = $this->optimizer->optimizeUploadedFile($request->file('thumbnail_image'), self::IMAGE_DISK);
+            $data['thumbnail_image'] = $result['path'];
         }
 
         $data['created_by'] = $deal?->created_by ?? auth()->id();

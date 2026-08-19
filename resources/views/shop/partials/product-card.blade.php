@@ -33,7 +33,11 @@
                 <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary fs-6 z-1 px-3 py-2">Sold out</span>
             @endif
             @if($img)
-                <img src="{{ $img }}" alt="{{ $product->name }}">
+                @if($img instanceof \App\Models\ProductImage && $img->webp_url)
+                    {!! $img->pictureTag($product->name, '', 'w-100 h-100') !!}
+                @else
+                    <img src="{{ $img }}" alt="{{ $product->name }}" loading="lazy" decoding="async">
+                @endif
             @else
                 <div class="d-flex align-items-center justify-content-center text-muted h-100"><i class="bi bi-image fs-1"></i></div>
             @endif

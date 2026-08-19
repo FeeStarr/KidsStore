@@ -67,8 +67,8 @@
             <div class="card mb-3"><div class="card-body">
                 <h6>Images</h6>
                 <div class="d-flex gap-3">
-                    @if($deal->banner_image)<img src="{{ asset('storage/'.$deal->banner_image) }}" style="max-height:120px" class="rounded border">@endif
-                    @if($deal->thumbnail_image)<img src="{{ asset('storage/'.$deal->thumbnail_image) }}" style="max-height:120px" class="rounded border">@endif
+                    @if($deal->banner_image)<img src="{{ asset('storage/'.$deal->banner_image) }}" style="max-height:120px" class="rounded border" loading="lazy" decoding="async">@endif
+                    @if($deal->thumbnail_image)<img src="{{ asset('storage/'.$deal->thumbnail_image) }}" style="max-height:120px" class="rounded border" loading="lazy" decoding="async">@endif
                 </div>
             </div></div>
         @endif
@@ -81,7 +81,7 @@
                     @forelse($deal->products as $p)
                         <li class="list-group-item d-flex align-items-center gap-2">
                             @if($p->primaryImage)
-                                <img src="{{ $p->primaryImage->url }}" style="width:40px;height:40px;object-fit:cover;border-radius:.35rem">
+                                <img src="{{ $p->primaryImage->url }}" style="width:40px;height:40px;object-fit:cover;border-radius:.35rem" loading="lazy" decoding="async">
                             @endif
                             <div>
                                 <a href="{{ route('admin.products.show', $p) }}" class="text-decoration-none">{{ $p->name }}</a>

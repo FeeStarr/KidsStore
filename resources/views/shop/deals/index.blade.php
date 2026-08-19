@@ -20,7 +20,7 @@
                 <div class="card border-0 shadow-sm h-100 overflow-hidden">
                     @if($deal->banner_image)
                         <a href="{{ route('shop.deals.show', $deal) }}">
-                            <img src="{{ asset('storage/'.$deal->banner_image) }}" class="card-img-top" style="height:160px;object-fit:cover" alt="{{ $deal->title }}">
+                            <img src="{{ asset('storage/'.$deal->banner_image) }}" class="card-img-top" style="height:160px;object-fit:cover" alt="{{ $deal->title }}" loading="lazy" decoding="async">
                         </a>
                     @else
                         <div class="bg-danger-subtle d-flex align-items-center justify-content-center" style="height:160px">

@@ -181,7 +181,7 @@
                             <input type="checkbox" name="image_ids[]" value="{{ $img->id }}"
                                    class="form-check-input position-absolute top-0 start-0 m-1"
                                    @checked($checked)>
-                            <img src="{{ $img->url }}" class="img-fluid rounded" style="aspect-ratio:1/1;object-fit:cover">
+                            <img src="{{ $img->url }}" class="img-fluid rounded" style="aspect-ratio:1/1;object-fit:cover" loading="lazy" decoding="async">
                             @if($ownedByOther)
                                 <small class="d-block text-muted text-truncate">used by another variant</small>
                             @endif

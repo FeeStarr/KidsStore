@@ -44,6 +44,9 @@
             ? $v->images->map(fn ($i) => $i->url)->all()
             : ($colorImgs[$v->colorRef?->name ?? 'Default']
                 ?: $product->images->map(fn ($i) => $i->url)->all());
+        $webpImgs = $v->images->isNotEmpty()
+            ? $v->images->map(fn ($i) => $i->webp_url)->filter()->values()->all()
+            : [];
         $dealPrice = $deal ? (float) $deal->priceFor((float) $v->selling_price) : null;
         return [
             'id'            => $v->id,
@@ -65,6 +68,7 @@
             'stock'         => (int) ($v->inventory?->quantity ?? 0),
             'in_cart'       => (int) ($cartQtys[$v->id] ?? 0),
             'image_url'     => $v->image?->url,
+            'webp_images'   => $webpImgs,
             'images'        => $imgs,
             'options_label' => $v->options_label,
         ];
@@ -119,7 +123,7 @@
                 <div class="carousel-inner rounded shadow-sm">
                     @foreach($product->images as $i => $img)
                         <div class="carousel-item @if($i===0) active @endif">
-                            <img src="{{ $img->url }}" class="d-block w-100" style="aspect-ratio:1/1;object-fit:cover" alt="">
+                            {!! $img->pictureTag($product->name, 'd-block w-100', 'style="aspect-ratio:1/1;object-fit:cover"') !!}
                         </div>
                     @endforeach
                 </div>
@@ -198,7 +202,7 @@
                             data-color="{{ $colorName }}"
                             title="{{ $colorName }}">
                         @if($thumbImgs[$colorName])
-                            <img src="{{ $thumbImgs[$colorName] }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $colorName }}">
+                            <img src="{{ $thumbImgs[$colorName] }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $colorName }}" loading="lazy" decoding="async">
                         @else
                             <span class="d-flex align-items-center justify-content-center w-100 h-100 bg-light text-muted" style="font-size:.65rem;line-height:1.1">{{ $colorName }}</span>
                         @endif
@@ -471,11 +475,16 @@
         // Carousel
         const carouselInner = document.querySelector('#prod-carousel .carousel-inner');
         if (carouselInner && Array.isArray(v.images) && v.images.length) {
-            carouselInner.innerHTML = v.images.map((url, i) =>
-                '<div class="carousel-item' + (i === 0 ? ' active' : '') + '">' +
-                '<img src="' + url + '" class="d-block w-100" style="aspect-ratio:1/1;object-fit:cover" alt="">' +
-                '</div>'
-            ).join('');
+            carouselInner.innerHTML = v.images.map((url, i) => {
+                const webpUrl = (v.webp_images && v.webp_images[i]) ? v.webp_images[i] : null;
+                let imgHtml;
+                if (webpUrl) {
+                    imgHtml = '<picture><source srcset="' + webpUrl + '" type="image/webp"><img src="' + url + '" class="d-block w-100" style="aspect-ratio:1/1;object-fit:cover" alt="" loading="lazy" decoding="async"></picture>';
+                } else {
+                    imgHtml = '<img src="' + url + '" class="d-block w-100" style="aspect-ratio:1/1;object-fit:cover" alt="" loading="lazy" decoding="async">';
+                }
+                return '<div class="carousel-item' + (i === 0 ? ' active' : '') + '">' + imgHtml + '</div>';
+            }).join('');
         }
 
         // Stock / qty UI

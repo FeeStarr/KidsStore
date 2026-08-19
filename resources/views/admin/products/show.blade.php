@@ -22,7 +22,7 @@
         <div class="card"><div class="card-body">
             <div class="row g-2">
                 @forelse($product->images as $img)
-                    <div class="col-4"><img src="{{ $img->url }}" class="img-fluid rounded {{ $img->is_primary ? 'border border-success border-3' : '' }}"></div>
+                    <div class="col-4"><img src="{{ $img->url }}" class="img-fluid rounded {{ $img->is_primary ? 'border border-success border-3' : '' }}" loading="lazy" decoding="async"></div>
                 @empty
                     <div class="text-muted">No images uploaded.</div>
                 @endforelse

@@ -186,7 +186,7 @@
             <td>{{ $loop->iteration }}</td>
             <td style="width:80px">
                 @if($it->product?->primaryImage)
-                    <img src="{{ $it->product->primaryImage->url }}" style="width:56px;height:56px;object-fit:cover;border-radius:.35rem">
+                    <img src="{{ $it->product->primaryImage->url }}" style="width:56px;height:56px;object-fit:cover;border-radius:.35rem" loading="lazy" decoding="async">
                 @endif
             </td>
             <td>

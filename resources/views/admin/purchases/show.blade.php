@@ -61,7 +61,7 @@
             <td class="text-muted">{{ $loop->iteration }}</td>
             <td>
                 @if($thumb)
-                    <img src="{{ $thumb }}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;" alt="">
+                    <img src="{{ $thumb }}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;" alt="" loading="lazy" decoding="async">
                 @else
                     <span class="d-inline-flex align-items-center justify-content-center bg-light text-muted" style="width:36px;height:36px;border-radius:.375rem;font-size:.7rem;"><i class="bi bi-image"></i></span>
                 @endif

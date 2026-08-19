@@ -130,7 +130,7 @@
                             @foreach($product->images as $img)
                                 <div class="col-md-3">
                                     <div class="card">
-                                        <img src="{{ $img->url }}" class="card-img-top" style="height:120px;object-fit:cover">
+                                        <img src="{{ $img->url }}" class="card-img-top" style="height:120px;object-fit:cover" loading="lazy" decoding="async">
                                         <div class="card-body p-2 text-center">
                                             @if($img->is_primary)
                                                 <span class="badge text-bg-success">Primary</span>
