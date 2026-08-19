@@ -307,12 +307,12 @@ if ('serviceWorker' in navigator) {
         window.addEventListener('beforeinstallprompt', e => {
             e.preventDefault();
             deferredPrompt = e;
-            // Show install button after 3 seconds on mobile
-            if (window.innerWidth < 768 && !localStorage.getItem('pwa-dismissed')) {
+            if (window.innerWidth < 768) {
                 setTimeout(() => {
-                    const modal = new bootstrap.Modal(installModal);
-                    modal.show();
-                    androidDiv.style.display = 'block';
+                    if (installModal) {
+                        androidDiv.style.display = 'block';
+                        new bootstrap.Modal(installModal).show();
+                    }
                 }, 3000);
             }
         });
@@ -321,27 +321,25 @@ if ('serviceWorker' in navigator) {
             installBtn.addEventListener('click', () => {
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+                    deferredPrompt.userChoice.then(result => {
+                        if (result.outcome === 'accepted') {
+                            // Installed — close modal, don't show again
+                            bootstrap.Modal.getInstance(installModal)?.hide();
+                        }
+                        deferredPrompt = null;
+                    });
                 }
             });
         }
 
-        // iOS detection
+        // iOS — no beforeinstallprompt, show instructions
         if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-            if (installModal && !localStorage.getItem('pwa-dismissed')) {
-                setTimeout(() => {
-                    const modal = new bootstrap.Modal(installModal);
-                    modal.show();
+            setTimeout(() => {
+                if (installModal) {
                     iosDiv.style.display = 'block';
-                }, 3000);
-            }
-        }
-
-        // Dismiss tracking
-        if (installModal) {
-            installModal.addEventListener('hidden.bs.modal', () => {
-                localStorage.setItem('pwa-dismissed', '1');
-            });
+                    new bootstrap.Modal(installModal).show();
+                }
+            }, 3000);
         }
     }).catch(() => {});
 }
