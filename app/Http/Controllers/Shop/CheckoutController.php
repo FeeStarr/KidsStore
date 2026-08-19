@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use App\Models\PickupStation;
+use App\Models\Setting;
 use App\Services\CartService;
 use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
@@ -13,9 +14,7 @@ use Illuminate\Support\Facades\Auth;
 
 class CheckoutController extends Controller
 {
-    public function __construct(private CartService $cart, private OrderService $orders)
-    {
-    }
+    public function __construct(private CartService $cart, private OrderService $orders) {}
 
     public function show()
     {
@@ -29,11 +28,11 @@ class CheckoutController extends Controller
         $coupon = $this->cart->coupon();
 
         return view('shop.checkout.show', [
-            'items'          => $this->cart->items(),
-            'subtotal'       => $this->cart->subtotal(),
-            'coupon'         => $coupon,
+            'items' => $this->cart->items(),
+            'subtotal' => $this->cart->subtotal(),
+            'coupon' => $coupon,
             'coupon_discount' => $coupon ? $this->cart->couponDiscount() : 0.0,
-            'customer'       => Auth::user(),
+            'customer' => Auth::user(),
             'pickupStations' => $pickupStations,
             'paymentMethods' => $paymentMethods,
         ]);
@@ -46,32 +45,32 @@ class CheckoutController extends Controller
         }
 
         $data = $request->validate([
-            'delivery_method'   => ['required', 'in:delivery,pickup'],
-            'phone'             => ['required', 'string', 'max:30'],
-            'address'           => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
+            'delivery_method' => ['required', 'in:delivery,pickup'],
+            'phone' => ['required', 'string', 'max:30'],
+            'address' => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
-            'note'              => ['nullable', 'string', 'max:500'],
-            'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
-            'payment_method'    => ['nullable', 'string', 'exists:payment_methods,key'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
+            'payment_method' => ['nullable', 'string', 'exists:payment_methods,key'],
         ]);
 
         $customer = Auth::user();
         $customer->fill(['phone' => $data['phone']])->save();
 
         $items = $this->cart->items()->map(fn ($l) => [
-            'product_id'         => $l->product->id,
+            'product_id' => $l->product->id,
             'product_variant_id' => $l->variant->id,
-            'quantity'           => $l->quantity,
-            'unit_price'         => $l->unit_price,
-            'original_unit_price'=> $l->original_unit_price,
-            'discount'           => $l->discount,
-            'discount_amount'    => $l->discount_amount,
-            'deal_id'            => $l->deal_id,
+            'quantity' => $l->quantity,
+            'unit_price' => $l->unit_price,
+            'original_unit_price' => $l->original_unit_price,
+            'discount' => $l->discount,
+            'discount_amount' => $l->discount_amount,
+            'deal_id' => $l->deal_id,
         ])->all();
 
         // Determine authoritative per-item shipping fee from general site settings
         $shippingFee = 0;
-        $shippingFeeSetting = \App\Models\Setting::get('shipping_fee', null);
+        $shippingFeeSetting = Setting::get('shipping_fee', null);
         if ($shippingFeeSetting !== null && $shippingFeeSetting !== '') {
             $shippingFee = (float) $shippingFeeSetting;
         } else {
@@ -85,17 +84,17 @@ class CheckoutController extends Controller
 
         try {
             $order = $this->orders->create([
-                'customer_id'       => $customer->id,
-                'order_date'        => now()->toDateString(),
-                'status'            => $orderStatus,
-                'delivery_method'   => $data['delivery_method'],
-                'payment_method'    => $data['payment_method'] ?? null,
+                'customer_id' => $customer->id,
+                'order_date' => now()->toDateString(),
+                'status' => $orderStatus,
+                'delivery_method' => $data['delivery_method'],
+                'payment_method' => $data['payment_method'] ?? null,
                 'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
-                'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
-                'shipping_fee'      => $shippingFee,
-                'note'              => trim($data['note'] ?? '') ?: null,
-                'coupon_id'         => $this->cart->couponId(),
-                'items'             => $items,
+                'delivery_address' => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
+                'shipping_fee' => $shippingFee,
+                'note' => trim($data['note'] ?? '') ?: null,
+                'coupon_id' => $this->cart->couponId(),
+                'items' => $items,
             ]);
 
             $this->cart->clear();

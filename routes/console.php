@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -20,18 +21,18 @@ Artisan::command('backfill:pickup-fees {--batch=500} {--dry-run}', function () {
 
     $this->info('Starting pickup fee backfill'.($dry ? ' (dry run)' : '')." — batch={$batch}");
 
-    $totalOrders = \Illuminate\Support\Facades\DB::table('orders')->count();
+    $totalOrders = DB::table('orders')->count();
     $this->info("Orders to check: {$totalOrders}");
 
     $processed = 0;
 
-    \Illuminate\Support\Facades\DB::table('orders')->orderBy('id')->chunk($batch, function($orders) use (&$processed, $dry) {
+    DB::table('orders')->orderBy('id')->chunk($batch, function ($orders) use (&$processed, $dry) {
         foreach ($orders as $o) {
-            $sum = (float) \Illuminate\Support\Facades\DB::table('order_items')->where('order_id', $o->id)->sum('pickup_station_fee');
+            $sum = (float) DB::table('order_items')->where('order_id', $o->id)->sum('pickup_station_fee');
             if ((float) $o->pickup_station_fee_total !== $sum) {
                 $this->line("Order {$o->id}: updating {$o->pickup_station_fee_total} → {$sum}");
                 if (! $dry) {
-                    \Illuminate\Support\Facades\DB::table('orders')->where('id', $o->id)->update(['pickup_station_fee_total' => $sum]);
+                    DB::table('orders')->where('id', $o->id)->update(['pickup_station_fee_total' => $sum]);
                 }
             }
             $processed++;

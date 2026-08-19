@@ -206,7 +206,7 @@
             <input class="form-control form-control-sm" type="search" name="q" placeholder="Search products..." value="{{ request('q') }}">
         </form>
         <ul class="navbar-nav align-items-lg-center">
-            <li class="nav-item d-lg-none">
+            <li class="nav-item d-lg-none" id="nav-pwa-install-wrap">
                 <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('pwa-install-modal') && new bootstrap.Modal(document.getElementById('pwa-install-modal')).show()" style="border-radius:50px;font-size:.8rem;">
                     <i class="bi bi-phone"></i> Get the App
                 </button>
@@ -314,14 +314,30 @@ if ('serviceWorker' in navigator) {
         const installBtn = document.getElementById('pwa-install-btn');
         const androidDiv = document.getElementById('pwa-install-android');
         const iosDiv = document.getElementById('pwa-install-ios');
+        const navInstallBtn = document.getElementById('nav-pwa-install-wrap');
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = isIOS || isAndroid || (window.innerWidth < 768);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-        // Don't show if already installed
-        if (isStandalone) return;
+        // Already installed — hide everything
+        if (isStandalone) {
+            if (navInstallBtn) navInstallBtn.style.display = 'none';
+            return;
+        }
+
+        // Hide nav install button if user already dismissed or installed
+        const dismissed = localStorage.getItem('kidsflairr_pwa_dismissed') === '1';
+        const wasInstalled = localStorage.getItem('kidsflairr_pwa_installed') === '1';
+        if (dismissed || wasInstalled) {
+            if (navInstallBtn) navInstallBtn.style.display = 'none';
+        }
+
+        // Track install on both Android and iOS
+        function trackInstall(platform) {
+            navigator.sendBeacon('/pwa/install', JSON.stringify({ platform: platform }));
+        }
 
         // Capture the deferred prompt for Android install
         window.addEventListener('beforeinstallprompt', e => {
@@ -329,30 +345,47 @@ if ('serviceWorker' in navigator) {
             deferredPrompt = e;
         });
 
+        // Track when PWA is actually installed (Android)
+        window.addEventListener('appinstalled', () => {
+            localStorage.setItem('kidsflairr_pwa_installed', '1');
+            trackInstall('android');
+            if (navInstallBtn) navInstallBtn.style.display = 'none';
+            bootstrap.Modal.getInstance(installModal)?.hide();
+        });
+
         // Install button click handler
         if (installBtn) {
             installBtn.addEventListener('click', () => {
                 if (deferredPrompt) {
+                    // Android: use the real prompt
                     deferredPrompt.prompt();
                     deferredPrompt.userChoice.then(result => {
                         if (result.outcome === 'accepted') {
+                            localStorage.setItem('kidsflairr_pwa_installed', '1');
+                            trackInstall('android');
+                            if (navInstallBtn) navInstallBtn.style.display = 'none';
                             bootstrap.Modal.getInstance(installModal)?.hide();
                         }
                         deferredPrompt = null;
                     });
+                } else if (isIOS) {
+                    // iOS: show the manual instructions
+                    iosDiv.style.display = 'block';
+                    installBtn.style.display = 'none';
                 } else {
-                    // Fallback: try opening the URL (helps some Android browsers)
+                    // Fallback for other Android browsers
                     window.open(window.location.href, '_blank');
                 }
             });
         }
 
-        // Show the modal to ALL mobile users after 3s
-        if (isMobile) {
+        // Show the modal to mobile users after 3s (unless dismissed/installed)
+        if (isMobile && !dismissed && !wasInstalled) {
             setTimeout(() => {
-                if (installModal) {
+                if (installModal && !bootstrap.Modal.getInstance(installModal)) {
                     if (isIOS) {
                         iosDiv.style.display = 'block';
+                        if (installBtn) installBtn.style.display = 'none';
                     } else {
                         androidDiv.style.display = 'block';
                     }
@@ -360,6 +393,14 @@ if ('serviceWorker' in navigator) {
                 }
             }, 3000);
         }
+
+        // Dismiss button saves flag
+        document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                localStorage.setItem('kidsflairr_pwa_dismissed', '1');
+                if (navInstallBtn) navInstallBtn.style.display = 'none';
+            });
+        });
     }).catch(() => {});
 }
 </script>
