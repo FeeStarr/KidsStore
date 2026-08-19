@@ -268,11 +268,83 @@
 @include('partials.flash-alerts')
 @stack('scripts')
 @if(!str_starts_with(request()->path(), 'admin'))
+<div id="pwa-install-modal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
+            <div class="mb-3" style="font-size:3rem;">🎈</div>
+            <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
+            <p class="text-muted small mb-4">Add to your home screen for faster shopping and exclusive deals!</p>
+            <div id="pwa-install-android" style="display:none;">
+                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-2" style="border-radius:50px;">
+                    <i class="bi bi-download me-1"></i> Install App
+                </button>
+                <small class="text-muted">Tap the button above, then tap "Install"</small>
+            </div>
+            <div id="pwa-install-ios" style="display:none;">
+                <div class="bg-light rounded-3 p-3 mb-2">
+                    <small class="text-muted">
+                        1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>
+                        2. Scroll down → <strong>Add to Home Screen</strong><br>
+                        3. Tap <strong>Add</strong>
+                    </small>
+                </div>
+            </div>
+            <button class="btn btn-link text-muted small" data-bs-dismiss="modal">Not now</button>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+        let deferredPrompt;
+        const installModal = document.getElementById('pwa-install-modal');
+        const installBtn = document.getElementById('pwa-install-btn');
+        const androidDiv = document.getElementById('pwa-install-android');
+        const iosDiv = document.getElementById('pwa-install-ios');
+
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Show install button after 3 seconds on mobile
+            if (window.innerWidth < 768 && !localStorage.getItem('pwa-dismissed')) {
+                setTimeout(() => {
+                    const modal = new bootstrap.Modal(installModal);
+                    modal.show();
+                    androidDiv.style.display = 'block';
+                }, 3000);
+            }
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+                }
+            });
+        }
+
+        // iOS detection
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+            if (installModal && !localStorage.getItem('pwa-dismissed')) {
+                setTimeout(() => {
+                    const modal = new bootstrap.Modal(installModal);
+                    modal.show();
+                    iosDiv.style.display = 'block';
+                }, 3000);
+            }
+        }
+
+        // Dismiss tracking
+        if (installModal) {
+            installModal.addEventListener('hidden.bs.modal', () => {
+                localStorage.setItem('pwa-dismissed', '1');
+            });
+        }
+    }).catch(() => {});
 }
 </script>
-@endif
 </body>
 </html>
