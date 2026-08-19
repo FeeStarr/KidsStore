@@ -21,7 +21,7 @@
         <tr>
             <td style="width:80px">
                 @if($img)
-                    <img src="{{ $img->url }}" style="width:64px;height:64px;object-fit:cover;border-radius:.35rem">
+                    <img src="{{ $img->url }}" style="width:64px;height:64px;object-fit:cover;border-radius:.35rem" loading="lazy" decoding="async">
                 @endif
             </td>
             <td>

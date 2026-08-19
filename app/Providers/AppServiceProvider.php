@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Database\SafeMysqlConnection;
 use App\Models\Order;
 use App\Observers\OrderObserver;
 use App\Services\CartService;
 use App\Services\Contracts\InventoryServiceInterface;
+use App\Services\ImageOptimizationService;
 use App\Services\InventoryService;
 use Illuminate\Database\Connection;
 use Illuminate\Pagination\Paginator;
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(InventoryServiceInterface::class, InventoryService::class);
         $this->app->singleton(CartService::class);
+        $this->app->singleton(ImageOptimizationService::class);
     }
 
     public function boot(): void
@@ -38,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
         // (TRUNCATE / DROP / unbounded DELETE) outside test environments,
         // so live data can never be wiped by accident.
         Connection::resolverFor('mysql', function ($connection, $database, $prefix, $config) {
-            return new \App\Database\SafeMysqlConnection(
+            return new SafeMysqlConnection(
                 $connection, $database, $prefix, $config
             );
         });

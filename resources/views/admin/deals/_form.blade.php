@@ -28,13 +28,13 @@
                         <div class="col-md-6"><label class="form-label">Banner Image</label>
                             <input type="file" name="banner_image" accept="image/*" class="form-control">
                             @if(!empty($deal->banner_image))
-                                <div class="mt-2"><img src="{{ asset('storage/'.$deal->banner_image) }}" style="max-height:80px" class="rounded border"></div>
+                                <div class="mt-2"><img src="{{ asset('storage/'.$deal->banner_image) }}" style="max-height:80px" class="rounded border" loading="lazy" decoding="async"></div>
                             @endif
                         </div>
                         <div class="col-md-6"><label class="form-label">Thumbnail Image</label>
                             <input type="file" name="thumbnail_image" accept="image/*" class="form-control">
                             @if(!empty($deal->thumbnail_image))
-                                <div class="mt-2"><img src="{{ asset('storage/'.$deal->thumbnail_image) }}" style="max-height:80px" class="rounded border"></div>
+                                <div class="mt-2"><img src="{{ asset('storage/'.$deal->thumbnail_image) }}" style="max-height:80px" class="rounded border" loading="lazy" decoding="async"></div>
                             @endif
                         </div>
                     </div>

@@ -15,7 +15,7 @@
 
 <div class="card border-0 shadow-sm overflow-hidden mb-4">
     @if($deal->banner_image)
-        <img src="{{ asset('storage/'.$deal->banner_image) }}" style="height:220px;object-fit:cover" alt="{{ $deal->title }}">
+        <img src="{{ asset('storage/'.$deal->banner_image) }}" style="height:220px;object-fit:cover" alt="{{ $deal->title }}" loading="lazy" decoding="async">
     @endif
     <div class="card-body p-4">
         <span class="badge bg-danger fs-6">{{ $deal->badge_text }}</span>

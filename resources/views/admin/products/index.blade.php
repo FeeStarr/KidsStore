@@ -26,7 +26,7 @@
         <tr>
             <td style="width:64px">
                 @if($p->primaryImage)
-                    <img src="{{ $p->primaryImage->url }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:.35rem;">
+                    <img src="{{ $p->primaryImage->url }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:.35rem;" loading="lazy" decoding="async">
                 @else
                     <div class="bg-light text-muted text-center" style="width:48px;height:48px;line-height:48px;border-radius:.35rem;"><i class="bi bi-image"></i></div>
                 @endif

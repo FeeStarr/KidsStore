@@ -40,7 +40,7 @@
                     <tr>
                         <td class="ps-2">
                             @if($vImg)
-                                <img src="{{ $vImg }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px">
+                                <img src="{{ $vImg }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px" loading="lazy" decoding="async">
                             @else
                                 <div class="bg-light d-flex align-items-center justify-content-center rounded" style="width:40px;height:40px"><i class="bi bi-image text-muted"></i></div>
                             @endif
