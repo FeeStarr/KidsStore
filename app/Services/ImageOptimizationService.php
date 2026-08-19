@@ -111,10 +111,8 @@ class ImageOptimizationService
 
         $targetWidth = min($originalWidth, $this->maxWidth);
 
-        // Save compressed version (overwrites original)
-        $tmpFile = $fullPath . '.tmp_opt';
-        $this->saveResized($fullPath, $tmpFile, $targetWidth, $isPng);
-        rename($tmpFile, $fullPath);
+        // Save compressed version (overwrites original directly)
+        $this->saveResized($fullPath, $fullPath, $targetWidth, $isPng);
 
         // WebP version
         $webpFull = $this->webpPath($fullPath);
@@ -156,18 +154,22 @@ class ImageOptimizationService
     /**
      * Resize and save as JPEG (or PNG).
      */
-    private function saveResized(string $sourcePath, string $destPath, int $targetWidth, bool $isPng): void
+    private function saveResized(string $sourcePath, string $destPath, int $targetWidth, bool $isPng): bool
     {
         $src = $this->loadSource($sourcePath);
-        if ($src === false || ! is_resource($src)) {
-            return;
+        if (! is_resource($src)) {
+            $ext = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
+            error_log("[ImageOpt] Failed to load: {$sourcePath} (ext={$ext}, gd=" . (function_exists('imagecreatefrom' . $ext) ? 'yes' : 'no') . ")");
+
+            return false;
         }
 
         $origW = imagesx($src);
         $origH = imagesy($src);
         if ($origW === 0 || $origH === 0) {
             imagedestroy($src);
-            return;
+
+            return false;
         }
 
         $targetHeight = (int) round($origH * ($targetWidth / $origW));
@@ -183,34 +185,37 @@ class ImageOptimizationService
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $targetWidth, $targetHeight, $origW, $origH);
 
         if ($isPng) {
-            imagepng($dst, $destPath, 6); // compression level 6
+            imagepng($dst, $destPath, 6);
         } else {
             imagejpeg($dst, $destPath, $this->quality);
         }
 
         imagedestroy($src);
         imagedestroy($dst);
+
+        return true;
     }
 
     /**
      * Save a WebP version of the source image.
      */
-    private function saveWebp(string $sourcePath, string $destPath, int $targetWidth): void
+    private function saveWebp(string $sourcePath, string $destPath, int $targetWidth): bool
     {
         if (! function_exists('imagewebp')) {
-            return;
+            return false;
         }
 
         $src = $this->loadSource($sourcePath);
-        if ($src === false || ! is_resource($src)) {
-            return;
+        if (! is_resource($src)) {
+            return false;
         }
 
         $origW = imagesx($src);
         $origH = imagesy($src);
         if ($origW === 0 || $origH === 0) {
             imagedestroy($src);
-            return;
+
+            return false;
         }
 
         $targetHeight = (int) round($origH * ($targetWidth / $origW));
@@ -227,6 +232,8 @@ class ImageOptimizationService
 
         imagedestroy($src);
         imagedestroy($dst);
+
+        return true;
     }
 
     private function isSupported(?string $mime): bool
