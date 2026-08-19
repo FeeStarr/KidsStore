@@ -206,6 +206,11 @@
             <input class="form-control form-control-sm" type="search" name="q" placeholder="Search products..." value="{{ request('q') }}">
         </form>
         <ul class="navbar-nav align-items-lg-center">
+            <li class="nav-item d-lg-none">
+                <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('pwa-install-modal') && new bootstrap.Modal(document.getElementById('pwa-install-modal')).show()" style="border-radius:50px;font-size:.8rem;">
+                    <i class="bi bi-phone"></i> Get the App
+                </button>
+            </li>
             <li class="nav-item">
                 <a class="nav-link position-relative" href="{{ route('shop.cart.index') }}">
                     <i class="bi bi-bag fs-5"></i>
@@ -278,7 +283,13 @@
                 <button id="pwa-install-btn" class="btn btn-primary w-100 mb-2" style="border-radius:50px;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
-                <small class="text-muted">Tap the button above, then tap "Install"</small>
+                <div class="bg-light rounded-3 p-3 mb-2">
+                    <small class="text-muted">
+                        <strong>If the button above doesn't work:</strong><br>
+                        1. Tap the <strong>menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser<br>
+                        2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>
+                    </small>
+                </div>
             </div>
             <div id="pwa-install-ios" style="display:none;">
                 <div class="bg-light rounded-3 p-3 mb-2">
@@ -304,39 +315,47 @@ if ('serviceWorker' in navigator) {
         const androidDiv = document.getElementById('pwa-install-android');
         const iosDiv = document.getElementById('pwa-install-ios');
 
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isMobile = isIOS || isAndroid || (window.innerWidth < 768);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+        // Don't show if already installed
+        if (isStandalone) return;
+
+        // Capture the deferred prompt for Android install
         window.addEventListener('beforeinstallprompt', e => {
             e.preventDefault();
             deferredPrompt = e;
-            if (window.innerWidth < 768) {
-                setTimeout(() => {
-                    if (installModal) {
-                        androidDiv.style.display = 'block';
-                        new bootstrap.Modal(installModal).show();
-                    }
-                }, 3000);
-            }
         });
 
+        // Install button click handler
         if (installBtn) {
             installBtn.addEventListener('click', () => {
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
                     deferredPrompt.userChoice.then(result => {
                         if (result.outcome === 'accepted') {
-                            // Installed — close modal, don't show again
                             bootstrap.Modal.getInstance(installModal)?.hide();
                         }
                         deferredPrompt = null;
                     });
+                } else {
+                    // Fallback: try opening the URL (helps some Android browsers)
+                    window.open(window.location.href, '_blank');
                 }
             });
         }
 
-        // iOS — no beforeinstallprompt, show instructions
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+        // Show the modal to ALL mobile users after 3s
+        if (isMobile) {
             setTimeout(() => {
                 if (installModal) {
-                    iosDiv.style.display = 'block';
+                    if (isIOS) {
+                        iosDiv.style.display = 'block';
+                    } else {
+                        androidDiv.style.display = 'block';
+                    }
                     new bootstrap.Modal(installModal).show();
                 }
             }, 3000);
