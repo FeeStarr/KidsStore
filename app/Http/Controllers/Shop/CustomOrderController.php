@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderColour;
+use App\Models\PickupStation;
 use App\Models\Product;
+use App\Models\User;
+use App\Notifications\CustomOrderMessageReceived;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomPaymentService;
-use App\Models\User;
-use App\Notifications\CustomOrderMessageReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 
 class CustomOrderController extends Controller
@@ -65,9 +68,9 @@ class CustomOrderController extends Controller
             'standard_size' => ['required', 'string', 'max:64'],
             'child_size' => ['nullable', 'string', 'max:64'],
             'reference_files' => ['nullable', 'array'],
-            'reference_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+            'reference_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:'.$this->fileService->getMaxFileSizeMb() * 1024],
             'colour_files' => ['nullable', 'array'],
-            'colour_files.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+            'colour_files.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:'.$this->fileService->getMaxFileSizeMb() * 1024],
             'return_policy_acknowledged' => ['required', 'accepted'],
         ]);
 
@@ -77,7 +80,7 @@ class CustomOrderController extends Controller
             'accent_colour' => $data['accent_colour'] ?? null,
             'standard_size' => $data['standard_size'] ?? null,
             'child_size' => $data['child_size'] ?? null,
-        ], fn($v) => !empty($v));
+        ], fn ($v) => ! empty($v));
 
         $order = $this->customOrderService->create([
             'user_id' => Auth::id(),
@@ -100,11 +103,11 @@ class CustomOrderController extends Controller
         try {
             $this->customOrderService->submit($order);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Custom order submit failed: ' . $e->getMessage());
+            Log::error('Custom order submit failed: '.$e->getMessage());
         }
 
         return redirect()->route('shop.custom-frock.show', $order)
-            ->with('success', 'Your custom frock request has been submitted! Order number: ' . $order->custom_order_number);
+            ->with('success', 'Your custom frock request has been submitted! Order number: '.$order->custom_order_number);
     }
 
     public function show(CustomOrder $customOrder)
@@ -128,7 +131,7 @@ class CustomOrderController extends Controller
 
         $quote = $customOrder->approvedQuote() ?? $customOrder->latestQuote();
 
-        if (!$quote || $quote->isExpired()) {
+        if (! $quote || $quote->isExpired()) {
             return back()->with('error', 'This quote has expired. Please request a new one.');
         }
 
@@ -152,7 +155,7 @@ class CustomOrderController extends Controller
 
         // Redirect to the linked order's payment page
         $linkedOrder = $customOrder->order;
-        if (!$linkedOrder) {
+        if (! $linkedOrder) {
             return redirect()->route('shop.custom-frock.show', $customOrder)
                 ->with('error', 'No payment record found. Please contact support.');
         }
@@ -186,7 +189,7 @@ class CustomOrderController extends Controller
 
         // Notify admins
         $admins = User::role(['superadmin', 'admin'])->get();
-        \Illuminate\Support\Facades\Notification::send($admins, new CustomOrderMessageReceived($customOrder, $message));
+        Notification::send($admins, new CustomOrderMessageReceived($customOrder, $message));
 
         return back()->with('success', 'Your feedback has been sent. We will revise the quote.');
     }
@@ -202,7 +205,7 @@ class CustomOrderController extends Controller
 
     private function uploadFiles(CustomOrder $order, array $data, int $userId): void
     {
-        if (!empty($data['reference_files'])) {
+        if (! empty($data['reference_files'])) {
             foreach ($data['reference_files'] as $file) {
                 if ($file->isValid()) {
                     $this->fileService->upload($order, $file, 'reference_image', $userId);
@@ -210,7 +213,7 @@ class CustomOrderController extends Controller
             }
         }
 
-        if (!empty($data['colour_files'])) {
+        if (! empty($data['colour_files'])) {
             foreach ($data['colour_files'] as $file) {
                 if ($file->isValid()) {
                     $this->fileService->upload($order, $file, 'colour_reference', $userId);
@@ -222,8 +225,8 @@ class CustomOrderController extends Controller
     private function getFormOptions(): array
     {
         return [
-            'colours' => \App\Models\CustomOrderColour::active()->get(),
-            'pickupStations' => \App\Models\PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
+            'colours' => CustomOrderColour::active()->get(),
+            'pickupStations' => PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
         ];
     }
 }

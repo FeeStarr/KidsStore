@@ -128,7 +128,7 @@
     <a href="{{ route('admin.privacy-policy.edit') }}" class="sub {{ $r==='admin.privacy-policy.edit' ? 'active':'' }}"><i class="bi bi-shield-lock"></i> Privacy Policy</a>
 </div>
 
-@php($settingsActive = str_starts_with($r ?? '', 'admin.settings') || str_starts_with($r ?? '', 'admin.bank-accounts') || str_starts_with($r ?? '', 'admin.payment-methods'))
+@php($settingsActive = str_starts_with($r ?? '', 'admin.settings') || str_starts_with($r ?? '', 'admin.bank-accounts') || str_starts_with($r ?? '', 'admin.payment-methods') || str_starts_with($r ?? '', 'admin.pwa-installs'))
 <a href="#menu-settings" data-bs-toggle="collapse" role="button" aria-expanded="{{ $settingsActive ? 'true' : 'false' }}" class="{{ $settingsActive ? 'active' : '' }}">
     <i class="bi bi-gear"></i> Settings <i class="bi bi-chevron-down chevron"></i>
 </a>
@@ -138,6 +138,7 @@
         <a href="{{ route('admin.settings.edit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
         <a href="{{ route('admin.bank-accounts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
     @endif
+    <a href="{{ route('admin.pwa-installs.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pwa-installs') ? 'active':'' }}"><i class="bi bi-phone"></i> PWA Installs</a>
 </div>
 
 <hr class="my-3">
