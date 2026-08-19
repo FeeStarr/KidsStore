@@ -112,7 +112,10 @@ class ImageOptimizationService
         $targetWidth = min($originalWidth, $this->maxWidth);
 
         // Save compressed version (overwrites original directly)
-        $this->saveResized($fullPath, $fullPath, $targetWidth, $isPng);
+        $saved = $this->saveResized($fullPath, $fullPath, $targetWidth, $isPng);
+        if (! $saved) {
+            return false;
+        }
 
         // WebP version
         $webpFull = $this->webpPath($fullPath);
@@ -140,15 +143,27 @@ class ImageOptimizationService
     {
         $info = @getimagesize($path);
         if ($info === false) {
+            error_log("[ImageOpt] getimagesize failed: {$path}");
+
             return null;
         }
 
-        return match ($info[2]) {
-            IMAGETYPE_JPEG => imagecreatefromjpeg($path),
-            IMAGETYPE_PNG  => imagecreatefrompng($path),
-            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($path) : null,
-            default        => null,
-        };
+        // Use imagecreatefromstring instead of type-specific functions
+        // because imagecreatefrompng fails on some shared hosting GD builds
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            error_log("[ImageOpt] file_get_contents failed: {$path}");
+
+            return null;
+        }
+
+        $result = @imagecreatefromstring($data);
+
+        if (! is_resource($result)) {
+            error_log("[ImageOpt] imagecreatefromstring failed: {$path} (type={$info[2]}, size=" . strlen($data) . " bytes)");
+        }
+
+        return $result;
     }
 
     /**
