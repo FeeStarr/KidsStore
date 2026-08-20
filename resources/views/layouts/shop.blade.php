@@ -280,7 +280,7 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;display:none;">
+                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
                 <div class="bg-light rounded-3 p-3 mb-2">
@@ -386,7 +386,7 @@
         });
     }
 
-    // Show modal after 3s
+    // Show modal after 3s (works even without service worker)
     if (isMobile) {
         setTimeout(function() {
             var modal = document.getElementById('pwa-install-modal');
@@ -404,37 +404,50 @@
         }, 3000);
     }
 
-    // Register SW and listen for install prompt
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(function() {
-            var deferredPrompt = null;
-            var installBtn = document.getElementById('pwa-install-btn');
+    // Install button — works with or without service worker
+    var installBtn = document.getElementById('pwa-install-btn');
+    var deferredPrompt = null;
 
-            window.addEventListener('beforeinstallprompt', function(e) {
-                e.preventDefault();
-                deferredPrompt = e;
-                // Show the native install button
-                if (installBtn) installBtn.style.display = 'block';
-            });
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+    });
 
-            window.addEventListener('appinstalled', function() {
-                onInstalled();
-            });
+    window.addEventListener('appinstalled', function() {
+        onInstalled();
+    });
 
-            if (installBtn) {
-                installBtn.addEventListener('click', function() {
-                    if (!deferredPrompt) return;
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(function(result) {
-                        if (result.outcome === 'accepted') {
-                            onInstalled();
-                        }
-                        deferredPrompt = null;
-                        installBtn.style.display = 'none';
-                    });
+    // Fallback: detect install via display-mode change
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', function(e) {
+        if (e.matches) onInstalled();
+    });
+
+    if (installBtn) {
+        installBtn.addEventListener('click', function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function(result) {
+                    if (result.outcome === 'accepted') {
+                        onInstalled();
+                    }
+                    deferredPrompt = null;
                 });
+            } else {
+                // No native prompt available — scroll to manual instructions or focus them
+                var steps = installBtn.nextElementSibling;
+                if (steps) {
+                    steps.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    steps.style.transition = 'background 0.3s';
+                    steps.style.background = '#e8f5e9';
+                    setTimeout(function() { steps.style.background = ''; }, 2000);
+                }
             }
-        }).catch(function() {});
+        });
+    }
+
+    // Register service worker (non-blocking)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function() {});
     }
 })();
 </script>
