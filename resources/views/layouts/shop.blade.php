@@ -280,15 +280,12 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
+                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;display:none;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
-                <div id="pwa-manual-steps" class="bg-light rounded-3 p-3 mb-2">
+                <div class="bg-light rounded-3 p-3 mb-2">
                     <small class="text-muted">
-                        <strong>To install:</strong><br>
-                        1. Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> at the top right<br>
-                        2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong><br>
-                        3. Tap <strong>Install</strong> to confirm
+                        <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
                     </small>
                 </div>
             </div>
@@ -367,13 +364,12 @@
             Swal.fire({
                 icon: 'success',
                 title: 'App Installed!',
-                text: 'KidsFlairr has been added to your home screen.',
+                text: 'KidsFlairr is now on your home screen.',
                 timer: 4000,
                 showConfirmButton: false,
                 confirmButtonColor: '#d63384'
             });
         }
-        // Track
         try {
             fetch('/pwa/install', {
                 method: 'POST',
@@ -418,43 +414,27 @@
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
+        if (installBtn) installBtn.style.display = 'block';
     });
 
     window.addEventListener('appinstalled', function() {
         onInstalled();
     });
 
-    // Fallback: detect install via display-mode change
     window.matchMedia('(display-mode: standalone)').addEventListener('change', function(e) {
         if (e.matches) {
-            // Delay success — installation may still be in progress
             setTimeout(function() { onInstalled(); }, 2000);
         }
     });
 
     if (installBtn) {
         installBtn.addEventListener('click', function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(function(result) {
-                    if (result.outcome === 'accepted') {
-                        onInstalled();
-                    }
-                    deferredPrompt = null;
-                });
-            } else {
-                // No native prompt — highlight and scroll to manual steps
-                var steps = document.getElementById('pwa-manual-steps');
-                if (steps) {
-                    steps.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    steps.style.border = '2px solid #d63384';
-                    steps.style.background = '#fff0f6';
-                    setTimeout(function() {
-                        steps.style.border = '';
-                        steps.style.background = '';
-                    }, 3000);
-                }
-            }
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(result) {
+                if (result.outcome === 'accepted') onInstalled();
+                deferredPrompt = null;
+            });
         });
     }
 
