@@ -314,73 +314,100 @@ if ('serviceWorker' in navigator) {
         const installBtn = document.getElementById('pwa-install-btn');
         const androidDiv = document.getElementById('pwa-install-android');
         const iosDiv = document.getElementById('pwa-install-ios');
-        const navInstallBtn = document.getElementById('nav-pwa-install-wrap');
+        const navInstallWrap = document.getElementById('nav-pwa-install-wrap');
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = isIOS || isAndroid || (window.innerWidth < 768);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        const wasDismissed = localStorage.getItem('kidsflairr_pwa_dismissed') === '1';
+        const wasInstalled = localStorage.getItem('kidsflairr_pwa_installed') === '1';
 
-        // Already installed — hide everything
+        function hideInstallUI() {
+            if (navInstallWrap) navInstallWrap.style.display = 'none';
+            if (installModal) {
+                const modal = bootstrap.Modal.getInstance(installModal);
+                if (modal) modal.hide();
+            }
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.remove();
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+
+        function trackInstall(platform) {
+            fetch('/pwa/install', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ platform })
+            }).catch(() => {});
+        }
+
+        function showSuccess() {
+            hideInstallUI();
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'App Installed!',
+                    text: 'KidsFlairr has been added to your home screen. Open it from your app drawer!',
+                    timer: 4000,
+                    showConfirmButton: false,
+                    confirmButtonColor: '#d63384'
+                });
+            }
+        }
+
+        // Already installed (standalone) — hide everything, stop
         if (isStandalone) {
-            if (navInstallBtn) navInstallBtn.style.display = 'none';
+            localStorage.setItem('kidsflairr_pwa_installed', '1');
+            hideInstallUI();
             return;
         }
 
-        // Hide nav install button if user already dismissed or installed
-        const dismissed = localStorage.getItem('kidsflairr_pwa_dismissed') === '1';
-        const wasInstalled = localStorage.getItem('kidsflairr_pwa_installed') === '1';
-        if (dismissed || wasInstalled) {
-            if (navInstallBtn) navInstallBtn.style.display = 'none';
+        // Already installed or dismissed in past — hide everything, stop
+        if (wasInstalled || wasDismissed) {
+            hideInstallUI();
+            return;
         }
 
-        // Track install on both Android and iOS
-        function trackInstall(platform) {
-            navigator.sendBeacon('/pwa/install', JSON.stringify({ platform: platform }));
-        }
-
-        // Capture the deferred prompt for Android install
+        // Capture the deferred prompt (Android Chrome only)
         window.addEventListener('beforeinstallprompt', e => {
             e.preventDefault();
             deferredPrompt = e;
         });
 
-        // Track when PWA is actually installed (Android)
+        // PWA was just installed (Android)
         window.addEventListener('appinstalled', () => {
             localStorage.setItem('kidsflairr_pwa_installed', '1');
             trackInstall('android');
-            if (navInstallBtn) navInstallBtn.style.display = 'none';
-            bootstrap.Modal.getInstance(installModal)?.hide();
+            showSuccess();
         });
 
         // Install button click handler
         if (installBtn) {
             installBtn.addEventListener('click', () => {
                 if (deferredPrompt) {
-                    // Android: use the real prompt
                     deferredPrompt.prompt();
                     deferredPrompt.userChoice.then(result => {
                         if (result.outcome === 'accepted') {
                             localStorage.setItem('kidsflairr_pwa_installed', '1');
                             trackInstall('android');
-                            if (navInstallBtn) navInstallBtn.style.display = 'none';
-                            bootstrap.Modal.getInstance(installModal)?.hide();
+                            showSuccess();
                         }
                         deferredPrompt = null;
                     });
                 } else if (isIOS) {
-                    // iOS: show the manual instructions
                     iosDiv.style.display = 'block';
                     installBtn.style.display = 'none';
                 } else {
-                    // Fallback for other Android browsers
                     window.open(window.location.href, '_blank');
                 }
             });
         }
 
-        // Show the modal to mobile users after 3s (unless dismissed/installed)
-        if (isMobile && !dismissed && !wasInstalled) {
+        // Show the modal to mobile users after 3s
+        if (isMobile) {
             setTimeout(() => {
                 if (installModal && !bootstrap.Modal.getInstance(installModal)) {
                     if (isIOS) {
@@ -394,11 +421,11 @@ if ('serviceWorker' in navigator) {
             }, 3000);
         }
 
-        // Dismiss button saves flag
+        // Dismiss button
         document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 localStorage.setItem('kidsflairr_pwa_dismissed', '1');
-                if (navInstallBtn) navInstallBtn.style.display = 'none';
+                hideInstallUI();
             });
         });
     }).catch(() => {});
