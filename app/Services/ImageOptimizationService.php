@@ -12,7 +12,7 @@ class ImageOptimizationService
     private int $webpQuality;
     private int $maxWidth;
     private array $srcsetWidths;
-    private bool $hasImagick;
+    private string $convertPath;
 
     public function __construct()
     {
@@ -21,7 +21,7 @@ class ImageOptimizationService
         $this->webpQuality  = (int) config('image-optimization.webp_quality', 80);
         $this->maxWidth     = (int) config('image-optimization.max_width', 1200);
         $this->srcsetWidths = config('image-optimization.srcset_widths', [400, 800]);
-        $this->hasImagick   = class_exists('Imagick');
+        $this->convertPath  = trim(shell_exec('which convert 2>/dev/null') ?: '/usr/local/bin/convert');
     }
 
     public function optimizeUploadedFile(UploadedFile $file, string $disk): array
@@ -35,27 +35,17 @@ class ImageOptimizationService
             ];
         }
 
-        $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
-        $isPng = $ext === 'png';
-
-        $info = @getimagesize($file->getRealPath());
-        if ($info === false) {
-            return [
-                'path'      => $file->store(self::dirFromPath($file->getClientOriginalName()), $disk),
-                'webp_path' => null,
-                'srcset'    => [],
-            ];
-        }
-        $originalWidth = $info[0];
-
         $path = $file->store(self::dirFromPath($file->getClientOriginalName()), $disk);
         $fullPath = Storage::disk($disk)->path($path);
 
+        $info = @getimagesize($fullPath);
+        $originalWidth = $info ? $info[0] : 0;
+
         $targetWidth = min($originalWidth, $this->maxWidth);
-        $this->saveResized($file->getRealPath(), $fullPath, $targetWidth, $isPng);
+        $this->convertResize($fullPath, $fullPath, $targetWidth);
 
         $webpFull = $this->webpPath($fullPath);
-        $this->saveWebp($file->getRealPath(), $webpFull, $targetWidth);
+        $this->convertToWebp($fullPath, $webpFull, $targetWidth);
         $webpRel = ltrim(str_replace(Storage::disk($disk)->path(''), '', $webpFull), '/');
 
         $srcset = [];
@@ -64,11 +54,9 @@ class ImageOptimizationService
                 continue;
             }
             $thumbPath = $this->srcsetPath($fullPath, $w);
-            $this->saveResized($file->getRealPath(), $thumbPath, $w, false);
-
+            $this->convertResize($fullPath, $thumbPath, $w);
             $thumbWebp = $this->webpPath($thumbPath);
-            $this->saveWebp($file->getRealPath(), $thumbWebp, $w);
-
+            $this->convertToWebp($fullPath, $thumbWebp, $w);
             $srcset[$w] = ltrim(str_replace(Storage::disk($disk)->path(''), '', $thumbPath), '/');
         }
 
@@ -97,29 +85,24 @@ class ImageOptimizationService
             return false;
         }
         $originalWidth = $info[0];
-
-        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-        $isPng = $ext === 'png';
-
         $targetWidth = min($originalWidth, $this->maxWidth);
 
-        $saved = $this->saveResized($fullPath, $fullPath, $targetWidth, $isPng);
+        $saved = $this->convertResize($fullPath, $fullPath, $targetWidth);
         if (! $saved) {
             return false;
         }
 
         $webpFull = $this->webpPath($fullPath);
-        $this->saveWebp($fullPath, $webpFull, $targetWidth);
+        $this->convertToWebp($fullPath, $webpFull, $targetWidth);
 
         foreach ($this->srcsetWidths as $w) {
             if ($originalWidth <= $w) {
                 continue;
             }
             $thumbPath = $this->srcsetPath($fullPath, $w);
-            $this->saveResized($fullPath, $thumbPath, $w, false);
-
+            $this->convertResize($fullPath, $thumbPath, $w);
             $thumbWebp = $this->webpPath($thumbPath);
-            $this->saveWebp($fullPath, $thumbWebp, $w);
+            $this->convertToWebp($fullPath, $thumbWebp, $w);
         }
 
         return true;
@@ -129,7 +112,7 @@ class ImageOptimizationService
     {
         $images = \App\Models\ProductImage::all();
         $totalSize = 0;
-        $optimized = 0;
+        $compressed = 0;
         $hasWebp = 0;
         $hasSrcset = 0;
         $details = [];
@@ -148,8 +131,8 @@ class ImageOptimizationService
             $webpSize = $webpExists ? filesize($webp) : 0;
 
             $thumb400 = $this->srcsetPath($fullPath, 400);
-            $thumb400Exists = file_exists($thumb400);
             $thumb800 = $this->srcsetPath($fullPath, 800);
+            $thumb400Exists = file_exists($thumb400);
             $thumb800Exists = file_exists($thumb800);
 
             if ($webpExists) {
@@ -159,133 +142,59 @@ class ImageOptimizationService
                 $hasSrcset++;
             }
             if ($size < $this->threshold) {
-                $optimized++;
+                $compressed++;
             }
 
             $details[] = [
-                'path'       => $img->path,
-                'size'       => $size,
-                'webp_size'  => $webpSize,
-                'has_webp'   => $webpExists,
-                'has_400'    => $thumb400Exists,
-                'has_800'    => $thumb800Exists,
+                'path'      => $img->path,
+                'size'      => $size,
+                'webp_size' => $webpSize,
+                'has_webp'  => $webpExists,
+                'has_400'   => $thumb400Exists,
+                'has_800'   => $thumb800Exists,
             ];
         }
 
         return [
-            'total'     => $images->count(),
-            'total_size'=> $totalSize,
-            'compressed'=> $optimized,
-            'has_webp'  => $hasWebp,
-            'has_srcset'=> $hasSrcset,
-            'details'   => $details,
+            'total'      => $images->count(),
+            'total_size' => $totalSize,
+            'compressed' => $compressed,
+            'has_webp'   => $hasWebp,
+            'has_srcset' => $hasSrcset,
+            'details'    => $details,
         ];
     }
 
-    private function loadSource(string $path): ?\GdImage
+    private function convertResize(string $sourcePath, string $destPath, int $targetWidth): bool
     {
-        $data = @file_get_contents($path);
-        if ($data === false) {
-            return null;
-        }
+        $escaped = escapeshellarg($sourcePath);
+        $destEsc = escapeshellarg($destPath);
+        $cmd = "{$this->convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->quality} {$destEsc} 2>&1";
 
-        $src = @imagecreatefromstring($data);
-        if (is_resource($src)) {
-            return $src;
-        }
+        exec($cmd, $output, $exitCode);
 
-        if ($this->hasImagick) {
-            try {
-                $imagick = new \Imagick();
-                $imagick->readImage($path);
-                $imagick = $imagick->coalesceImages();
-                $canvas = $imagick->getImage();
-                $w = $canvas->getImageWidth();
-                $h = $canvas->getImageHeight();
-                $gd = imagecreatetruecolor($w, $h);
-                imagealphablending($gd, false);
-                imagesavealpha($gd, true);
-                $canvas->setImageFormat('bmp');
-                ob_start();
-                $canvas->writeImageFile(fopen('php://memory', 'rw'));
-                $bmp = ob_get_clean();
-                imagecopy($gd, imagecreatefromstring($bmp), 0, 0, 0, 0, $w, $h, $w, $h);
-                $imagick->destroy();
-                return $gd;
-            } catch (\Throwable $e) {
-                error_log("[ImageOpt] Imagick fallback failed: {$path} - {$e->getMessage()}");
-            }
-        }
-
-        return null;
-    }
-
-    private function saveResized(string $sourcePath, string $destPath, int $targetWidth, bool $isPng): bool
-    {
-        $src = $this->loadSource($sourcePath);
-        if (! is_resource($src)) {
-            error_log("[ImageOpt] Could not load: {$sourcePath}");
+        if ($exitCode !== 0) {
+            error_log("[ImageOpt] convert resize failed: {$sourcePath} - " . implode(' ', $output));
 
             return false;
         }
-
-        $origW = imagesx($src);
-        $origH = imagesy($src);
-        if ($origW === 0 || $origH === 0) {
-            imagedestroy($src);
-            return false;
-        }
-
-        $targetHeight = (int) round($origH * ($targetWidth / $origW));
-        $dst = imagecreatetruecolor($targetWidth, $targetHeight);
-
-        imagealphablending($dst, false);
-        imagesavealpha($dst, true);
-        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-        imagefilledrectangle($dst, 0, 0, $targetWidth, $targetHeight, $transparent);
-
-        imagecopyresampled($dst, $src, 0, 0, 0, 0, $targetWidth, $targetHeight, $origW, $origH);
-
-        imagejpeg($dst, $destPath, $this->quality);
-
-        imagedestroy($src);
-        imagedestroy($dst);
 
         return true;
     }
 
-    private function saveWebp(string $sourcePath, string $destPath, int $targetWidth): bool
+    private function convertToWebp(string $sourcePath, string $destPath, int $targetWidth): bool
     {
-        if (! function_exists('imagewebp')) {
+        $escaped = escapeshellarg($sourcePath);
+        $destEsc = escapeshellarg($destPath);
+        $cmd = "{$this->convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->webpQuality} {$destEsc} 2>&1";
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            error_log("[ImageOpt] convert webp failed: {$sourcePath} - " . implode(' ', $output));
+
             return false;
         }
-
-        $src = $this->loadSource($sourcePath);
-        if (! is_resource($src)) {
-            return false;
-        }
-
-        $origW = imagesx($src);
-        $origH = imagesy($src);
-        if ($origW === 0 || $origH === 0) {
-            imagedestroy($src);
-            return false;
-        }
-
-        $targetHeight = (int) round($origH * ($targetWidth / $origW));
-        $dst = imagecreatetruecolor($targetWidth, $targetHeight);
-
-        imagealphablending($dst, false);
-        imagesavealpha($dst, true);
-        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-        imagefilledrectangle($dst, 0, 0, $targetWidth, $targetHeight, $transparent);
-
-        imagecopyresampled($dst, $src, 0, 0, 0, 0, $targetWidth, $targetHeight, $origW, $origH);
-
-        imagewebp($dst, $destPath, $this->webpQuality);
-
-        imagedestroy($src);
-        imagedestroy($dst);
 
         return true;
     }
