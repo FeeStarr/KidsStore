@@ -34,7 +34,7 @@ class DiagnoseImages extends Command
         $this->newLine();
 
         // Check Imagick
-        $this->info('Imagick: ' . (class_exists('Imagick') ? 'YES (v' . Imagick::VERSION . ')' : 'NO'));
+        $this->info('Imagick: ' . (class_exists('Imagick') ? 'YES (v' . \Imagick::VERSION . ')' : 'NO'));
         $this->newLine();
 
         // Check PHP memory
