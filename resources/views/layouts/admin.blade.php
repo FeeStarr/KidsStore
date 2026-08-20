@@ -139,6 +139,7 @@
         <a href="{{ route('admin.bank-accounts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
     @endif
     <a href="{{ route('admin.pwa-installs.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pwa-installs') ? 'active':'' }}"><i class="bi bi-phone"></i> PWA Installs</a>
+    <a href="{{ route('admin.image-status.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.image-status') ? 'active':'' }}"><i class="bi bi-image"></i> Image Status</a>
 </div>
 
 <hr class="my-3">
