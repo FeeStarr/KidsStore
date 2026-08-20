@@ -280,9 +280,6 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;display:none;">
-                    <i class="bi bi-download me-1"></i> Install App
-                </button>
                 <div class="bg-light rounded-3 p-3 mb-2">
                     <small class="text-muted">
                         <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
@@ -407,38 +404,17 @@
         }, 3000);
     }
 
-    // Install button — works with or without service worker
-    var installBtn = document.getElementById('pwa-install-btn');
     var deferredPrompt = null;
 
     window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
+        // Don't preventDefault — let Chrome handle install natively
         deferredPrompt = e;
-        if (installBtn) installBtn.style.display = 'block';
     });
 
     window.addEventListener('appinstalled', function() {
         onInstalled();
     });
 
-    window.matchMedia('(display-mode: standalone)').addEventListener('change', function(e) {
-        if (e.matches) {
-            setTimeout(function() { onInstalled(); }, 2000);
-        }
-    });
-
-    if (installBtn) {
-        installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(result) {
-                if (result.outcome === 'accepted') onInstalled();
-                deferredPrompt = null;
-            });
-        });
-    }
-
-    // Register service worker (non-blocking)
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(function() {});
     }
