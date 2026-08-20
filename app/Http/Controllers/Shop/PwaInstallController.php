@@ -11,15 +11,19 @@ class PwaInstallController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
-        DB::table('pwa_installs')->insert([
-            'user_id'    => $request->user()?->id,
-            'platform'   => $request->input('platform'),
-            'browser'    => $request->input('browser'),
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        try {
+            DB::table('pwa_installs')->insert([
+                'user_id'    => $request->user()?->id,
+                'platform'   => $request->input('platform'),
+                'browser'    => $request->input('browser'),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Silently fail — tracking is best-effort
+        }
 
         return response()->json(['success' => true]);
     }
