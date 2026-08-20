@@ -318,16 +318,23 @@
     var isMobile = isIOS || isAndroid || (window.innerWidth < 768);
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-    // Already installed — done
+    // Already installed (standalone) — done
     if (isStandalone) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
         return;
     }
 
-    // Already dismissed or installed — done
+    // Not standalone but flag is set = app was uninstalled — clear it
     try {
-        if (localStorage.getItem(INSTALLED_KEY) === '1' || localStorage.getItem(DISMISS_KEY) === '1') {
+        if (localStorage.getItem(INSTALLED_KEY) === '1') {
+            localStorage.removeItem(INSTALLED_KEY);
+        }
+    } catch(e) {}
+
+    // Dismissed — done
+    try {
+        if (localStorage.getItem(DISMISS_KEY) === '1') {
             hideNav();
             return;
         }
