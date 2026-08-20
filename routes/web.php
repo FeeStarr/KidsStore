@@ -223,6 +223,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // PWA Installs
         Route::get('pwa-installs', [App\Http\Controllers\Admin\PwaInstallController::class, 'index'])->name('pwa-installs.index');
+
+        // Image optimization status
+        Route::get('image-status', [App\Http\Controllers\Admin\ImageStatusController::class, 'index'])->name('image-status.index');
         Route::post('custom-orders/{customOrder}/review', [App\Http\Controllers\Admin\CustomOrderController::class, 'review'])->name('custom-orders.review')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/request-info', [App\Http\Controllers\Admin\CustomOrderController::class, 'requestInfo'])->name('custom-orders.request-info')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/approve-for-quote', [App\Http\Controllers\Admin\CustomOrderController::class, 'approveForQuote'])->name('custom-orders.approve-for-quote')->middleware('permission:manage_orders');
