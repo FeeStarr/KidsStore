@@ -280,12 +280,12 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
+                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;display:none;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
                 <div class="bg-light rounded-3 p-3 mb-2">
                     <small class="text-muted">
-                        <strong>Or install manually:</strong><br>
+                        <strong>How to install:</strong><br>
                         1. Tap the <strong>menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser<br>
                         2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong><br>
                         3. Confirm by tapping <strong>Install</strong>
@@ -310,25 +310,28 @@
 
 <script>
 (function() {
-    const DISMISS_KEY = 'kidsflairr_pwa_dismissed';
-    const INSTALLED_KEY = 'kidsflairr_pwa_installed';
-    const DISMISS_COUNT_KEY = 'kidsflairr_pwa_dismiss_count';
+    var DISMISS_KEY = 'kidsflairr_pwa_dismissed';
+    var INSTALLED_KEY = 'kidsflairr_pwa_installed';
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isAndroid = /Android/.test(navigator.userAgent);
-    const isMobile = isIOS || isAndroid || (window.innerWidth < 768);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    var isAndroid = /Android/.test(navigator.userAgent);
+    var isMobile = isIOS || isAndroid || (window.innerWidth < 768);
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
+    // Already installed — done
     if (isStandalone) {
-        localStorage.setItem(INSTALLED_KEY, '1');
+        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
         return;
     }
 
-    if (localStorage.getItem(INSTALLED_KEY) === '1' || localStorage.getItem(DISMISS_KEY) === '1') {
-        hideNav();
-        return;
-    }
+    // Already dismissed or installed — done
+    try {
+        if (localStorage.getItem(INSTALLED_KEY) === '1' || localStorage.getItem(DISMISS_KEY) === '1') {
+            hideNav();
+            return;
+        }
+    } catch(e) {}
 
     function hideNav() {
         var nav = document.getElementById('nav-pwa-install-wrap');
@@ -349,7 +352,8 @@
         }, 300);
     }
 
-    function showSuccess() {
+    function onInstalled() {
+        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideModal();
         hideNav();
         if (typeof Swal !== 'undefined') {
@@ -362,83 +366,76 @@
                 confirmButtonColor: '#d63384'
             });
         }
+        // Track
+        try {
+            fetch('/pwa/install', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+                body: JSON.stringify({ platform: isIOS ? 'ios' : 'android' })
+            });
+        } catch(e) {}
     }
 
-    function trackInstall(platform) {
-        fetch('/pwa/install', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-            body: JSON.stringify({ platform: platform })
-        }).catch(function() {});
-    }
-
-    function onInstallAccepted(platform) {
-        localStorage.setItem(INSTALLED_KEY, '1');
-        trackInstall(platform);
-        showSuccess();
-    }
-
-    // Dismiss button (works even without SW)
-    document.getElementById('pwa-dismiss-btn')?.addEventListener('click', function() {
-        localStorage.setItem(DISMISS_KEY, '1');
-        var count = parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || '0') + 1;
-        localStorage.setItem(DISMISS_COUNT_KEY, count.toString());
-        hideModal();
-        hideNav();
-    });
-
-    if (!('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker.register('/sw.js').then(function(reg) {
-        var deferredPrompt = null;
-        var promptFired = false;
-
-        window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            deferredPrompt = e;
-            promptFired = true;
+    // Dismiss button
+    var dismissBtn = document.getElementById('pwa-dismiss-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            try { localStorage.setItem(DISMISS_KEY, '1'); } catch(e) {}
+            hideModal();
+            hideNav();
         });
+    }
 
-        window.addEventListener('appinstalled', function() {
-            onInstallAccepted('android');
-        });
+    // Show modal after 3s
+    if (isMobile) {
+        setTimeout(function() {
+            var modal = document.getElementById('pwa-install-modal');
+            if (!modal || bootstrap.Modal.getInstance(modal)) return;
 
-        // Install button
-        var installBtn = document.getElementById('pwa-install-btn');
-        if (installBtn) {
-            installBtn.addEventListener('click', function() {
-                if (deferredPrompt) {
+            var androidDiv = document.getElementById('pwa-install-android');
+            var iosDiv = document.getElementById('pwa-install-ios');
+            if (isIOS) {
+                if (iosDiv) iosDiv.style.display = 'block';
+                if (androidDiv) androidDiv.style.display = 'none';
+            } else {
+                if (androidDiv) androidDiv.style.display = 'block';
+            }
+            new bootstrap.Modal(modal).show();
+        }, 3000);
+    }
+
+    // Register SW and listen for install prompt
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(function() {
+            var deferredPrompt = null;
+            var installBtn = document.getElementById('pwa-install-btn');
+
+            window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                // Show the native install button
+                if (installBtn) installBtn.style.display = 'block';
+            });
+
+            window.addEventListener('appinstalled', function() {
+                onInstalled();
+            });
+
+            if (installBtn) {
+                installBtn.addEventListener('click', function() {
+                    if (!deferredPrompt) return;
                     deferredPrompt.prompt();
                     deferredPrompt.userChoice.then(function(result) {
                         if (result.outcome === 'accepted') {
-                            onInstallAccepted('android');
+                            onInstalled();
                         }
                         deferredPrompt = null;
+                        installBtn.style.display = 'none';
                     });
-                }
-            });
-        }
-
-        // Show modal after 3s
-        if (isMobile) {
-            setTimeout(function() {
-                var modal = document.getElementById('pwa-install-modal');
-                if (!modal) return;
-                if (bootstrap.Modal.getInstance(modal)) return;
-
-                if (isIOS) {
-                    var iosDiv = document.getElementById('pwa-install-ios');
-                    var androidDiv = document.getElementById('pwa-install-android');
-                    if (iosDiv) iosDiv.style.display = 'block';
-                    if (androidDiv) androidDiv.style.display = 'none';
-                } else {
-                    var androidDiv2 = document.getElementById('pwa-install-android');
-                    if (androidDiv2) androidDiv2.style.display = 'block';
-                }
-                new bootstrap.Modal(modal).show();
-            }, 3000);
-        }
-    }).catch(function() {});
+                });
+            }
+        }).catch(function() {});
+    }
 })();
 </script>
 </body>
