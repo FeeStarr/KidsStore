@@ -49,19 +49,40 @@ class PickupPortalController extends Controller
     {
         $data = $request->validate([
             'pickup_station_id' => ['required', 'exists:pickup_stations,id'],
-            'pin'               => ['required', 'string'],
+            'pin'               => ['required', 'string', 'min:4', 'max:20'],
         ]);
 
         $throttleKey = 'portal-login:' . $data['pickup_station_id'] . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
+
+            // Notify admin of repeated failed attempts
+            try {
+                $station = PickupStation::find($data['pickup_station_id']);
+                \App\Models\User::where('is_superadmin', true)
+                    ->orWhere('is_admin', true)
+                    ->each(function ($admin) use ($station, $request) {
+                        \Mail::raw(
+                            "Multiple failed login attempts for pickup station: {$station->name}\n"
+                            . "IP: {$request->ip()}\n"
+                            . "Time: " . now()->format('M d, Y g:i A'),
+                            function ($mail) use ($admin) {
+                                $mail->to($admin->email)
+                                    ->subject('Security Alert: Pickup Portal Lockout');
+                            }
+                        );
+                    });
+            } catch (\Throwable $e) {
+                // Don't block login flow if notification fails
+            }
+
             return back()->withErrors(['pin' => "Too many attempts. Try again in {$seconds} seconds."])
                 ->withInput();
         }
 
         $station = PickupStation::find($data['pickup_station_id']);
 
-        if (! $station || ! $station->verifyPin($data['pin'])) {
+        if (! $station || ! $station->is_active || ! $station->verifyPin($data['pin'])) {
             RateLimiter::hit($throttleKey, 60);
             return back()->withErrors(['pin' => 'Invalid PIN. Please try again.'])
                 ->withInput();
@@ -73,6 +94,7 @@ class PickupPortalController extends Controller
         session([
             'portal_station_id'   => $station->id,
             'portal_station_name' => $station->name,
+            'portal_login_at'     => now()->timestamp,
         ]);
 
         return redirect()->route('pickup-portal.dashboard');
@@ -875,5 +897,106 @@ class PickupPortalController extends Controller
         return response()->json([
             'payment_status' => $order->payment_status,
         ]);
+    }
+
+    /** Reports list */
+    public function reports()
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+        $reports = \App\Models\PickupReport::where('pickup_station_id', $stationId)
+            ->with('order')
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return view('pickup-portal.reports', compact('reports'));
+    }
+
+    /** Reports DataTable AJAX */
+    public function reportsData()
+    {
+        if (! session('portal_station_id')) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $stationId = (int) session('portal_station_id');
+        $reports = \App\Models\PickupReport::where('pickup_station_id', $stationId)
+            ->with('order')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['data' => $reports->map(function ($r) {
+            return [
+                'id'          => $r->id,
+                'type'        => $r->type_label,
+                'description' => Str::limit($r->description, 80),
+                'order_ref'   => $r->order ? '#' . $r->order->id : '—',
+                'status'      => $r->status_label,
+                'status_badge'=> match($r->status) {
+                    'open'          => 'danger',
+                    'investigating' => 'warning',
+                    'resolved'      => 'success',
+                    'dismissed'     => 'secondary',
+                    default         => 'secondary',
+                },
+                'created_at'  => $r->created_at->format('M d, Y g:i A'),
+            ];
+        })]);
+    }
+
+    /** Create report form */
+    public function createReport()
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+        $orders = \App\Models\Order::where('pickup_station_id', $stationId)
+            ->whereIn('status', ['confirmed', 'pending payment', 'paid', 'processing', 'ready_for_pickup'])
+            ->orderByDesc('id')
+            ->get();
+
+        return view('pickup-portal.report-create', compact('orders'));
+    }
+
+    /** Store a new report */
+    public function storeReport(Request $request)
+    {
+        if (! session('portal_station_id')) {
+            return redirect()->route('pickup-portal.login');
+        }
+
+        $stationId = (int) session('portal_station_id');
+
+        $data = $request->validate([
+            'type'           => ['required', 'in:missing_order,missing_item,damaged_item,wrong_item,customer_no_show,other'],
+            'description'    => ['required', 'string', 'min:10', 'max:2000'],
+            'order_id'       => ['nullable', 'exists:orders,id'],
+            'order_item_id'  => ['nullable', 'exists:order_items,id'],
+        ]);
+
+        // Verify the order belongs to this station
+        if (! empty($data['order_id'])) {
+            $order = \App\Models\Order::find($data['order_id']);
+            if (! $order || (int) $order->pickup_station_id !== $stationId) {
+                return back()->withErrors(['order_id' => 'Order not found at this station.']);
+            }
+        }
+
+        \App\Models\PickupReport::create([
+            'pickup_station_id' => $stationId,
+            'order_id'          => $data['order_id'] ?? null,
+            'order_item_id'     => $data['order_item_id'] ?? null,
+            'type'              => $data['type'],
+            'description'       => $data['description'],
+            'status'            => 'open',
+        ]);
+
+        return redirect()->route('pickup-portal.reports')
+            ->with('success', 'Report submitted successfully. Admin will review it shortly.');
     }
 }

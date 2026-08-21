@@ -140,6 +140,7 @@
     @endif
     <a href="{{ route('admin.pwa-installs.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pwa-installs') ? 'active':'' }}"><i class="bi bi-phone"></i> PWA Installs</a>
     <a href="{{ route('admin.image-status.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.image-status') ? 'active':'' }}"><i class="bi bi-image"></i> Image Status</a>
+    <a href="{{ route('admin.pickup-reports.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-reports') ? 'active':'' }}"><i class="bi bi-flag"></i> Pickup Reports</a>
 </div>
 
 <hr class="my-3">

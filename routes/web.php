@@ -224,6 +224,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // PWA Installs
         Route::get('pwa-installs', [App\Http\Controllers\Admin\PwaInstallController::class, 'index'])->name('pwa-installs.index');
 
+        // Pickup Reports
+        Route::get('pickup-reports', [App\Http\Controllers\Admin\PickupReportController::class, 'index'])->name('pickup-reports.index');
+        Route::get('pickup-reports/{report}', [App\Http\Controllers\Admin\PickupReportController::class, 'show'])->name('pickup-reports.show');
+        Route::put('pickup-reports/{report}', [App\Http\Controllers\Admin\PickupReportController::class, 'update'])->name('pickup-reports.update');
+
         // Image optimization status
         Route::get('image-status', [App\Http\Controllers\Admin\ImageStatusController::class, 'index'])->name('image-status.index');
         Route::post('custom-orders/{customOrder}/review', [App\Http\Controllers\Admin\CustomOrderController::class, 'review'])->name('custom-orders.review')->middleware('permission:manage_orders');
@@ -393,5 +398,11 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         // Payment verification
         Route::post('/orders/{order}/submit-payment', [PickupPortalController::class, 'submitPaymentVerification'])->name('submit-payment');
         Route::get('/orders/{order}/payment-status', [PickupPortalController::class, 'paymentStatus'])->name('payment-status');
+
+        // Reports
+        Route::get('/reports', [PickupPortalController::class, 'reports'])->name('reports');
+        Route::get('/reports/data', [PickupPortalController::class, 'reportsData'])->name('reports.data');
+        Route::get('/reports/create', [PickupPortalController::class, 'createReport'])->name('reports.create');
+        Route::post('/reports', [PickupPortalController::class, 'storeReport'])->name('reports.store')->middleware('throttle:10,1');
     });
 });
