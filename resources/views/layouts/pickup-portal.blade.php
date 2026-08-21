@@ -37,6 +37,28 @@
     @endif
 </div>
 
+@if(session('portal_station_id'))
+@php($r = request()->route()->getName())
+<div class="container" style="max-width:900px">
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <a href="{{ route('pickup-portal.dashboard') }}" class="btn btn-sm {{ str_starts_with($r, 'pickup-portal.dashboard') ? 'btn-dark' : 'btn-outline-dark' }}">
+            <i class="bi bi-grid"></i> Dashboard
+        </a>
+        <a href="{{ route('pickup-portal.payments') }}" class="btn btn-sm {{ str_starts_with($r, 'pickup-portal.payments') ? 'btn-dark' : 'btn-outline-dark' }}">
+            <i class="bi bi-credit-card"></i> Payments
+        </a>
+        <a href="{{ route('pickup-portal.deliveries') }}" class="btn btn-sm {{ str_starts_with($r, 'pickup-portal.deliveries') ? 'btn-dark' : 'btn-outline-dark' }}">
+            <i class="bi bi-truck"></i> Deliveries
+        </a>
+        <a href="{{ route('pickup-portal.payouts') }}" class="btn btn-sm {{ str_starts_with($r, 'pickup-portal.payouts') ? 'btn-dark' : 'btn-outline-dark' }}">
+            <i class="bi bi-wallet2"></i> Payouts
+        </a>
+        <a href="{{ route('pickup-portal.reports') }}" class="btn btn-sm {{ str_starts_with($r, 'pickup-portal.reports') ? 'btn-dark' : 'btn-outline-danger' }}">
+            <i class="bi bi-flag"></i> Reports
+        </a>
+    </div>
+@endif
+
 <div class="container" style="max-width:900px">
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
