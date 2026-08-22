@@ -261,6 +261,7 @@
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50">Contact Us</a>
                 <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50">Return Policy</a>
                 <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50">Privacy Policy</a>
+                <a href="{{ route('shop.cookie-policy') }}" class="text-decoration-none text-white-50" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
             </div>
         </div>
     </div>
@@ -448,5 +449,36 @@
     }
 })();
 </script>
+
+@if(!str_starts_with(request()->path(), 'admin'))
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#1f2d3d;color:#e2d5f5;padding:1rem 1.5rem;box-shadow:0 -2px 10px rgba(0,0,0,.15);">
+    <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3" style="max-width:960px;">
+        <p class="mb-0 small" style="flex:1;min-width:250px;">
+            We use cookies to keep your shopping cart, login, and checkout working securely.
+            By continuing to browse, you agree to our use of necessary cookies.
+            <a href="{{ route('shop.cookie-policy') }}" class="text-warning text-decoration-underline">Learn more</a>
+        </p>
+        <button id="cookie-accept" class="btn btn-sm btn-warning text-dark fw-semibold" style="border-radius:50px;white-space:nowrap;">
+            <i class="bi bi-check-lg me-1"></i> Accept
+        </button>
+    </div>
+</div>
+<script>
+(function() {
+    try {
+        if (localStorage.getItem('kidsflairr_cookies_accepted') === '1') return;
+    } catch(e) {}
+    var banner = document.getElementById('cookie-banner');
+    if (!banner) return;
+    setTimeout(function() { banner.style.display = 'block'; }, 1500);
+    document.getElementById('cookie-accept')?.addEventListener('click', function() {
+        try { localStorage.setItem('kidsflairr_cookies_accepted', '1'); } catch(e) {}
+        banner.style.transition = 'opacity 0.3s';
+        banner.style.opacity = '0';
+        setTimeout(function() { banner.style.display = 'none'; }, 300);
+    });
+})();
+</script>
+@endif
 </body>
 </html>
