@@ -261,7 +261,7 @@
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50">Contact Us</a>
                 <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50">Return Policy</a>
                 <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50">Privacy Policy</a>
-                <a href="{{ route('shop.cookie-policy') }}" class="text-decoration-none text-white-50" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
+                <a href="/cookie-policy" class="text-decoration-none text-white-50" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
             </div>
         </div>
     </div>
@@ -456,7 +456,7 @@
         <p class="mb-0 small" style="flex:1;min-width:250px;">
             We use cookies to keep your shopping cart, login, and checkout working securely.
             By continuing to browse, you agree to our use of necessary cookies.
-            <a href="{{ route('shop.cookie-policy') }}" class="text-warning text-decoration-underline">Learn more</a>
+            <a href="/cookie-policy" class="text-warning text-decoration-underline">Learn more</a>
         </p>
         <button id="cookie-accept" class="btn btn-sm btn-warning text-dark fw-semibold" style="border-radius:50px;white-space:nowrap;">
             <i class="bi bi-check-lg me-1"></i> Accept
