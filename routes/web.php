@@ -57,7 +57,7 @@ Route::name('shop.')->group(function () {
     Route::get('/contact', [ShopContactController::class, 'show'])->name('contact');
     Route::get('/return-policy', [ShopReturnPolicyController::class, 'show'])->name('return-policy');
     Route::get('/privacy-policy', [ShopPrivacyPolicyController::class, 'show'])->name('privacy-policy');
-    Route::get('/cookie-policy', function () { return view('shop.cookie-policy'); })->name('cookie-policy');
+    Route::get('/cookie-policy', [\App\Http\Controllers\Shop\CookiePolicyController::class, 'show'])->name('cookie-policy');
     Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send')->middleware('throttle:5,1');
 
     Route::post('/pwa/install', [PwaInstallController::class, 'store'])->name('pwa.install');
