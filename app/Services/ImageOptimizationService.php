@@ -12,7 +12,8 @@ class ImageOptimizationService
     private int $webpQuality;
     private int $maxWidth;
     private array $srcsetWidths;
-    private string $convertPath;
+    private ?string $convertPath = null;
+    private bool $shellChecked = false;
 
     public function __construct()
     {
@@ -21,7 +22,24 @@ class ImageOptimizationService
         $this->webpQuality  = (int) config('image-optimization.webp_quality', 80);
         $this->maxWidth     = (int) config('image-optimization.max_width', 1200);
         $this->srcsetWidths = config('image-optimization.srcset_widths', [400, 800]);
-        $this->convertPath  = trim(shell_exec('which convert 2>/dev/null') ?: '/usr/local/bin/convert');
+    }
+
+    private function getConvertPath(): ?string
+    {
+        if ($this->shellChecked) {
+            return $this->convertPath;
+        }
+        $this->shellChecked = true;
+        if (function_exists('shell_exec')) {
+            $path = @shell_exec('which convert 2>/dev/null');
+            $this->convertPath = trim($path ?: '/usr/local/bin/convert');
+        }
+        return $this->convertPath;
+    }
+
+    private function shellAvailable(): bool
+    {
+        return function_exists('shell_exec') && $this->getConvertPath() !== null;
     }
 
     public function optimizeUploadedFile(UploadedFile $file, string $disk): array
@@ -167,9 +185,14 @@ class ImageOptimizationService
 
     private function convertResize(string $sourcePath, string $destPath, int $targetWidth): bool
     {
+        $convertPath = $this->getConvertPath();
+        if (! $convertPath || ! function_exists('exec')) {
+            return false;
+        }
+
         $escaped = escapeshellarg($sourcePath);
         $destEsc = escapeshellarg($destPath);
-        $cmd = "{$this->convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->quality} {$destEsc} 2>&1";
+        $cmd = "{$convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->quality} {$destEsc} 2>&1";
 
         exec($cmd, $output, $exitCode);
 
@@ -184,9 +207,14 @@ class ImageOptimizationService
 
     private function convertToWebp(string $sourcePath, string $destPath, int $targetWidth): bool
     {
+        $convertPath = $this->getConvertPath();
+        if (! $convertPath || ! function_exists('exec')) {
+            return false;
+        }
+
         $escaped = escapeshellarg($sourcePath);
         $destEsc = escapeshellarg($destPath);
-        $cmd = "{$this->convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->webpQuality} {$destEsc} 2>&1";
+        $cmd = "{$convertPath} {$escaped} -resize {$targetWidth}x -strip -quality {$this->webpQuality} {$destEsc} 2>&1";
 
         exec($cmd, $output, $exitCode);
 
