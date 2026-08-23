@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 
 class ProductVariantController extends Controller
 {
+    public function __construct(private ProductService $productService) {}
+
     public function store(ProductVariantRequest $request, Product $product): RedirectResponse
     {
         DB::transaction(function () use ($request, $product) {
@@ -24,7 +26,7 @@ class ProductVariantController extends Controller
             // Multi-select age ranges: create one variant per age range
             $ageRangeIds = $request->input('age_range_ids', []);
             if (!empty($ageRangeIds) && !isset($data['age_range_id'])) {
-                $svc = new ProductService();
+                $svc = $this->productService;
                 $created = 0;
 
                 foreach ($ageRangeIds as $ageId) {
@@ -55,7 +57,7 @@ class ProductVariantController extends Controller
 
             // Single age range (or none): original behaviour
             if (empty($data['sku'])) {
-                $svc = new ProductService();
+                $svc = $this->productService;
                 $candidate = $svc->generateVariantSku($product, $data);
                 $data['sku'] = $svc->ensureUniqueSku($candidate);
             }
