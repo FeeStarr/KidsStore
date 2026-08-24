@@ -46,7 +46,7 @@
                 ?: $product->images->map(fn ($i) => $i->url)->all());
         $webpImgs = $v->images->isNotEmpty()
             ? $v->images->map(fn ($i) => $i->webp_url)->filter()->values()->all()
-            : [];
+            : ($v->images->isNotEmpty() ? [] : $product->images->map(fn ($i) => $i->webp_url)->filter()->values()->all());
         $dealPrice = $deal ? (float) $deal->priceFor((float) $v->selling_price) : null;
         return [
             'id'            => $v->id,
