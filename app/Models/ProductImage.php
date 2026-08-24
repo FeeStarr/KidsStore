@@ -37,17 +37,10 @@ class ProductImage extends Model
      */
     public function getWebpUrlAttribute(): ?string
     {
-        $fullPath = Storage::disk('public')->path($this->path);
-        $info = pathinfo($fullPath);
-        $webpPath = $info['dirname'].'/'.$info['filename'].'.webp';
+        $webpRelative = $this->pathToWebp($this->path);
+        $fullPath = Storage::disk('public')->path($webpRelative);
 
-        if (file_exists($webpPath)) {
-            $relative = str_replace(public_path(), '', $webpPath);
-
-            return ltrim($relative, '/');
-        }
-
-        return null;
+        return file_exists($fullPath) ? Storage::url($webpRelative) : null;
     }
 
     /**
@@ -58,19 +51,25 @@ class ProductImage extends Model
     public function getSrcsetUrlsAttribute(): array
     {
         $result = [];
-        $fullPath = Storage::disk('public')->path($this->path);
-        $info = pathinfo($fullPath);
         $widths = config('image-optimization.srcset_widths', [400, 800]);
+        $info = pathinfo($this->path);
+        $ext = $info['extension'] ?: 'jpg';
 
         foreach ($widths as $w) {
-            $thumbPath = $info['dirname'].'/'.$info['filename'].'-'.$w.'.'.($info['extension'] ?: 'jpg');
-            if (file_exists($thumbPath)) {
-                $relative = str_replace(public_path(), '', $thumbPath);
-                $result[$w] = ltrim($relative, '/');
+            $thumbRelative = $info['dirname'].'/'.$info['filename'].'-'.$w.'.'.$ext;
+            $fullPath = Storage::disk('public')->path($thumbRelative);
+            if (file_exists($fullPath)) {
+                $result[$w] = Storage::url($thumbRelative);
             }
         }
 
         return $result;
+    }
+
+    private function pathToWebp(string $path): string
+    {
+        $info = pathinfo($path);
+        return $info['dirname'].'/'.$info['filename'].'.webp';
     }
 
     /**
