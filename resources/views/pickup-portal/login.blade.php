@@ -1,4 +1,4 @@
-@extends('layouts.pickup-portal', ['title' => 'Station Login'])
+﻿@extends('layouts.pickup-portal', ['title' => 'Station Login'])
 @section('content')
 <div class="row justify-content-center">
     <div class="col-md-5">
@@ -12,7 +12,7 @@
                     <div class="mb-3">
                         <label class="form-label">Pickup Station</label>
                         <select name="pickup_station_id" class="form-select @error('pickup_station_id') is-invalid @enderror" required>
-                            <option value="">— Select station —</option>
+                            <option value="">- Select station -</option>
                             @foreach($stations as $s)
                                 <option value="{{ $s->id }}" @selected(old('pickup_station_id') == $s->id)>{{ $s->name }}</option>
                             @endforeach

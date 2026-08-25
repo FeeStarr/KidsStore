@@ -1,7 +1,7 @@
-@extends('layouts.admin', ['title' => 'Payouts — '. $pickupStation->name ])
+﻿@extends('layouts.admin', ['title' => 'Payouts - '. $pickupStation->name ])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Payouts — {{ $pickupStation->name }}</h3>
+    <h3 class="mb-0">Payouts - {{ $pickupStation->name }}</h3>
     <div>
         <a href="{{ route('admin.pickup-payouts.index') }}" class="btn btn-sm btn-outline-secondary">Back</a>
     </div>
@@ -46,10 +46,10 @@
     </div>
 </div>
 
-{{-- Commission Breakdown — DataTable --}}
+{{-- Commission Breakdown - DataTable --}}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Picked Up Items — Commission Breakdown</h5>
+        <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Picked Up Items - Commission Breakdown</h5>
         <div class="d-flex gap-2 align-items-center">
             <select id="paid-status-filter" class="form-select form-select-sm" style="width:130px">
                 <option value="">All Status</option>
@@ -86,7 +86,7 @@
                 <tfoot>
                     <tr class="table-light fw-bold">
                         <td colspan="8" class="text-end">Total Commission (page):</td>
-                        <td class="text-end text-success" id="page-commission-total">—</td>
+                        <td class="text-end text-success" id="page-commission-total">-</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -125,7 +125,7 @@ function updateSelectAllSection() {
     if (checked.length > 0) {
         section.style.display = 'flex';
         noteCard.style.display = 'block';
-        info.textContent = checked.length + ' item(s) selected — ₦' + Array.from(checked).reduce((sum, cb) => {
+        info.textContent = checked.length + ' item(s) selected - ₦' + Array.from(checked).reduce((sum, cb) => {
             return sum + parseFloat(cb.closest('tr').querySelector('.commission-val')?.textContent.replace(/[₦,]/g, '') || 0);
         }, 0).toFixed(2);
     } else {

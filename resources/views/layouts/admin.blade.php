@@ -1,4 +1,4 @@
-@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
+﻿@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
 @php($title = $title ?? 'Admin')
 <!doctype html>
 <html lang="en">
@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} | {{ $appName }}</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>">
+    <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -36,7 +36,7 @@
 <div class="container-fluid">
     <div class="row">
         <nav class="col-md-2 sidebar p-0">
-            <div class="brand"><i class="bi bi-balloon-heart-fill"></i> {{ $appName }}</div>
+            <div class="brand"><img src="{{ asset('images/logo.png') }}" alt="{{ $appName }}" height="28" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"><span style="display:none"><i class="bi bi-balloon-heart-fill"></i> {{ $appName }}</span></div>
             @if(auth()->check())
                 <div class="px-3 py-2 bg-light border-bottom">
                     <small class="text-muted d-block">Logged in as:</small>
@@ -176,7 +176,7 @@
 @auth
 <script>
 (function () {
-    const TIMEOUT_MS  = 20 * 60 * 1000; // 20 minutes — matches SESSION_LIFETIME
+    const TIMEOUT_MS  = 20 * 60 * 1000; // 20 minutes - matches SESSION_LIFETIME
     const WARNING_MS  = 18 * 60 * 1000; // warn 2 minutes before
     const LOGOUT_URL  = '{{ route("admin.logout") }}';
     const CSRF        = document.querySelector('meta[name="csrf-token"]')?.content ?? '';

@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Settings'])
+﻿@extends('layouts.admin', ['title' => 'Settings'])
 @section('content')
 
 <h3 class="mb-3">Settings</h3>
@@ -23,7 +23,7 @@
         <label class="col-sm-4 col-form-label">Home Delivery Fee (₦)</label>
         <div class="col-sm-4">
             <input type="number" step="0.01" min="0" name="home_delivery_fee_disabled" class="form-control" value="{{ old('home_delivery_fee', $homeFee) }}" disabled>
-            <small class="text-muted">Coming soon — not yet active</small>
+            <small class="text-muted">Coming soon - not yet active</small>
         </div>
     </div>
 

@@ -1,4 +1,4 @@
-@php
+﻿@php
     $isEdit = isset($deal);
     $action = $isEdit ? route('admin.deals.update', $deal) : route('admin.deals.store');
     $selectedIds = $isEdit
@@ -114,7 +114,7 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">Products <span class="text-muted small">(required — the deal applies to all selected products)</span></div>
+        <div class="card-header">Products <span class="text-muted small">(required - the deal applies to all selected products)</span></div>
         <div class="card-body">
             <div class="mb-3">
                 <input type="search" id="dealProductSearch" class="form-control" placeholder="Search products...">

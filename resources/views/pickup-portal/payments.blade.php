@@ -1,7 +1,7 @@
-@extends('layouts.pickup-portal', ['title' => 'Payments — '.session('portal_station_name')])
+﻿@extends('layouts.pickup-portal', ['title' => 'Payments - '.session('portal_station_name')])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>Payments — {{ session('portal_station_name') }}</h4>
+    <h4>Payments - {{ session('portal_station_name') }}</h4>
     <a href="{{ route('pickup-portal.dashboard') }}" class="btn btn-sm btn-outline-secondary">Back</a>
 </div>
 

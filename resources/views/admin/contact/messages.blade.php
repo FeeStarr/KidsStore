@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Contact Messages'])
+﻿@extends('layouts.admin', ['title' => 'Contact Messages'])
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -73,7 +73,7 @@
                             <br><small class="text-muted" title="IP Address"><i class="bi bi-globe"></i> {{ $msg->ip_address }}</small>
                         @endif
                     </td>
-                    <td>{{ $msg->subject ?: '—' }}</td>
+                    <td>{{ $msg->subject ?: '-' }}</td>
                     <td><span class="badge bg-{{ $statusBadge }}">{{ \App\Models\ContactMessage::STATUS_LABELS[$msg->status] ?? $msg->status }}</span></td>
                     <td><small class="text-muted">{{ $msg->created_at->diffForHumans() }}</small></td>
                     <td class="text-end">

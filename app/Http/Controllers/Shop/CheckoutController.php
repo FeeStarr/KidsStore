@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\PickupStation;
 use App\Models\Setting;
@@ -11,6 +12,7 @@ use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
@@ -26,13 +28,14 @@ class CheckoutController extends Controller
         $paymentMethods = PaymentMethod::where('is_active', true)->orderBy('key')->get();
 
         $coupon = $this->cart->coupon();
+        $customer = Auth::user();
 
         return view('shop.checkout.show', [
             'items' => $this->cart->items(),
             'subtotal' => $this->cart->subtotal(),
             'coupon' => $coupon,
             'coupon_discount' => $coupon ? $this->cart->couponDiscount() : 0.0,
-            'customer' => Auth::user(),
+            'customer' => $customer,
             'pickupStations' => $pickupStations,
             'paymentMethods' => $paymentMethods,
         ]);
@@ -44,7 +47,9 @@ class CheckoutController extends Controller
             return redirect()->route('shop.cart.index')->with('error', 'Your cart is empty.');
         }
 
-        $data = $request->validate([
+        $isGuest = ! Auth::check();
+
+        $rules = [
             'delivery_method' => ['required', 'in:delivery,pickup'],
             'phone' => ['required', 'string', 'max:30'],
             'address' => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
@@ -52,10 +57,27 @@ class CheckoutController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
             'shipping_fee' => ['nullable', 'numeric', 'min:0'],
             'payment_method' => ['nullable', 'string', 'exists:payment_methods,key'],
-        ]);
+        ];
+
+        if ($isGuest) {
+            $rules['name'] = ['required', 'string', 'max:255'];
+            $rules['email'] = ['required', 'email', 'max:255'];
+        }
+
+        $data = $request->validate($rules);
 
         $customer = Auth::user();
-        $customer->fill(['phone' => $data['phone']])->save();
+        $customerId = null;
+        $guestName = null;
+        $guestEmail = null;
+
+        if ($customer) {
+            $customer->fill(['phone' => $data['phone']])->save();
+            $customerId = $customer->id;
+        } else {
+            $guestName = $data['name'];
+            $guestEmail = $data['email'];
+        }
 
         $items = $this->cart->items()->map(fn ($l) => [
             'product_id' => $l->product->id,
@@ -68,7 +90,6 @@ class CheckoutController extends Controller
             'deal_id' => $l->deal_id,
         ])->all();
 
-        // Determine authoritative per-item shipping fee from general site settings
         $shippingFee = 0;
         $shippingFeeSetting = Setting::get('shipping_fee', null);
         if ($shippingFeeSetting !== null && $shippingFeeSetting !== '') {
@@ -77,14 +98,17 @@ class CheckoutController extends Controller
             $shippingFee = (float) ($data['shipping_fee'] ?? 0);
         }
 
-        // Determine order status based on payment method
         $orderStatus = ($data['payment_method'] ?? '') === 'instant_bank_transfer'
             ? 'pending payment'
             : 'confirmed';
 
         try {
             $order = $this->orders->create([
-                'customer_id' => $customer->id,
+                'customer_id' => $customerId,
+                'guest_name' => $guestName,
+                'guest_email' => $guestEmail,
+                'guest_phone' => $data['phone'],
+                'lookup_token' => Str::random(64),
                 'order_date' => now()->toDateString(),
                 'status' => $orderStatus,
                 'delivery_method' => $data['delivery_method'],
@@ -105,6 +129,11 @@ class CheckoutController extends Controller
                 ->with('error', $e->getMessage() ?: 'Could not place order. Please try again.');
         }
 
+        if ($isGuest) {
+            return redirect()->route('shop.order.track', ['token' => $order->lookup_token])
+                ->with('success', 'Order placed! Order Number: '.$order->reference.'. Please enter correct email for order tracking.');
+        }
+
         $redirect = redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: '.$order->reference);
 
@@ -113,5 +142,46 @@ class CheckoutController extends Controller
         }
 
         return $redirect;
+    }
+
+    public function orderLookupForm()
+    {
+        return view('shop.checkout.lookup');
+    }
+
+    public function orderLookup(Request $request)
+    {
+        $data = $request->validate([
+            'reference' => ['required', 'string', 'max:30'],
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $order = Order::where('reference', $data['reference'])
+            ->where(function ($q) use ($data) {
+                $q->where('guest_email', $data['email'])
+                  ->orWhereHas('customer', fn ($q2) => $q2->where('email', $data['email']));
+            })
+            ->first();
+
+        if (! $order) {
+            return back()->with('error', 'No order found with that reference and email combination.');
+        }
+
+        if ($order->lookup_token) {
+            return redirect()->route('shop.order.track', $order->lookup_token);
+        }
+
+        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
+            return redirect()->route('shop.account.orders.show', $order);
+        }
+
+        return back()->with('error', 'Unable to access this order.');
+    }
+
+    public function orderTrack(string $token)
+    {
+        $order = Order::where('lookup_token', $token)->firstOrFail();
+
+        return view('shop.checkout.track', ['order' => $order->load(['items.product', 'items.variant', 'pickupStation'])]);
     }
 }

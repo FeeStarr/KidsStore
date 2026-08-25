@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => 'My Orders'])
+﻿@extends('layouts.shop', ['title' => 'My Orders'])
 @section('content')
 <h3 class="mb-3">My Orders</h3>
 
@@ -10,7 +10,7 @@
         <tr>
             <td>{{ $loop->iteration }}</td>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
-            <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '—' }}</td>
+            <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
                 'cancelled' => 'text-bg-danger',

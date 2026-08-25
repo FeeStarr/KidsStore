@@ -1,4 +1,4 @@
-@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
+﻿@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
 @php($title = $title ?? $appName)
 <!doctype html>
 <html lang="en">
@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} | {{ $appName }}</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>">
+    <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff6fa3">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -183,8 +183,9 @@
 @php($user = auth()->user())
 <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
   <div class="container">
-    <a class="navbar-brand text-primary" href="{{ route('shop.home') }}">
-        <i class="bi bi-balloon-heart-fill"></i> {{ $appName }}
+    <a class="navbar-brand" href="{{ route('shop.home') }}">
+        <img src="{{ asset('images/logo.png') }}" alt="{{ $appName }}" height="40" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+        <span style="display:none"><i class="bi bi-balloon-heart-fill text-primary"></i> {{ $appName }}</span>
     </a>
     <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
@@ -197,6 +198,7 @@
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="{{ route('shop.about') }}">About</a></li>
                     <li><a class="dropdown-item" href="{{ route('shop.contact') }}">Contact</a></li>
+                    <li><a class="dropdown-item" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><span class="dropdown-item text-muted" style="cursor:default"><i class="bi bi-scissors me-1"></i>Custom Orders <span class="badge bg-secondary bg-opacity-25 text-secondary ms-1" style="font-size:.6rem">Coming Soon</span></span></li>
                 </ul>
@@ -249,6 +251,21 @@
   </div>
 </nav>
 
+@auth
+    @if(!Auth::user()->hasVerifiedEmail())
+        <div class="bg-warning bg-opacity-10 border-bottom border-warning py-2">
+            <div class="container text-center small">
+                <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                Please verify your email address. Check your inbox or
+                <form action="{{ route('shop.verification.resend') }}" method="post" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-link btn-sm p-0 fw-semibold text-decoration-underline">resend verification email</button>.
+                </form>
+            </div>
+        </div>
+    @endif
+@endauth
+
 <main class="container py-4" style="flex: 1 0 auto;">
     @yield('content')
 </main>
@@ -277,11 +294,11 @@
 <div id="pwa-install-modal" class="modal fade" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
-            <div class="mb-3" style="font-size:3rem;">🎈</div>
+            <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;display:none;">
+                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
                 <div class="bg-light rounded-3 p-3 mb-2">
@@ -316,21 +333,21 @@
     var isMobile = isIOS || isAndroid || (window.innerWidth < 768);
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-    // Already installed (standalone) — done
+    // Already installed (standalone) - done
     if (isStandalone) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
         return;
     }
 
-    // Not standalone but flag is set = app was uninstalled — clear it
+    // Not standalone but flag is set = app was uninstalled - clear it
     try {
         if (localStorage.getItem(INSTALLED_KEY) === '1') {
             localStorage.removeItem(INSTALLED_KEY);
         }
     } catch(e) {}
 
-    // Dismissed — done
+    // Dismissed - done
     try {
         if (localStorage.getItem(DISMISS_KEY) === '1') {
             hideNav();
@@ -424,7 +441,10 @@
 
     if (installBtn) {
         installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) return;
+            if (!deferredPrompt) {
+                installBtn.style.display = 'none';
+                return;
+            }
             installBtn.disabled = true;
             installBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
             deferredPrompt.prompt();

@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => 'Welcome'])
+﻿@extends('layouts.shop', ['title' => 'Welcome'])
 @section('content')
 
 <div class="hero mb-4">
@@ -8,7 +8,7 @@
                 <i class="bi bi-stars text-warning"></i> Fun for every age
             </span>
             <h1 class="fw-bold mb-3">Where little dreams<br><span style="color:var(--kid-yellow);">come to play!</span></h1>
-            <p class="lead mb-4 opacity-90">Toys, clothes, books, shoes & more — handpicked for happy kids and delivered to your door.</p>
+            <p class="lead mb-4 opacity-90">Clothes, shoes & more - handpicked for happy kids and delivered to your door.</p>
             <a href="{{ route('shop.products.index') }}" class="btn btn-light btn-lg me-2">
                 <i class="bi bi-bag-heart-fill"></i> Shop now
             </a>
@@ -151,7 +151,7 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
                 <i class="bi bi-scissors"></i> Custom Orders
             </div>
             <p class="promo-sub mb-3" style="font-size:1rem; color:rgba(255,255,255,.9);">
-                Pick your style, fabric, colours & embellishments. We bring your dream frock to life — measured perfectly for your little one.
+                Pick your style, fabric, colours & embellishments. We bring your dream frock to life - measured perfectly for your little one.
             </p>
             <span class="btn btn-light btn-lg disabled" style="border-radius:50px; font-weight:600; color:#6b7280; pointer-events:none; opacity:.7;">
                 <i class="bi bi-palette-fill"></i> Start Designing <span class="badge bg-secondary bg-opacity-25 text-dark ms-1" style="font-size:.65rem;">Coming Soon</span>

@@ -1,4 +1,4 @@
-@extends('layouts.pickup-portal')
+﻿@extends('layouts.pickup-portal')
 
 @section('title', 'File Report')
 
@@ -26,11 +26,11 @@
                 <label for="type" class="form-label fw-bold">Report Type</label>
                 <select name="type" id="type" class="form-select" required>
                     <option value="">Select type...</option>
-                    <option value="missing_order">Missing Order — order never arrived at station</option>
-                    <option value="missing_item">Missing Item — order arrived but item(s) missing</option>
-                    <option value="damaged_item">Damaged Item — item arrived damaged</option>
-                    <option value="wrong_item">Wrong Item — received wrong item for this order</option>
-                    <option value="customer_no_show">Customer No-Show — customer never collected</option>
+                    <option value="missing_order">Missing Order - order never arrived at station</option>
+                    <option value="missing_item">Missing Item - order arrived but item(s) missing</option>
+                    <option value="damaged_item">Damaged Item - item arrived damaged</option>
+                    <option value="wrong_item">Wrong Item - received wrong item for this order</option>
+                    <option value="customer_no_show">Customer No-Show - customer never collected</option>
                     <option value="other">Other</option>
                 </select>
             </div>
@@ -41,7 +41,7 @@
                     <option value="">No specific order</option>
                     @foreach($orders as $order)
                         <option value="{{ $order->id }}">
-                            #{{ $order->id }} — {{ $order->customer->name ?? 'Guest' }}
+                            #{{ $order->id }} - {{ $order->customer->name ?? 'Guest' }}
                             ({{ $order->status }})
                         </option>
                     @endforeach

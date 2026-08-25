@@ -1,7 +1,7 @@
 {
     "name": "KidsFlairr - Kids Store",
     "short_name": "KidsFlairr",
-    "description": "Toys, clothes, books, shoes & more — handpicked for happy kids and delivered to your door.",
+    "description": "Clothes, shoes & more - handpicked for happy kids and delivered to your door.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#fffaf3",

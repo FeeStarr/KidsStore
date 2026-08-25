@@ -1,4 +1,4 @@
-@php
+﻿@php
     // Use old() for:
     //   • Add modal  ($variant === null): only when the failed submission was the Add form
     //     (detected by absence of _editing_variant_id in old() data).
@@ -43,7 +43,7 @@
 
     $isEdit = $variant !== null;
 
-    // Extra options — exclude reserved keys
+    // Extra options - exclude reserved keys
     $extraOpts = [];
     foreach ($allOpts as $k => $v) {
         $extraOpts[$k] = $v;
@@ -56,7 +56,7 @@
         <input name="sku" class="form-control" value="{{ $fSku }}" placeholder="Auto-generated if blank">
     </div>
     <div class="col-md-8">
-        <label class="form-label">Variant Name <small class="text-muted">(optional — auto-built from options if blank)</small></label>
+        <label class="form-label">Variant Name <small class="text-muted">(optional - auto-built from options if blank)</small></label>
         <input name="name" class="form-control" value="{{ $fName }}">
     </div>
 
@@ -75,7 +75,7 @@
     <div class="col-md-4">
         <label class="form-label">Primary Image <small class="text-muted">(thumbnail in picker)</small></label>
         <select name="image_id" class="form-select">
-            <option value="">— Use product image —</option>
+            <option value="">- Use product image -</option>
             @foreach($images as $img)
                 <option value="{{ $img->id }}" @selected($fImageId == $img->id)>
                     {{ $img->original_name ?? ('Image #'.$img->id) }}
@@ -93,7 +93,7 @@
                 <div class="col-md-4">
                     <label class="form-label"><i class="bi bi-palette2 me-1"></i>Color</label>
                     <select name="color_id" class="form-select">
-                        <option value="">— Select Color —</option>
+                        <option value="">- Select Color -</option>
                         @foreach($colorOptions as $opt)
                             <option value="{{ $opt->id }}" @selected((string) $fColorId === (string) $opt->id)>{{ $opt->name }}</option>
                         @endforeach
@@ -106,7 +106,7 @@
                     @if($isEdit)
                         <label class="form-label"><i class="bi bi-people me-1"></i>Age Range</label>
                         <select name="age_range_id" class="form-select">
-                            <option value="">— Select Age Range —</option>
+                            <option value="">- Select Age Range -</option>
                             @foreach($ageOptions as $age)
                                 <option value="{{ $age->id }}" @selected((string) $fAgeRangeId === (string) $age->id)>{{ $age->name }}</option>
                             @endforeach
@@ -126,7 +126,7 @@
                 <div class="col-md-4">
                     <label class="form-label"><i class="bi bi-rulers me-1"></i>Size</label>
                     <select name="size_id" class="form-select">
-                        <option value="">— Select Size —</option>
+                        <option value="">- Select Size -</option>
                         @foreach($sizeOptions as $opt)
                             <option value="{{ $opt->id }}" @selected((string) $fSizeId === (string) $opt->id)>{{ $opt->name }}</option>
                         @endforeach
@@ -165,7 +165,7 @@
 
     {{-- ── Gallery ─────────────────────────────────────────────────────────── --}}
     <div class="col-12">
-        <label class="form-label d-block">Variant Gallery <small class="text-muted">(tick all images showing this colour/style — they'll swap in the carousel when this variant is selected)</small></label>
+        <label class="form-label d-block">Variant Gallery <small class="text-muted">(tick all images showing this colour/style - they'll swap in the carousel when this variant is selected)</small></label>
         @if($images->isEmpty())
             <div class="text-muted small">Upload product images first, then assign them here.</div>
         @else
@@ -206,7 +206,7 @@
 @push('scripts')
 <script>
 (function () {
-    // "Add custom option" — inserts a new row into the extra-options table.
+    // "Add custom option" - inserts a new row into the extra-options table.
     document.querySelectorAll('.opt-add').forEach(addBtn => {
         addBtn.addEventListener('click', () => {
             const tableId = addBtn.dataset.table || null;
@@ -223,7 +223,7 @@
         });
     });
 
-    // Remove row — delegated on the whole document to cover dynamically added rows.
+    // Remove row - delegated on the whole document to cover dynamically added rows.
     document.addEventListener('click', e => {
         if (e.target.closest('.opt-remove')) {
             e.target.closest('tr').remove();

@@ -1,4 +1,4 @@
-@extends('layouts.shop')
+﻿@extends('layouts.shop')
 
 @section('title', 'Custom Order ' . $customOrder->custom_order_number)
 
@@ -34,9 +34,9 @@
                 <div class="card-header"><h6 class="mb-0">Child Information</h6></div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-sm-4"><strong>Name:</strong> {{ $customOrder->child_name ?: '—' }}</div>
-                        <div class="col-sm-4"><strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '—' }}</div>
-                        <div class="col-sm-4"><strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '—') }}</div>
+                        <div class="col-sm-4"><strong>Name:</strong> {{ $customOrder->child_name ?: '-' }}</div>
+                        <div class="col-sm-4"><strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '-' }}</div>
+                        <div class="col-sm-4"><strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '-') }}</div>
                     </div>
                 </div>
             </div>

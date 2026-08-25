@@ -1,9 +1,9 @@
-@extends('layouts.admin', ['title' => 'Payouts — '.$pickupStation->name])
+﻿@extends('layouts.admin', ['title' => 'Payouts - '.$pickupStation->name])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h3 class="mb-0">Payouts — {{ $pickupStation->name }}</h3>
+        <h3 class="mb-0">Payouts - {{ $pickupStation->name }}</h3>
         <small class="text-muted">Commission rate: <strong>{{ number_format($feePct, 2) }}%</strong> of order total</small>
     </div>
     <a href="{{ route('admin.pickup-stations.index') }}" class="btn btn-sm btn-outline-secondary">

@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => $coupon->code])
+﻿@extends('layouts.admin', ['title' => $coupon->code])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0"><span class="badge bg-dark">{{ $coupon->code }}</span> {{ $coupon->name }}</h3>
@@ -38,10 +38,10 @@
                 <dt class="col-4">Code</dt><dd class="col-8">{{ $coupon->code }}</dd>
                 <dt class="col-4">Discount</dt><dd class="col-8">{{ $coupon->discount_label }}</dd>
                 <dt class="col-4">Applies To</dt><dd class="col-8">{{ $coupon->applies_to === 'regular_price_only' ? 'Regular-price products only (excludes deal items)' : 'All eligible products' }}</dd>
-                <dt class="col-4">Starts</dt><dd class="col-8">{{ $coupon->starts_at ? $coupon->starts_at->format('M d, Y g:i A') : '—' }}</dd>
-                <dt class="col-4">Ends</dt><dd class="col-8">{{ $coupon->ends_at ? $coupon->ends_at->format('M d, Y g:i A') : '—' }}</dd>
-                <dt class="col-4">Min Order</dt><dd class="col-8">{{ $coupon->minimum_order_amount !== null ? '₦'.number_format((float) $coupon->minimum_order_amount, 2) : '—' }}</dd>
-                <dt class="col-4">Max Discount</dt><dd class="col-8">{{ $coupon->maximum_discount_amount !== null ? '₦'.number_format((float) $coupon->maximum_discount_amount, 2) : '—' }}</dd>
+                <dt class="col-4">Starts</dt><dd class="col-8">{{ $coupon->starts_at ? $coupon->starts_at->format('M d, Y g:i A') : '-' }}</dd>
+                <dt class="col-4">Ends</dt><dd class="col-8">{{ $coupon->ends_at ? $coupon->ends_at->format('M d, Y g:i A') : '-' }}</dd>
+                <dt class="col-4">Min Order</dt><dd class="col-8">{{ $coupon->minimum_order_amount !== null ? '₦'.number_format((float) $coupon->minimum_order_amount, 2) : '-' }}</dd>
+                <dt class="col-4">Max Discount</dt><dd class="col-8">{{ $coupon->maximum_discount_amount !== null ? '₦'.number_format((float) $coupon->maximum_discount_amount, 2) : '-' }}</dd>
                 <dt class="col-4">Status</dt><dd class="col-8"><span class="badge {{ $coupon->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $coupon->status }}</span></dd>
                 <dt class="col-4">Usage</dt>
                 <dd class="col-8">
@@ -49,7 +49,7 @@
                     @if($coupon->usage_limit) / {{ $coupon->usage_limit }} @endif
                     <small class="text-muted d-block">per customer: {{ $coupon->per_customer_limit }}</small>
                 </dd>
-                <dt class="col-4">Created By</dt><dd class="col-8">{{ $coupon->createdBy?->name ?? '—' }}</dd>
+                <dt class="col-4">Created By</dt><dd class="col-8">{{ $coupon->createdBy?->name ?? '-' }}</dd>
             </dl>
         </div></div>
         @if($coupon->description)
@@ -83,7 +83,7 @@
                             <li class="list-group-item d-flex align-items-center gap-2">
                                 <div>
                                     {{ $v->product?->name }}
-                                    <small class="text-muted d-block">{{ $v->name ?: 'Default variant' }} (variant) — ₦{{ number_format((float) $v->selling_price, 2) }}</small>
+                                    <small class="text-muted d-block">{{ $v->name ?: 'Default variant' }} (variant) - ₦{{ number_format((float) $v->selling_price, 2) }}</small>
                                 </div>
                             </li>
                         @endforeach

@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Image Optimization Status')
 
@@ -75,7 +75,7 @@
                             <code class="small">{{ basename($d['path']) }}</code>
                         </td>
                         <td>{{ number_format($d['size'] / 1024, 1) }} KB</td>
-                        <td>{{ $d['has_webp'] ? number_format($d['webp_size'] / 1024, 1) . ' KB' : '—' }}</td>
+                        <td>{{ $d['has_webp'] ? number_format($d['webp_size'] / 1024, 1) . ' KB' : '-' }}</td>
                         <td>
                             @if ($d['has_webp'] && $d['size'] > 0)
                                 @php $savings = round((1 - $d['webp_size'] / $d['size']) * 100); @endphp

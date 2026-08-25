@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'PWA Installs')
 
@@ -78,10 +78,10 @@
                             @elseif ($install->platform === 'android')
                                 <span class="badge bg-success">Android</span>
                             @else
-                                <span class="badge bg-secondary">{{ $install->platform ?? '—' }}</span>
+                                <span class="badge bg-secondary">{{ $install->platform ?? '-' }}</span>
                             @endif
                         </td>
-                        <td>{{ $install->browser ?? '—' }}</td>
+                        <td>{{ $install->browser ?? '-' }}</td>
                         <td>{{ $install->user_id ?? 'Guest' }}</td>
                         <td><code>{{ $install->ip_address }}</code></td>
                     </tr>

@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => 'Shop'])
+﻿@extends('layouts.shop', ['title' => 'Shop'])
 @section('content')
 
 @php
@@ -28,7 +28,7 @@
                                         <li>
                                             <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category']), ['category' => $sub->id])) }}"
                                                class="small {{ (int) request('category') === $sub->id ? 'fw-bold text-primary' : 'text-muted' }}">
-                                                — {{ $sub->name }}
+                                                - {{ $sub->name }}
                                             </a>
                                         </li>
                                     @endforeach

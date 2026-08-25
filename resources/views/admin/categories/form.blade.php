@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('content')
 @php
     $isEdit = $category->exists;
@@ -10,7 +10,7 @@
         $list = $byParent->get($parentId, collect());
         $html = '';
         foreach ($list as $opt) {
-            $prefix = str_repeat('— ', $depth);
+            $prefix = str_repeat('- ', $depth);
             $selected = (string) old('parent_id', $category->parent_id) === (string) $opt->id ? 'selected' : '';
             $html .= '<option value="'.$opt->id.'" '.$selected.'>'.e($prefix.$opt->name).'</option>';
             $html .= $renderOptions($opt->id, $depth + 1);
@@ -37,7 +37,7 @@
             <div class="col-md-6">
                 <label class="form-label">Parent Category</label>
                 <select name="parent_id" class="form-select">
-                    <option value="">— Top level —</option>
+                    <option value="">- Top level -</option>
                     {!! $renderOptions(null, 0) !!}
                 </select>
             </div>

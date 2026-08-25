@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => 'Order '.$order->reference])
+﻿@extends('layouts.shop', ['title' => 'Order '.$order->reference])
 @section('content')
 
 <div class="d-flex justify-content-between mb-3">
@@ -126,9 +126,9 @@
                 <i class="bi bi-{{ $order->isForPickup() ? 'geo-alt' : 'house-door' }} me-1"></i>
                 {{ $order->getDeliveryMethodLabel() }}
                 @if($order->isForPickup() && $order->pickupStation)
-                    — {{ $order->pickupStation->name }}
+                    - {{ $order->pickupStation->name }}
                 @elseif($order->isForDelivery() && $order->delivery_address)
-                    — {{ Str::limit($order->delivery_address, 60) }}
+                    - {{ Str::limit($order->delivery_address, 60) }}
                 @endif
             </div>
 
@@ -241,7 +241,7 @@
             ->filter(fn ($v) => $v->stock_quantity > 0)
             ->map(fn ($v) => [
                 'id' => $v->id,
-                'label' => $v->options_label . ' — ₦' . number_format($v->net_price, 2),
+                'label' => $v->options_label . ' - ₦' . number_format($v->net_price, 2),
                 'stock' => $v->stock_quantity,
             ])
             ->values();
@@ -281,7 +281,7 @@
             <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
                 <div>
                     <span class="small fw-semibold">{{ $rr->getScopeLabel() }}</span>
-                    <span class="small text-muted ms-2">— {{ $rr->reason_label }}</span>
+                    <span class="small text-muted ms-2">- {{ $rr->reason_label }}</span>
                 </div>
                 <div class="text-end">
                     <span class="badge {{ $rbadge }}">{{ ucfirst(str_replace('_', ' ', $rr->status)) }}</span>
@@ -358,7 +358,7 @@
                         <input class="form-check-input" type="radio" name="scope"
                                id="scope_full" value="full" checked>
                         <label class="form-check-label" for="scope_full">
-                            Full order — ₦{{ number_format($order->grand_total, 2) }}
+                            Full order - ₦{{ number_format($order->grand_total, 2) }}
                         </label>
                     </div>
                     @endif
@@ -375,8 +375,8 @@
                                    {{ (!$isReturnable || $hasActiveReturn) ? 'disabled' : '' }}>
                             <label class="form-check-label" for="scope_item_{{ $it->id }}">
                                 {{ $it->product?->name }}
-                                @if($it->variant?->options_label) — {{ $it->variant->options_label }}@endif
-                                (×{{ $it->quantity }}) — ₦{{ number_format($it->line_total, 2) }}
+                                @if($it->variant?->options_label) - {{ $it->variant->options_label }}@endif
+                                (×{{ $it->quantity }}) - ₦{{ number_format($it->line_total, 2) }}
                                 @if(!$isReturnable)
                                     <span class="badge bg-secondary ms-1" style="font-size:10px;">Non-returnable</span>
                                 @elseif($hasActiveReturn)
@@ -402,7 +402,7 @@
                 <div class="mb-3">
                     <label class="form-label">Reason *</label>
                     <select name="reason" class="form-select" required>
-                        <option value="">— Select reason —</option>
+                        <option value="">- Select reason -</option>
                         @foreach(\App\Models\RefundRequest::REASONS as $key => $label)
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
@@ -432,7 +432,7 @@
                 <div id="exchange-section" class="mb-3" style="display:none">
                     <label class="form-label">Select replacement variant *</label>
                     <select name="exchange_variant_id" id="exchange-variant-select" class="form-select">
-                        <option value="">— Select a variant —</option>
+                        <option value="">- Select a variant -</option>
                     </select>
                     <div class="form-text">Only items with the same product are available for exchange.</div>
                 </div>
@@ -444,7 +444,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Evidence photo <small class="text-muted">(optional — for damaged/wrong item)</small></label>
+                    <label class="form-label">Evidence photo <small class="text-muted">(optional - for damaged/wrong item)</small></label>
                     <input type="file" name="evidence" class="form-control" accept="image/*">
                     <div class="form-text">Max 5 MB. JPG/PNG/WEBP.</div>
                 </div>
@@ -511,7 +511,7 @@
                         access_code: data.access_code,
                         metadata: { order_id: {{ $order->id }} },
                         callback: function(response) {
-                            // Paystack completed the payment — let the server
+                            // Paystack completed the payment - let the server
                             // verify and confirm the order.
                             window.location.href = '{{ route("shop.paystack.callback", $order) }}?reference=' + encodeURIComponent(response.reference || '');
                         },
@@ -623,7 +623,7 @@
     function updateExchangeVariants(itemId) {
         const select = document.getElementById('exchange-variant-select');
         if (!select) return;
-        select.innerHTML = '<option value="">— Select a variant —</option>';
+        select.innerHTML = '<option value="">- Select a variant -</option>';
         if (!itemId || !itemVariants[itemId]) return;
         itemVariants[itemId].forEach(v => {
             const opt = document.createElement('option');

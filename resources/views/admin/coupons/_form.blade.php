@@ -1,4 +1,4 @@
-@php
+﻿@php
     $isEdit = isset($coupon) && $coupon->exists;
     $action = $isEdit ? route('admin.coupons.update', $coupon) : route('admin.coupons.store');
     $selectedProductIds = $isEdit
@@ -71,7 +71,7 @@
                         <label class="form-label">Allow on discounted (deal) items? *</label>
                         <select name="applies_to" class="form-select">
                             <option value="regular_price_only" @selected($appliesTo === 'regular_price_only')>
-                                Regular-price products only (recommended — coupon does not stack with deals on the same item)
+                                Regular-price products only (recommended - coupon does not stack with deals on the same item)
                             </option>
                             <option value="all" @selected($appliesTo === 'all')>
                                 All eligible products (coupon also applies to items already on a deal)
@@ -165,7 +165,7 @@
                                            data-product="{{ $p->id }}"
                                            @checked(in_array((string) $v->id, $selectedVariantIds, true))>
                                     <label class="form-check-label text-muted small" for="cv-{{ $v->id }}">
-                                        {{ $v->name ?: 'Default variant' }} — ₦{{ number_format((float) $v->selling_price, 2) }}
+                                        {{ $v->name ?: 'Default variant' }} - ₦{{ number_format((float) $v->selling_price, 2) }}
                                     </label>
                                 </div>
                             @endforeach

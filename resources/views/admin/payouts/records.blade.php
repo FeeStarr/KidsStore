@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Pickup Payout Ledger'])
+﻿@extends('layouts.admin', ['title' => 'Pickup Payout Ledger'])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">Pickup Payout Ledger</h3>
@@ -44,7 +44,7 @@
             <tr>
                 <td>{{ $index }}</td>
                 <td>{{ $p->reference }}</td>
-                <td>{{ $p->station->name ?? '—' }}</td>
+                <td>{{ $p->station->name ?? '-' }}</td>
                 <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
                 <td>{{ $p->created_at->toDateString() }}</td>
                 <td>
@@ -90,10 +90,10 @@
                                     @endphp
                                     <tr>
                                         <td>{{ $it->order?->reference ?? 'Order #' . $it->order_id }}</td>
-                                        <td>{{ $orderItem?->product?->name ?? '—' }}</td>
-                                        <td class="text-muted small">{{ $orderItem?->variant?->options_label ?? '—' }}</td>
-                                        <td class="text-center">{{ $orderItem?->quantity ?? '—' }}</td>
-                                        <td class="text-end">{{ $orderItem ? '₦' . number_format($orderItem->unit_price, 2) : '—' }}</td>
+                                        <td>{{ $orderItem?->product?->name ?? '-' }}</td>
+                                        <td class="text-muted small">{{ $orderItem?->variant?->options_label ?? '-' }}</td>
+                                        <td class="text-center">{{ $orderItem?->quantity ?? '-' }}</td>
+                                        <td class="text-end">{{ $orderItem ? '₦' . number_format($orderItem->unit_price, 2) : '-' }}</td>
                                         <td class="text-end fw-bold">₦{{ number_format($it->fee_amount, 2) }}</td>
                                     </tr>
                                 @endforeach
@@ -102,7 +102,7 @@
                         @if($p->is_reversed)
                             <div class="small text-muted mt-2">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
-                                Reversed by: {{ $p->reversedBy?->name ?? '—' }} at {{ $p->reversed_at?->toDateTimeString() ?? '—' }}
+                                Reversed by: {{ $p->reversedBy?->name ?? '-' }} at {{ $p->reversed_at?->toDateTimeString() ?? '-' }}
                             </div>
                         @endif
                     </div>

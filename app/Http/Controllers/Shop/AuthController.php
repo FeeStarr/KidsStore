@@ -138,11 +138,13 @@ class AuthController extends Controller
 
         $user = User::create($data);
 
+        $user->notify(new \App\Notifications\VerifyEmailNotification($user->id));
+
         Auth::login($user);
         $request->session()->regenerate();
         app(CartService::class)->mergeSessionIntoDatabase();
 
-        return redirect()->route('shop.home')->with('success', 'Welcome, '.$user->name.'!');
+        return redirect()->route('shop.home')->with('success', 'Welcome to KidsFlairr, '.$user->name.'! 🎉 Please check your email to verify your account.');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -152,5 +154,39 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('shop.home');
+    }
+
+    public function verifyEmail(Request $request, string $id, string $hash): RedirectResponse
+    {
+        $user = User::findOrFail($id);
+
+        if (sha1($user->email) !== $hash) {
+            return redirect()->route('shop.home')->with('error', 'Invalid verification link.');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->route('shop.home')->with('info', 'Your email is already verified.');
+        }
+
+        $user->markEmailAsVerified();
+
+        return redirect()->route('shop.home')->with('success', 'Email verified successfully! Your account is now fully activated.');
+    }
+
+    public function resendVerification(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return redirect()->route('shop.login');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->route('shop.home')->with('info', 'Your email is already verified.');
+        }
+
+        $user->notify(new \App\Notifications\VerifyEmailNotification($user->id));
+
+        return redirect()->route('shop.home')->with('success', 'A new verification link has been sent to your email.');
     }
 }

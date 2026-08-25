@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => 'About Us'])
+﻿@extends('layouts.shop', ['title' => 'About Us'])
 
 @section('content')
 
@@ -47,14 +47,14 @@
                     </span>
                     <h4 class="mb-0" style="font-family:'Fredoka',sans-serif;">Our Vision</h4>
                 </div>
-                <p class="text-muted mb-0" style="line-height:1.8;">To be the most loved and trusted kids brand in Nigeria — where every parent finds something special for their child, and every child feels the joy of being celebrated.</p>
+                <p class="text-muted mb-0" style="line-height:1.8;">To be the most loved and trusted kids brand in Nigeria - where every parent finds something special for their child, and every child feels the joy of being celebrated.</p>
             </div>
         </div>
     </div>
 
 </div>
 
-{{-- Why Us — feature strip style (matching home page) --}}
+{{-- Why Us - feature strip style (matching home page) --}}
 <div class="feature-strip p-3 p-md-4 mb-5">
     <div class="text-center mb-3">
         <span class="section-title fs-5"><i class="bi bi-stars text-warning"></i> Why Parents Love Us</span>
@@ -79,7 +79,7 @@
     </div>
 </div>
 
-{{-- Contact — fetched from global settings --}}
+{{-- Contact - fetched from global settings --}}
 @php
     $contactEmail   = \App\Models\Setting::get('contact_email', '');
     $contactPhone   = \App\Models\Setting::get('contact_phone', '');

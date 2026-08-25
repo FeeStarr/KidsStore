@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Coupons'])
+﻿@extends('layouts.admin', ['title' => 'Coupons'])
 @section('content')
 <div class="d-flex justify-content-between mb-3">
     <h3>Coupons</h3>
@@ -77,8 +77,8 @@
                     {{ $coupon->usage_count }}
                     @if($coupon->usage_limit) / {{ $coupon->usage_limit }} @endif
                 </td>
-                <td>{{ $coupon->starts_at ? $coupon->starts_at->format('M d, Y g:i A') : '—' }}</td>
-                <td>{{ $coupon->ends_at ? $coupon->ends_at->format('M d, Y g:i A') : '—' }}</td>
+                <td>{{ $coupon->starts_at ? $coupon->starts_at->format('M d, Y g:i A') : '-' }}</td>
+                <td>{{ $coupon->ends_at ? $coupon->ends_at->format('M d, Y g:i A') : '-' }}</td>
                 <td class="text-end text-nowrap">
                     <a href="{{ route('admin.coupons.show', $coupon) }}" class="btn btn-sm btn-outline-secondary">View</a>
                     @unless($coupon->trashed())
