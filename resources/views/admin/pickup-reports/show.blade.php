@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Report #' . $report->id)
 
@@ -31,23 +31,23 @@
                     </tr>
                     <tr>
                         <td class="text-muted">Station</td>
-                        <td>{{ $report->station->name ?? '—' }}</td>
+                        <td>{{ $report->station->name ?? '-' }}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Order</td>
                         <td>
                             @if($report->order)
                                 <a href="{{ route('admin.orders.show', $report->order) }}">#{{ $report->order->id }}</a>
-                                — {{ $report->order->customer->name ?? 'Guest' }}
+                                - {{ $report->order->customer->name ?? 'Guest' }}
                             @else
-                                —
+                                -
                             @endif
                         </td>
                     </tr>
                     @if($report->orderItem)
                     <tr>
                         <td class="text-muted">Item</td>
-                        <td>{{ $report->orderItem->product->name ?? '—' }} ({{ $report->orderItem->variant->name ?? '—' }})</td>
+                        <td>{{ $report->orderItem->product->name ?? '-' }} ({{ $report->orderItem->variant->name ?? '-' }})</td>
                     </tr>
                     @endif
                     <tr>
@@ -95,7 +95,7 @@
             <div class="card-body">
                 <p class="mb-1"><strong>Status:</strong> {{ $report->order->status }}</p>
                 <p class="mb-1"><strong>Payment:</strong> {{ $report->order->payment_status }}</p>
-                <p class="mb-1"><strong>Customer:</strong> {{ $report->order->customer->name ?? '—' }}</p>
+                <p class="mb-1"><strong>Customer:</strong> {{ $report->order->customer->name ?? '-' }}</p>
                 <p class="mb-0"><strong>Total:</strong> ₦{{ number_format($report->order->total, 2) }}</p>
             </div>
         </div>

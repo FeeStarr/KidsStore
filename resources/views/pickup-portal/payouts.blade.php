@@ -1,7 +1,7 @@
-@extends('layouts.pickup-portal', ['title' => 'Payouts — '.session('portal_station_name')])
+﻿@extends('layouts.pickup-portal', ['title' => 'Payouts - '.session('portal_station_name')])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>Payouts — {{ session('portal_station_name') }}</h4>
+    <h4>Payouts - {{ session('portal_station_name') }}</h4>
     <div>
         <a href="{{ route('pickup-portal.dashboard') }}" class="btn btn-sm btn-outline-secondary">Back</a>
     </div>
@@ -145,7 +145,7 @@
 </div>
 @endif
 
-{{-- Payout History — DataTable --}}
+{{-- Payout History - DataTable --}}
 <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Payout History</h5>
@@ -198,7 +198,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Select All Unpaid — only header checkboxes
+    // Select All Unpaid - only header checkboxes
     document.getElementById('selectAllUnpaid')?.addEventListener('click', function() {
         document.querySelectorAll('.payout-order-check:not(:checked)').forEach(cb => {
             cb.checked = true;

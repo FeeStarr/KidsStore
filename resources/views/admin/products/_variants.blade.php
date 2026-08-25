@@ -1,4 +1,4 @@
-@php
+﻿@php
     $product->loadMissing('variants.inventory', 'variants.image', 'variants.images', 'variants.ageRange', 'variants.sizeRef', 'variants.colorRef', 'images');
     $images = $product->images;
 @endphp
@@ -46,17 +46,17 @@
                             @endif
                         </td>
                         <td><code>{{ $v->sku }}</code></td>
-                        <td>{{ $v->name ?: '—' }}</td>
+                        <td>{{ $v->name ?: '-' }}</td>
                         @php
                             $vColor = $v->colorRef?->name ?: $v->color;
-                            $vSize = $v->sizeRef?->name ?: ($v->size ?: '—');
+                            $vSize = $v->sizeRef?->name ?: ($v->size ?: '-');
                             $vAge = $v->ageRange?->name ?: (!empty($v->age_group) ? implode(', ', (array) $v->age_group) : null);
                         @endphp
                         <td>
                             @if($vColor)
                                 <span class="badge text-bg-info">{{ $vColor }}</span>
                             @else
-                                <span class="text-muted">—</span>
+                                <span class="text-muted">-</span>
                             @endif
                         </td>
                         <td>{{ $vSize }}</td>
@@ -64,13 +64,13 @@
                             @if($vAge)
                                 {{ $vAge }}
                             @else
-                                <span class="text-muted">—</span>
+                                <span class="text-muted">-</span>
                             @endif
                         </td>
                         <td>
                             @php $opts = $v->options ?? []; @endphp
                             @if(empty($opts))
-                                <span class="text-muted">—</span>
+                                <span class="text-muted">-</span>
                             @else
                                 @foreach($opts as $k => $val)
                                     <span class="badge text-bg-light">{{ $k }}: {{ $val }}</span>
@@ -144,7 +144,7 @@
                 {{-- Identifies which edit form failed validation on redirect back --}}
                 <input type="hidden" name="_editing_variant_id" value="{{ $v->id }}">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Variant — {{ $v->sku }}</h5>
+                    <h5 class="modal-title">Edit Variant - {{ $v->sku }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">

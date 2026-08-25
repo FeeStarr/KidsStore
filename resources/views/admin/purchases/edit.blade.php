@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Edit Purchase '.$purchase->display_number])
+﻿@extends('layouts.admin', ['title' => 'Edit Purchase '.$purchase->display_number])
 @section('content')
 <h3 class="mb-3">Edit Purchase {{ $purchase->display_number }}</h3>
 
@@ -59,7 +59,7 @@ $allocOther     = (float) $purchase->total_other_costs;
         <div class="col-md-4">
             <label class="form-label">Supplier</label>
             <select name="supplier_id" class="form-select">
-                <option value="">—</option>
+                <option value="">-</option>
                 @foreach($suppliers as $s)
                     <option value="{{ $s->id }}" @selected($purchase->supplier_id == $s->id)>{{ $s->name }}</option>
                 @endforeach
@@ -102,7 +102,7 @@ $allocOther     = (float) $purchase->total_other_costs;
     <div class="card mb-3 border-warning-subtle">
         <div class="card-header bg-warning-subtle">
             <i class="bi bi-calculator"></i> Selling Price Calculator
-            <small class="text-muted">— allocate batch-wide costs to all rows proportionally</small>
+            <small class="text-muted">- allocate batch-wide costs to all rows proportionally</small>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -180,14 +180,14 @@ $allocOther     = (float) $purchase->total_other_costs;
         const landed    = cost + ship + pack + othr;
         const lineTotal = landed * qty;
         const ltEl = tr.querySelector('.vline');
-        if (ltEl) ltEl.textContent = qty > 0 ? fmt(lineTotal) : '—';
+        if (ltEl) ltEl.textContent = qty > 0 ? fmt(lineTotal) : '-';
         const mpEl = tr.querySelector('.vmargin');
         if (mpEl && sell > 0 && cost > 0) {
             const margin = ((sell - cost) / cost) * 100;
             mpEl.textContent = margin.toFixed(1) + '%';
             mpEl.className = 'vmargin small ' + (margin >= 0 ? 'text-success' : 'text-danger');
         } else if (mpEl) {
-            mpEl.textContent = '—';
+            mpEl.textContent = '-';
             mpEl.className = 'vmargin small text-muted';
         }
         updateGrandTotal();
@@ -247,14 +247,14 @@ $allocOther     = (float) $purchase->total_other_costs;
                 <div class="col-md-5">
                     <label class="form-label form-label-sm fw-semibold">Product</label>
                     <select class="form-select form-select-sm gp-product">
-                        <option value="">— Select Product —</option>
+                        <option value="">- Select Product -</option>
                         ${pOpts}
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label form-label-sm fw-semibold">Color / Style</label>
                     <select class="form-select form-select-sm gp-color" disabled>
-                        <option value="">— Select Color —</option>
+                        <option value="">- Select Color -</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -311,7 +311,7 @@ $allocOther     = (float) $purchase->total_other_costs;
 
 
         function populateColors(product, selectColor) {
-            colorSel.innerHTML = '<option value="">— Select Color —</option>';
+            colorSel.innerHTML = '<option value="">- Select Color -</option>';
             tbody.innerHTML = '';
             varWrap.style.display = 'none';
             applyRow.style.setProperty('display', 'none', 'important');
@@ -321,7 +321,7 @@ $allocOther     = (float) $purchase->total_other_costs;
             colors.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c;
-                opt.textContent = c || '— Default —';
+                opt.textContent = c || '- Default -';
                 if (c === selectColor) opt.selected = true;
                 colorSel.appendChild(opt);
             });
@@ -395,15 +395,15 @@ $allocOther     = (float) $purchase->total_other_costs;
                     : flt(markupInp.value);
 
                 tr.innerHTML = `
-                    <td class="small">${v.age || '<span class="text-muted">—</span>'}</td>
-                    <td class="small">${v.size || '<span class="text-muted">—</span>'}</td>
-                    <td class="text-muted small">${v.age || '<span class="text-muted">—</span>'}</td>
+                    <td class="small">${v.age || '<span class="text-muted">-</span>'}</td>
+                    <td class="small">${v.size || '<span class="text-muted">-</span>'}</td>
+                    <td class="text-muted small">${v.age || '<span class="text-muted">-</span>'}</td>
                     <td><input type="number" min="0" value="${qty}" class="form-control form-control-sm vqty"></td>
                     <td><input type="number" step="0.01" min="0" value="${cost.toFixed(2)}" class="form-control form-control-sm vcost"></td>
                     <td><input type="number" step="0.01" min="0" value="${derivedMarkup}" class="form-control form-control-sm vmarkup"></td>
                     <td><input type="number" step="0.01" min="0" value="${sell.toFixed(2)}" class="form-control form-control-sm vsell"></td>
-                    <td class="text-end vline text-muted">—</td>
-                    <td class="text-end vmargin small text-muted">—</td>
+                    <td class="text-end vline text-muted">-</td>
+                    <td class="text-end vmargin small text-muted">-</td>
                     <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger vrow-delete" title="Delete this item"><i class="bi bi-trash"></i></button></td>`;
 
                 tr.querySelectorAll('.vqty, .vcost, .vsell').forEach(inp => inp.addEventListener('input', () => recalcRow(tr)));

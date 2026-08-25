@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Custom Order ' . $customOrder->custom_order_number)
 
@@ -96,12 +96,12 @@
                     <div class="col-sm-6">
                         <strong>Customer:</strong> {{ $customOrder->user?->name }}<br>
                         <strong>Email:</strong> {{ $customOrder->user?->email }}<br>
-                        <strong>Phone:</strong> {{ $customOrder->user?->phone ?: '—' }}
+                        <strong>Phone:</strong> {{ $customOrder->user?->phone ?: '-' }}
                     </div>
                     <div class="col-sm-6">
-                        <strong>Child:</strong> {{ $customOrder->child_name ?: '—' }}<br>
-                        <strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '—' }}<br>
-                        <strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '—') }}
+                        <strong>Child:</strong> {{ $customOrder->child_name ?: '-' }}<br>
+                        <strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '-' }}<br>
+                        <strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '-') }}
                     </div>
                 </div>
                 @if ($customOrder->delivery_address)
@@ -110,7 +110,7 @@
                 @endif
                 @if ($customOrder->pickupStation)
                     <hr>
-                    <strong>Pickup Station:</strong> {{ $customOrder->pickupStation->name }} — {{ $customOrder->pickupStation->address }}
+                    <strong>Pickup Station:</strong> {{ $customOrder->pickupStation->name }} - {{ $customOrder->pickupStation->address }}
                 @endif
             </div>
         </div>

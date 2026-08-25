@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'New Order'])
+﻿@extends('layouts.admin', ['title' => 'New Order'])
 @section('content')
 <h3 class="mb-3">New Order</h3>
 <form method="post" action="{{ route('admin.orders.store') }}" id="order-form">
@@ -8,7 +8,7 @@
             <input type="date" name="order_date" value="{{ now()->toDateString() }}" class="form-control" required></div>
         <div class="col-md-4"><label class="form-label">Customer</label>
             <select name="customer_id" class="form-select">
-                <option value="">— Walk-in —</option>
+                <option value="">- Walk-in -</option>
                 @foreach($customers as $c)
                     <option value="{{ $c->id }}">{{ $c->name }}</option>
                 @endforeach
@@ -53,7 +53,7 @@
 <template id="order-row-template">
     <tr>
         <td><select name="items[__i__][product_variant_id]" class="form-select form-select-sm prod" required>
-            <option value="">—</option>
+            <option value="">-</option>
             @foreach($products as $p)
                 @if($p->variants->count() > 1)
                     <optgroup label="{{ $p->name }}">
@@ -62,7 +62,7 @@
                                 data-product-id="{{ $p->id }}"
                                 data-price="{{ $v->selling_price }}"
                                 data-stock="{{ $v->inventory?->quantity ?? 0 }}">
-                                {{ $p->name }} — {{ $v->options_label ?: $v->name ?: $v->sku }}
+                                {{ $p->name }} - {{ $v->options_label ?: $v->name ?: $v->sku }}
                             </option>
                         @endforeach
                     </optgroup>
@@ -81,7 +81,7 @@
         </select>
         <input type="hidden" name="items[__i__][product_id]" class="hidden-product-id">
         </td>
-        <td class="stock">—</td>
+        <td class="stock">-</td>
         <td><input type="number" min="1" value="1" name="items[__i__][quantity]" class="form-control form-control-sm qty" required></td>
         <td><input type="number" step="0.01" value="0" name="items[__i__][unit_price]" class="form-control form-control-sm price"></td>
         <td><input type="number" step="0.01" min="0" max="100" value="0" name="items[__i__][discount]" class="form-control form-control-sm disc"></td>
@@ -108,11 +108,11 @@ function bind(tr) {
         const hidden = tr.querySelector('.hidden-product-id');
         if (o && o.value) {
             tr.querySelector('.price').value = o.dataset.price ?? 0;
-            tr.querySelector('.stock').textContent = o.dataset.stock ?? '—';
+            tr.querySelector('.stock').textContent = o.dataset.stock ?? '-';
             hidden.value = o.dataset.productId ?? '';
         } else {
             tr.querySelector('.price').value = 0;
-            tr.querySelector('.stock').textContent = '—';
+            tr.querySelector('.stock').textContent = '-';
             hidden.value = '';
         }
         recalc(tr);

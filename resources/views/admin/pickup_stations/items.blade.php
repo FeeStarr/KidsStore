@@ -1,9 +1,9 @@
-@extends('layouts.admin', ['title' => 'Items — '. $pickupStation->name])
+﻿@extends('layouts.admin', ['title' => 'Items - '. $pickupStation->name])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">
         <i class="bi bi-box-seam me-2"></i>
-        Items — {{ $pickupStation->name }}
+        Items - {{ $pickupStation->name }}
     </h3>
     <div>
         <a href="{{ route('admin.pickup-stations.index') }}" class="btn btn-sm btn-outline-secondary">Back</a>

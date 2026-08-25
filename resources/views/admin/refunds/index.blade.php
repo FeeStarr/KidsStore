@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Return Requests'])
+﻿@extends('layouts.admin', ['title' => 'Return Requests'])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -47,7 +47,7 @@
                 <td>
                     <a href="{{ route('admin.orders.show', $r->order) }}">{{ $r->order->reference }}</a>
                 </td>
-                <td>{{ $r->order->customer?->name ?? '—' }}</td>
+                <td>{{ $r->order->customer?->name ?? '-' }}</td>
                 <td class="small">{{ $r->getScopeLabel() }}</td>
                 <td class="small">{{ $r->reason_label }}</td>
                 <td class="text-end">₦{{ number_format($r->amount, 2) }}</td>

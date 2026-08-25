@@ -1,4 +1,4 @@
-@extends('layouts.pickup-portal')
+﻿@extends('layouts.pickup-portal')
 
 @section('title', 'Reports')
 
@@ -44,7 +44,7 @@
                             default => 'dark',
                         } }}">{{ $report->type_label }}</span></td>
                         <td>{{ Str::limit($report->description, 60) }}</td>
-                        <td>{{ $report->order ? '#' . $report->order->id : '—' }}</td>
+                        <td>{{ $report->order ? '#' . $report->order->id : '-' }}</td>
                         <td><span class="badge bg-{{ match($report->status) {
                             'open' => 'danger',
                             'investigating' => 'warning',

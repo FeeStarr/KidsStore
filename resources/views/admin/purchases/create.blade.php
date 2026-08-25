@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'New Purchase'])
+﻿@extends('layouts.admin', ['title' => 'New Purchase'])
 @section('content')
 <h3 class="mb-3">New Purchase</h3>
 
@@ -35,7 +35,7 @@ $productsJson = $products->map(fn($p) => [
         <div class="col-md-4">
             <label class="form-label">Supplier</label>
             <select name="supplier_id" class="form-select">
-                <option value="">—</option>
+                <option value="">-</option>
                 @foreach($suppliers as $s)
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
@@ -79,7 +79,7 @@ $productsJson = $products->map(fn($p) => [
     <div class="card mb-3 border-warning-subtle">
         <div class="card-header bg-warning-subtle">
             <i class="bi bi-calculator"></i> Selling Price Calculator
-            <small class="text-muted">— allocate batch-wide costs to all rows proportionally</small>
+            <small class="text-muted">- allocate batch-wide costs to all rows proportionally</small>
         </div>
         <div class="card-body">
             <p class="text-muted small mb-3">
@@ -114,7 +114,7 @@ $productsJson = $products->map(fn($p) => [
     </div>
 
     {{-- ── Note + Submit ────────────────────────────────────────────────────── --}}
-    {{-- Hidden items — populated by JS on submit --}}
+    {{-- Hidden items - populated by JS on submit --}}
     <div id="items-hidden"></div>
 
     <div class="mb-3">
@@ -155,7 +155,7 @@ $productsJson = $products->map(fn($p) => [
         const lineTotal = landed * qty;
 
         const ltEl = tr.querySelector('.vline');
-        if (ltEl) ltEl.textContent = qty > 0 ? fmt(lineTotal) : '—';
+        if (ltEl) ltEl.textContent = qty > 0 ? fmt(lineTotal) : '-';
 
         const mpEl = tr.querySelector('.vmargin');
         if (mpEl && sell > 0 && cost > 0) {
@@ -163,7 +163,7 @@ $productsJson = $products->map(fn($p) => [
             mpEl.textContent = margin.toFixed(1) + '%';
             mpEl.className = 'vmargin small ' + (margin >= 0 ? 'text-success' : 'text-danger');
         } else if (mpEl) {
-            mpEl.textContent = '—';
+            mpEl.textContent = '-';
             mpEl.className = 'vmargin small text-muted';
         }
 
@@ -198,7 +198,7 @@ $productsJson = $products->map(fn($p) => [
         if (el) el.textContent = fmt(total);
     }
 
-    // ── Sync product dropdowns — disable already-selected products in other groups
+    // ── Sync product dropdowns - disable already-selected products in other groups
     function syncProductDropdowns() {
         const allGroups = document.querySelectorAll('.group-card');
         const selectedIds = new Set();
@@ -241,7 +241,7 @@ $productsJson = $products->map(fn($p) => [
                     <div class="flex-grow-1">
                         <label class="form-label form-label-sm fw-semibold">Product</label>
                         <select class="form-select form-select-sm gp-product">
-                            <option value="">— Select Product —</option>
+                            <option value="">- Select Product -</option>
                             ${pOpts}
                         </select>
                     </div>
@@ -249,7 +249,7 @@ $productsJson = $products->map(fn($p) => [
                 <div class="col-md-3">
                     <label class="form-label form-label-sm fw-semibold">Color / Style</label>
                     <select class="form-select form-select-sm gp-color" disabled>
-                        <option value="">— Select Color —</option>
+                        <option value="">- Select Color -</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -309,7 +309,7 @@ $productsJson = $products->map(fn($p) => [
         // Product → populate colors + show thumbnail
         productSel.addEventListener('change', () => {
             const product = PRODUCTS.find(p => p.id == productSel.value);
-            colorSel.innerHTML = '<option value="">— Select Color —</option>';
+            colorSel.innerHTML = '<option value="">- Select Color -</option>';
             tbody.innerHTML = '';
             varWrap.style.display = 'none';
             applyRow.style.setProperty('display', 'none', 'important');
@@ -333,7 +333,7 @@ $productsJson = $products->map(fn($p) => [
             colors.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c;
-                opt.textContent = c || '— Default —';
+                opt.textContent = c || '- Default -';
                 colorSel.appendChild(opt);
             });
             colorSel.disabled = false;
@@ -394,14 +394,14 @@ $productsJson = $products->map(fn($p) => [
 
             tr.innerHTML = `
                 <td><img src="${v.image || ''}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;${v.image ? '' : 'display:none'}" class="vthumb" alt=""></td>
-                <td class="small">${v.age || '<span class="text-muted">—</span>'}</td>
-                <td class="small">${v.size || '<span class="text-muted">—</span>'}</td>
-                <td><input type="number" min="0" value="" placeholder="—" class="form-control form-control-sm vqty"></td>
-                <td><input type="number" step="0.01" min="0" value="" placeholder="—" class="form-control form-control-sm vcost"></td>
+                <td class="small">${v.age || '<span class="text-muted">-</span>'}</td>
+                <td class="small">${v.size || '<span class="text-muted">-</span>'}</td>
+                <td><input type="number" min="0" value="" placeholder="-" class="form-control form-control-sm vqty"></td>
+                <td><input type="number" step="0.01" min="0" value="" placeholder="-" class="form-control form-control-sm vcost"></td>
                 <td><input type="number" step="0.01" min="0" value="${flt(markupInp.value)}" class="form-control form-control-sm vmarkup"></td>
-                <td><input type="number" step="0.01" min="0" value="" placeholder="—" class="form-control form-control-sm vsell"></td>
-                <td class="text-end vline text-muted">—</td>
-                <td class="text-end vmargin small text-muted">—</td>
+                <td><input type="number" step="0.01" min="0" value="" placeholder="-" class="form-control form-control-sm vsell"></td>
+                <td class="text-end vline text-muted">-</td>
+                <td class="text-end vmargin small text-muted">-</td>
                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger vrow-delete" title="Delete this item"><i class="bi bi-trash"></i></button></td>`;
 
             tr.querySelectorAll('.vqty, .vcost, .vsell').forEach(inp => inp.addEventListener('input', () => recalcRow(tr)));

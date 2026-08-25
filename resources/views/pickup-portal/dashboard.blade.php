@@ -1,4 +1,4 @@
-@extends('layouts.pickup-portal', ['title' => 'Dashboard — '.session('portal_station_name')])
+﻿@extends('layouts.pickup-portal', ['title' => 'Dashboard - '.session('portal_station_name')])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -93,7 +93,7 @@
     </div>
     @endif
 
-    {{-- Picked Up Tab — DataTable --}}
+    {{-- Picked Up Tab - DataTable --}}
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="bi bi-check-circle me-2"></i>Picked Up Items</h5>
@@ -133,7 +133,7 @@
     </div>
 
 @elseif(in_array($filter, ['pending', 'received']))
-    {{-- Pending/Received — Individual Action Cards --}}
+    {{-- Pending/Received - Individual Action Cards --}}
     @if($currentItems->isEmpty())
         <div class="alert alert-light text-center py-4">
             <i class="bi bi-inbox fs-2 d-block mb-2 text-muted"></i>
@@ -169,7 +169,7 @@
                             @endif
                         </div>
                     <div class="small d-flex gap-2 align-items-center">
-                        <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        <span>Customer: {{ $order->customer?->name ?? '-' }}</span>
                     </div>
                     </div>
                     <div class="card-body p-0">
@@ -228,7 +228,7 @@
     @endif
 
 @elseif($filter === 'ready')
-    {{-- Ready for Pickup — Individual Action Cards --}}
+    {{-- Ready for Pickup - Individual Action Cards --}}
     @if($currentItems->isEmpty())
         <div class="alert alert-light text-center py-4">
             <i class="bi bi-inbox fs-2 d-block mb-2 text-muted"></i>
@@ -262,11 +262,11 @@
                         @elseif($isUnderReview)
                             <span class="badge bg-warning text-dark ms-2"><i class="bi bi-hourglass-split me-1"></i>Under Review</span>
                         @else
-                            <span class="badge bg-warning text-dark ms-2"><i class="bi bi-exclamation-circle me-1"></i>Unpaid — ₦{{ number_format($balance, 2) }} remaining</span>
+                            <span class="badge bg-warning text-dark ms-2"><i class="bi bi-exclamation-circle me-1"></i>Unpaid - ₦{{ number_format($balance, 2) }} remaining</span>
                         @endif
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
-                        <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        <span>Customer: {{ $order->customer?->name ?? '-' }}</span>
                         @if($order->payment_method)
                             <span class="badge bg-light text-dark">
                                 <i class="bi bi-credit-card me-1"></i>{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}
@@ -337,13 +337,13 @@
                                   data-submitted-at="{{ $pendingVerification->submitted_at->toIso8601String() }}">
                                 @php echo $pendingVerification->getCountdownDisplay(); @endphp
                             </span>
-                            <span class="small text-muted">— waiting for admin confirmation</span>
+                            <span class="small text-muted">- waiting for admin confirmation</span>
                         </div>
 
                     {{-- Under review: show waiting message --}}
                     @elseif($isUnderReview)
                         <div class="d-flex align-items-center gap-3 flex-wrap">
-                            <span class="small text-warning"><i class="bi bi-hourglass-split me-1"></i>Payment under review — waiting for admin to confirm</span>
+                            <span class="small text-warning"><i class="bi bi-hourglass-split me-1"></i>Payment under review - waiting for admin to confirm</span>
                         </div>
 
                     {{-- Verification failed: show retry option --}}
@@ -444,11 +444,11 @@
             <div class="card mb-3 border-warning">
                 <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
                     <div>
-                        <strong><i class="bi bi-arrow-counterclockwise me-1"></i>Return — {{ $order->reference }}</strong>
+                        <strong><i class="bi bi-arrow-counterclockwise me-1"></i>Return - {{ $order->reference }}</strong>
                         <span class="small text-muted ms-2">Approved {{ $rr->reviewed_at?->format('M d, Y g:i A') }}</span>
                     </div>
                     <div class="small d-flex gap-2 align-items-center">
-                        <span>Customer: {{ $order->customer?->name ?? '—' }}</span>
+                        <span>Customer: {{ $order->customer?->name ?? '-' }}</span>
                         @if($order->customer)
                             <form method="POST" action="{{ route('pickup-portal.send-reminder', $order) }}" class="d-inline">
                                 @csrf
@@ -465,7 +465,7 @@
                             <table class="table table-sm mb-2">
                                 <tr>
                                     <td class="text-muted" style="width:140px">Item</td>
-                                    <td><strong>{{ $item?->product?->name ?? 'N/A' }}</strong> @if($item?->variant?->options_label) — {{ $item->variant->options_label }} @endif</td>
+                                    <td><strong>{{ $item?->product?->name ?? 'N/A' }}</strong> @if($item?->variant?->options_label) - {{ $item->variant->options_label }} @endif</td>
                                 </tr>
                                 <tr>
                                     <td class="text-muted">Quantity</td>
@@ -635,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Transfer modal — populate from button data
+    // Transfer modal - populate from button data
     const transferModal = document.getElementById('transferModal');
     if (transferModal) {
         transferModal.addEventListener('show.bs.modal', function(event) {
@@ -664,7 +664,7 @@ function updateCountdowns() {
         const remaining = Math.max(0, 2400 - elapsed);
 
         if (remaining <= 0) {
-            el.textContent = 'Overdue — awaiting admin';
+            el.textContent = 'Overdue - awaiting admin';
             el.classList.remove('bg-info');
             el.classList.add('bg-danger');
         } else {
@@ -677,7 +677,7 @@ function updateCountdowns() {
 updateCountdowns();
 setInterval(updateCountdowns, 1000);
 
-// AJAX polling — check payment status every 15s, reload on change
+// AJAX polling - check payment status every 15s, reload on change
 (function() {
     const pollers = {};
     const lastStatus = {};
@@ -706,7 +706,7 @@ setInterval(updateCountdowns, 1000);
 </script>
 
 <script>
-// Portal Pay Now — initiate standard Paystack transaction and open the popup
+// Portal Pay Now - initiate standard Paystack transaction and open the popup
 function portalPayNow(orderId) {
     var modal = document.getElementById('portalPayNowModal');
     var loading = document.getElementById('ppn-loading');
@@ -899,7 +899,7 @@ function portalCheckPayment(orderId) {
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-3">Share these details with the customer for bank transfer payment. Verification is manual — confirm payment received below.</p>
+                <p class="text-muted small mb-3">Share these details with the customer for bank transfer payment. Verification is manual - confirm payment received below.</p>
 
                 @if($bankAccount)
                     <div class="card border-primary mb-3">
@@ -930,15 +930,15 @@ function portalCheckPayment(orderId) {
                 <div class="mb-3">
                     <div class="d-flex justify-content-between mb-1">
                         <span class="small text-muted">Order</span>
-                        <strong id="transfer-order-ref">—</strong>
+                        <strong id="transfer-order-ref">-</strong>
                     </div>
                     <div class="d-flex justify-content-between mb-1">
                         <span class="small text-muted">Customer</span>
-                        <span id="transfer-customer">—</span>
+                        <span id="transfer-customer">-</span>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span class="small text-muted">Amount Due</span>
-                        <span class="fs-5 fw-bold text-success" id="transfer-amount">—</span>
+                        <span class="fs-5 fw-bold text-success" id="transfer-amount">-</span>
                     </div>
                 </div>
             </div>

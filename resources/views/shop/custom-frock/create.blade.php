@@ -1,4 +1,4 @@
-@extends('layouts.shop')
+﻿@extends('layouts.shop')
 
 @section('title', 'Custom Frock Order')
 
@@ -118,7 +118,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Size Preference</label>
                                     <input type="text" name="child_size" class="form-control" placeholder="e.g. Small, Medium, Large" value="{{ old('child_size') }}">
-                                    <small class="text-muted">Optional — our team will confirm during review.</small>
+                                    <small class="text-muted">Optional - our team will confirm during review.</small>
                                 </div>
 
                                 {{-- Primary colour --}}
@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return valid;
     }
 
-    // Delivery method toggle — set initial required state
+    // Delivery method toggle - set initial required state
     const deliveryRadio = document.getElementById('delivery_home');
     if (deliveryRadio && deliveryRadio.checked) {
         document.getElementById('delivery_address').required = true;
@@ -318,15 +318,15 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '<h6 class="fw-bold text-primary mb-3">CUSTOM FROCK REQUEST</h6>';
         html += '<table class="table table-sm">';
         const fields = {
-            "Child's Name": fd.get('child_name') || '—',
+            "Child's Name": fd.get('child_name') || '-',
             "Gender": 'Girl',
             "Design Type": 'Upload Reference',
-            "Age Range": fd.get('standard_size') || '—',
+            "Age Range": fd.get('standard_size') || '-',
             "Size Preference": fd.get('child_size') || 'Not specified',
-            "Primary Colour": fd.get('primary_colour') || '—',
-            "Secondary Colour": fd.get('secondary_colour') || '—',
-            "Accent Colour": fd.get('accent_colour') || '—',
-            "Colour Description": fd.get('custom_colour_description') || '—',
+            "Primary Colour": fd.get('primary_colour') || '-',
+            "Secondary Colour": fd.get('secondary_colour') || '-',
+            "Accent Colour": fd.get('accent_colour') || '-',
+            "Colour Description": fd.get('custom_colour_description') || '-',
             "Delivery": fd.get('delivery_method') === 'pickup' ? 'Pickup Station' : 'Home Delivery',
         };
         if (fd.get('customer_notes')) fields['Notes'] = fd.get('customer_notes');

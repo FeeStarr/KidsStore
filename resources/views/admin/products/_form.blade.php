@@ -1,4 +1,4 @@
-@php
+﻿@php
     $isEdit = isset($product);
     $action = $isEdit ? route('admin.products.update', $product) : route('admin.products.store');
 @endphp
@@ -40,7 +40,7 @@
                         <div class="col-md-4">
                             <label class="form-label">Category</label>
                             <select id="catTop" class="form-select">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 @foreach($byParent->get(null, collect()) as $top)
                                     <option value="{{ $top->id }}" @selected((int) $selectedTop === $top->id)>{{ $top->name }}</option>
                                 @endforeach
@@ -49,7 +49,7 @@
                         <div class="col-md-4">
                             <label class="form-label">Subcategory <small class="text-muted">(optional)</small></label>
                             <select id="catSub" class="form-select">
-                                <option value="">—</option>
+                                <option value="">-</option>
                             </select>
                             <input type="hidden" name="category_id" id="categoryIdInput" value="{{ $selectedCat }}">
                         </div>
@@ -64,7 +64,7 @@
                             const initialSub = @json($selectedSub);
 
                             function populateSub(selectedSubId) {
-                                sub.innerHTML = '<option value="">—</option>';
+                                sub.innerHTML = '<option value="">-</option>';
                                 const list = subMap[top.value] || [];
                                 if (!list.length) {
                                     sub.disabled = true;
@@ -105,7 +105,7 @@
                         </div>
                         <div class="col-md-4"><label class="form-label">Brand (Catalog)</label>
                             <select name="brand_id" class="form-select">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 @foreach(($brands ?? collect()) as $b)
                                     <option value="{{ $b->id }}" @selected((string) old('brand_id', $product->brand_id ?? '') === (string) $b->id)>{{ $b->name }}</option>
                                 @endforeach
@@ -162,7 +162,7 @@
                     <div class="mb-3"><label class="form-label">Selling Price <small class="text-muted">(can be set later from a Purchase)</small></label>
                         <input type="number" step="0.01" name="selling_price" class="form-control"
                                value="{{ old('selling_price', $product->selling_price ?? '') }}"
-                               placeholder="Leave blank — auto-set when first purchase is received"></div>
+                               placeholder="Leave blank - auto-set when first purchase is received"></div>
                     <div class="mb-3"><label class="form-label">Cost Price <small class="text-muted">(auto-updated when a purchase is received)</small></label>
                         <input type="number" step="0.01" min="0" name="cost_price" class="form-control"
                                value="{{ old('cost_price', $product->cost_price ?? '') }}"

@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => $deal->title])
+﻿@extends('layouts.admin', ['title' => $deal->title])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">{{ $deal->title }}</h3>
@@ -40,8 +40,8 @@
             <dl class="row mb-0">
                 <dt class="col-4">Slug</dt><dd class="col-8">{{ $deal->slug }}</dd>
                 <dt class="col-4">Discount</dt><dd class="col-8">{{ $deal->discount_label }}</dd>
-                <dt class="col-4">Starts</dt><dd class="col-8">{{ $deal->starts_at ? $deal->starts_at->format('M d, Y g:i A') : '—' }}</dd>
-                <dt class="col-4">Ends</dt><dd class="col-8">{{ $deal->ends_at ? $deal->ends_at->format('M d, Y g:i A') : '—' }}</dd>
+                <dt class="col-4">Starts</dt><dd class="col-8">{{ $deal->starts_at ? $deal->starts_at->format('M d, Y g:i A') : '-' }}</dd>
+                <dt class="col-4">Ends</dt><dd class="col-8">{{ $deal->ends_at ? $deal->ends_at->format('M d, Y g:i A') : '-' }}</dd>
                 <dt class="col-4">Featured</dt><dd class="col-8">{{ $deal->is_featured ? 'Yes' : 'No' }}</dd>
                 <dt class="col-4">Uses</dt>
                 <dd class="col-8">
@@ -54,7 +54,7 @@
                         {{ $deal->current_uses }} (unlimited)
                     @endif
                 </dd>
-                <dt class="col-4">Created By</dt><dd class="col-8">{{ $deal->createdBy?->name ?? '—' }}</dd>
+                <dt class="col-4">Created By</dt><dd class="col-8">{{ $deal->createdBy?->name ?? '-' }}</dd>
             </dl>
         </div></div>
         @if($deal->description)

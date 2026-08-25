@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'User Details'])
+﻿@extends('layouts.admin', ['title' => 'User Details'])
 
 @section('content')
 @php
@@ -22,7 +22,7 @@
     <hr class="my-2">
     <small class="text-muted">
         The user can enter this code instead of their emailed 2FA code if they can't access their email.
-        It is <strong>single-use</strong> — it expires after one successful login.
+        It is <strong>single-use</strong> - it expires after one successful login.
     </small>
 </div>
 @endif

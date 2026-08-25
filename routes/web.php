@@ -92,9 +92,21 @@ Route::name('shop.')->group(function () {
     Route::post('/logout', [ShopAuthController::class, 'logout'])
         ->middleware('auth')->name('logout');
 
+    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+    Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
+    Route::get('/order-lookup', [CheckoutController::class, 'orderLookupForm'])->name('order.lookup');
+    Route::post('/order-lookup', [CheckoutController::class, 'orderLookup'])->name('order.lookup.submit');
+    Route::get('/order-track/{token}', [CheckoutController::class, 'orderTrack'])->name('order.track');
+
+    // Email verification
+    Route::get('/verify-email/{id}/{hash}', [ShopAuthController::class, 'verifyEmail'])
+        ->middleware('signed')
+        ->name('verification.verify');
+    Route::post('/verify-email/resend', [ShopAuthController::class, 'resendVerification'])
+        ->middleware('throttle:3,1')
+        ->name('verification.resend');
+
     Route::middleware('auth')->group(function () {
-        Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
-        Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
 
         Route::get('/account/orders', [AccountController::class, 'orders'])->name('account.orders.index');
         Route::get('/account/orders/{order}', [AccountController::class, 'showOrder'])->name('account.orders.show');

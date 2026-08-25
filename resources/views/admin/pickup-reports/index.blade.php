@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Pickup Reports')
 
@@ -62,7 +62,7 @@
                     @forelse ($reports as $report)
                     <tr>
                         <td>{{ $report->id }}</td>
-                        <td>{{ $report->station->name ?? '—' }}</td>
+                        <td>{{ $report->station->name ?? '-' }}</td>
                         <td><span class="badge bg-{{ match($report->type) {
                             'missing_order' => 'danger',
                             'missing_item' => 'warning',
@@ -72,7 +72,7 @@
                             default => 'dark',
                         } }}">{{ $report->type_label }}</span></td>
                         <td>{{ Str::limit($report->description, 50) }}</td>
-                        <td>{{ $report->order ? '#' . $report->order->id : '—' }}</td>
+                        <td>{{ $report->order ? '#' . $report->order->id : '-' }}</td>
                         <td><span class="badge bg-{{ match($report->status) {
                             'open' => 'danger',
                             'investigating' => 'warning',

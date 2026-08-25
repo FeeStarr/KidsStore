@@ -1,4 +1,4 @@
-@extends('layouts.shop', ['title' => $product->name])
+﻿@extends('layouts.shop', ['title' => $product->name])
 @section('content')
 
 @php
@@ -16,12 +16,12 @@
         }
     } catch (\Throwable $e) {}
 
-    // Group thumbnails by color — one thumbnail button per unique color.
+    // Group thumbnails by color - one thumbnail button per unique color.
     $thumbVariants = $variants->groupBy(fn ($v) => $v->colorRef?->name ?? 'Default');
 
     // Per-color fallback gallery. When a variant has no gallery of its own we
     // fall back to the images belonging to the same colour group (mirrors the
-    // thumbnails), never the whole product gallery — otherwise same-age variants
+    // thumbnails), never the whole product gallery - otherwise same-age variants
     // of a different colour would always show the primary/other-colour images.
     $colorImgs = [];
     foreach ($thumbVariants as $colorName => $colorVars) {
@@ -37,7 +37,7 @@
         $colorImgs[$colorName] = $gallery->unique()->values()->all();
     }
 
-    // Variant data for JS resolver — each row IS the full (color + age + size) combo
+    // Variant data for JS resolver - each row IS the full (color + age + size) combo
     $deal = app(\App\Services\DealService::class)->activeDealForProduct($product);
     $variantsData = $variants->map(function ($v) use ($product, $cartQtys, $colorImgs, $deal) {
         $imgs = $v->images->isNotEmpty()
@@ -617,10 +617,10 @@
 
     if (!form) return;
 
-    // Cart quantities per variant id — seeded from server on page load.
+    // Cart quantities per variant id - seeded from server on page load.
     const cartQtys = @json((object) $cartQtys);
 
-    // URL templates — __V__ is replaced with the real variant id at runtime.
+    // URL templates - __V__ is replaced with the real variant id at runtime.
     const removeUrlTemplate = @json(route('shop.cart.remove', ['variant' => '__V__']));
 
     // ── Navbar badge ────────────────────────────────────────────────────────

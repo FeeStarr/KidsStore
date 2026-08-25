@@ -1,4 +1,4 @@
-@extends('layouts.pickup-portal', ['title' => 'Return Details — '.session('portal_station_name')])
+﻿@extends('layouts.pickup-portal', ['title' => 'Return Details - '.session('portal_station_name')])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">

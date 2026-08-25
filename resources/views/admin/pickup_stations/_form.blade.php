@@ -1,4 +1,4 @@
-@php $station = $station ?? null; @endphp
+﻿@php $station = $station ?? null; @endphp
 
 <div class="mb-3">
     <label class="form-label">Station Name *</label>
@@ -42,7 +42,7 @@
     <div class="col-md-6">
         <label class="form-label">
             Commission Fee (%)
-            <small class="text-muted">— % of order total owed to station per delivered order</small>
+            <small class="text-muted">- % of order total owed to station per delivered order</small>
         </label>
         <input type="number" step="0.01" min="0" max="100" name="fee_pct"
                class="form-control @error('fee_pct') is-invalid @enderror"
@@ -51,7 +51,7 @@
     </div>
     <div class="col-md-6">
         <label class="form-label">Pickup Shipping Fee (per item)
-            <small class="text-muted">— flat fee per item charged for pickup at this station (₦)</small>
+            <small class="text-muted">- flat fee per item charged for pickup at this station (₦)</small>
         </label>
         <input type="number" step="0.01" min="0" name="pickup_shipping_fee"
                class="form-control @error('pickup_shipping_fee') is-invalid @enderror"
@@ -116,9 +116,9 @@
         Staff Portal PIN
         <small class="text-muted">
             @if($station?->access_pin)
-                — leave blank to keep current PIN
+                - leave blank to keep current PIN
             @else
-                — set a numeric PIN for staff to log into the pickup portal
+                - set a numeric PIN for staff to log into the pickup portal
             @endif
         </small>
     </label>

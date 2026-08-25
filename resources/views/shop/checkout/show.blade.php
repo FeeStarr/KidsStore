@@ -10,14 +10,32 @@
         <div class="card border-0 shadow-sm"><div class="card-body">
             <h5 class="mb-3">Contact</h5>
 
-            <div class="mb-3">
-                <label class="form-label">Name</label>
-                <input type="text" class="form-control" value="{{ $customer->name }}" disabled>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-control" value="{{ $customer->email }}" disabled>
-            </div>
+            @if($customer)
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" value="{{ $customer->name }}" disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" value="{{ $customer->email }}" disabled>
+                </div>
+            @else
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-1"></i> Please enter your correct email to enable order tracking.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                           value="{{ old('name') }}" required>
+                    @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                           value="{{ old('email') }}" required>
+                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+            @endif
             <div class="mb-3">
                 <label class="form-label">Phone *</label>
                 <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"

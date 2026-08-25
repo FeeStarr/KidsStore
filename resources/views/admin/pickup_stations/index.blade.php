@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Pickup Stations'])
+﻿@extends('layouts.admin', ['title' => 'Pickup Stations'])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">Pickup Stations</h3>
@@ -40,8 +40,8 @@
                 <tr>
                     <td class="fw-semibold">{{ $s->name }}</td>
                     <td>{{ $s->address }}</td>
-                    <td>{{ collect([$s->city, $s->state])->filter()->implode(', ') ?: '—' }}</td>
-                    <td>{{ $s->phone ?: '—' }}</td>
+                    <td>{{ collect([$s->city, $s->state])->filter()->implode(', ') ?: '-' }}</td>
+                    <td>{{ $s->phone ?: '-' }}</td>
                     <td>{{ number_format($s->fee_pct, 2) }}%</td>
                     <td>
                         @if($s->is_active)

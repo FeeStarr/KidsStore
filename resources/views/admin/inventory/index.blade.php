@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Inventory'])
+﻿@extends('layouts.admin', ['title' => 'Inventory'])
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Inventory</h3>
@@ -28,14 +28,14 @@
             <td>{{ $v?->product?->name ?? $inv->product?->name }}</td>
             <td>
                 @if($v)
-                    {{ $v->options_label ?: ($v->name ?: '—') }}
+                    {{ $v->options_label ?: ($v->name ?: '-') }}
                     <div class="small text-muted">
                         {{ $v->colorRef?->name ?: ($v->color ?: 'No Color') }} /
                         {{ $v->sizeRef?->name ?: ($v->size ?: 'No Size') }} /
                         {{ $v->ageRange?->name ?: ((is_array($v->age_group ?? null) && !empty($v->age_group)) ? ($v->age_group[0] ?? 'No Age') : 'No Age') }}
                     </div>
                 @else
-                    —
+                    -
                 @endif
             </td>
             <td>{{ $v?->sku ?? $inv->product?->sku }}</td>
@@ -65,7 +65,7 @@
                         <form class="modal-content" method="post" action="{{ route('admin.inventory.adjust', $inv) }}">
                             @csrf
                             <div class="modal-header">
-                                <h5 class="modal-title"><i class="bi bi-dash-circle text-warning"></i> Decrease Stock — {{ $v?->display_label ?? $inv->product?->name }}</h5>
+                                <h5 class="modal-title"><i class="bi bi-dash-circle text-warning"></i> Decrease Stock - {{ $v?->display_label ?? $inv->product?->name }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
@@ -105,7 +105,7 @@
     </tbody>
 </table>
 </div></div>
-<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Stock increases only through <strong>Purchases</strong>. Stock decreases through <strong>Orders</strong>. Use <strong>Decrease</strong> for corrections, damages, or write-offs — every adjustment is logged with a reason.</p>
+<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Stock increases only through <strong>Purchases</strong>. Stock decreases through <strong>Orders</strong>. Use <strong>Decrease</strong> for corrections, damages, or write-offs - every adjustment is logged with a reason.</p>
 
 @push('scripts')
 <script>

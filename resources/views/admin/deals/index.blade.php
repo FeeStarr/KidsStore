@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Deals'])
+﻿@extends('layouts.admin', ['title' => 'Deals'])
 @section('content')
 <div class="d-flex justify-content-between mb-3">
     <h3>Deals</h3>
@@ -46,8 +46,8 @@
                 </td>
                 <td class="text-end">{{ $deal->products_count }}</td>
                 <td>{{ $deal->discount_label }}</td>
-                <td>{{ $deal->starts_at ? $deal->starts_at->format('M d, Y g:i A') : '—' }}</td>
-                <td>{{ $deal->ends_at ? $deal->ends_at->format('M d, Y g:i A') : '—' }}</td>
+                <td>{{ $deal->starts_at ? $deal->starts_at->format('M d, Y g:i A') : '-' }}</td>
+                <td>{{ $deal->ends_at ? $deal->ends_at->format('M d, Y g:i A') : '-' }}</td>
                 <td class="text-end text-nowrap">
                     <a href="{{ route('admin.deals.show', $deal) }}" class="btn btn-sm btn-outline-secondary">View</a>
                     <a href="{{ route('admin.deals.edit', $deal) }}" class="btn btn-sm btn-outline-primary">Edit</a>

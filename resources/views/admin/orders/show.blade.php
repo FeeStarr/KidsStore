@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Order '.$order->reference])
+﻿@extends('layouts.admin', ['title' => 'Order '.$order->reference])
 @section('content')
     <div class="d-flex justify-content-between mb-3">
     <h3>Order {{ $order->reference }}</h3>
@@ -9,7 +9,7 @@
             $allStatuses = $order->getAvailableStatuses();
         @endphp
 
-        {{-- Status dropdown — jump to any status --}}
+        {{-- Status dropdown - jump to any status --}}
         @if(! in_array($s, ['delivered', 'cancelled']))
             <form action="{{ route('admin.orders.update-status', $order) }}" method="post" class="d-flex gap-1" id="statusJumpForm">
                 @csrf
@@ -87,7 +87,7 @@
 <div class="row g-3 mb-3">
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '—' }}</dd>
+            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '-' }}</dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d H:i') }}</dd>
             <dt class="col-4">Status</dt>
             <dd class="col-8"><span class="badge {{ match($order->status) {
@@ -102,7 +102,7 @@
             <dd class="col-8">
                 {{ $order->getDeliveryMethodLabel() }}
                 @if($order->isForPickup() && $order->pickupStation)
-                    <small class="text-muted d-block">{{ $order->pickupStation->name }} — {{ $order->pickupStation->full_address }}</small>
+                    <small class="text-muted d-block">{{ $order->pickupStation->name }} - {{ $order->pickupStation->full_address }}</small>
                 @elseif($order->isForDelivery() && $order->delivery_address)
                     <small class="text-muted d-block">{{ $order->delivery_address }}</small>
                 @endif
@@ -169,7 +169,7 @@
             @if($order->payment_method)
                 <dt class="col-4">Payment Method</dt><dd class="col-8">{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</dd>
             @endif
-            <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '—' }}</dd>
+            <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '-' }}</dd>
         </dl>
     </div></div></div>
     <div class="col-md-6"><div class="card"><div class="card-body">
@@ -342,7 +342,7 @@
             <td>{{ $p->reference }}</td>
             <td>{{ $p->payment_date->format('Y-m-d H:i') }}</td>
             <td>{{ $p->method }}</td>
-            <td>{{ $p->transaction_id ?? '—' }}</td>
+            <td>{{ $p->transaction_id ?? '-' }}</td>
             <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
         </tr>
     @empty
@@ -365,7 +365,7 @@
             <div class="card-body">
                 @if($verification)
                     <div class="small text-muted mb-3">
-                        <div>Station: {{ $verification->station?->name ?? '—' }}</div>
+                        <div>Station: {{ $verification->station?->name ?? '-' }}</div>
                         <div>Amount: ₦{{ number_format($order->grand_total, 2) }}</div>
                         @if($verification->station_note)
                             <div>Note from station: {{ $verification->station_note }}</div>
@@ -460,7 +460,7 @@
                     <div class="small text-muted mb-3">
                         <div><strong>Reason:</strong> {{ $underReviewTxn->opay_payload['review_reason'] }}</div>
                         <div><strong>Amount:</strong> ₦{{ number_format($order->grand_total, 2) }}</div>
-                        <div><strong>Customer:</strong> {{ $order->customer?->name ?? '—' }}</div>
+                        <div><strong>Customer:</strong> {{ $order->customer?->name ?? '-' }}</div>
                     </div>
                 @endif
                 <div class="d-flex gap-2">
@@ -551,7 +551,7 @@
                         <span class="font-monospace fw-bold">{{ $txn->virtual_account_number }}</span>
                         <small class="text-muted d-block">{{ $txn->virtual_bank_name }}</small>
                     @else
-                        <span class="text-muted">—</span>
+                        <span class="text-muted">-</span>
                     @endif
                 </td>
                 <td>₦{{ number_format($txn->amount, 2) }}</td>

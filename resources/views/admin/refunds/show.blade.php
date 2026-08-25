@@ -1,4 +1,4 @@
-@extends('layouts.admin', ['title' => 'Return #'.$refundRequest->id])
+﻿@extends('layouts.admin', ['title' => 'Return #'.$refundRequest->id])
 @section('content')
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -54,7 +54,7 @@
                 <dd class="col-7">{{ $refundRequest->reason_label }}</dd>
 
                 <dt class="col-5">Details</dt>
-                <dd class="col-7">{{ $refundRequest->details ?: '—' }}</dd>
+                <dd class="col-7">{{ $refundRequest->details ?: '-' }}</dd>
 
                 <dt class="col-5">Submitted</dt>
                 <dd class="col-7">{{ $refundRequest->created_at->format('M d, Y h:ia') }}</dd>
@@ -152,7 +152,7 @@
                     <tr class="{{ $refundRequest->orderItem && $refundRequest->order_item_id == $it->id ? 'table-warning fw-semibold' : '' }}">
                         <td class="small">
                             {{ $it->product?->name }}
-                            @if($it->variant?->options_label) <span class="text-muted">— {{ $it->variant->options_label }}</span>@endif
+                            @if($it->variant?->options_label) <span class="text-muted">- {{ $it->variant->options_label }}</span>@endif
                             @if($refundRequest->order_item_id == $it->id)
                                 <span class="badge bg-warning text-dark ms-1">Return item</span>
                             @endif
@@ -254,7 +254,7 @@
                     <div class="mb-3">
                         <label class="form-label form-label-sm">Inspection Outcome *</label>
                         <select name="outcome" class="form-select form-select-sm" required>
-                            <option value="">— Select —</option>
+                            <option value="">- Select -</option>
                             <option value="refund">Approve Refund</option>
                             <option value="replacement">Approve Replacement</option>
                         </select>
@@ -282,7 +282,7 @@
                           placeholder="Note (optional)"></textarea>
             </div>
             <button class="btn btn-success" onclick="return confirm('Process refund of ₦{{ number_format($refundRequest->amount, 2) }}?')">
-                <i class="bi bi-cash-stack me-1"></i>Process Refund — ₦{{ number_format($refundRequest->amount, 2) }}
+                <i class="bi bi-cash-stack me-1"></i>Process Refund - ₦{{ number_format($refundRequest->amount, 2) }}
             </button>
         </form>
     </div></div>
