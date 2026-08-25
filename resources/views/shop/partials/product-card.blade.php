@@ -1,5 +1,6 @@
 @php
-    $img = $product->catalog_image;
+    $imgModel = $product->primaryImage;
+    $img = $imgModel?->url ?? $product->catalog_image;
     $stock = (int) $product->stock_quantity;
     $multiVariant = $product->relationLoaded('variants')
         ? $product->variants->count() > 1
@@ -33,8 +34,8 @@
                 <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary fs-6 z-1 px-3 py-2">Sold out</span>
             @endif
             @if($img)
-                @if($img instanceof \App\Models\ProductImage && $img->webp_url)
-                    {!! $img->pictureTag($product->name, '', 'w-100 h-100') !!}
+                @if($imgModel && $imgModel->webp_url)
+                    {!! $imgModel->pictureTag($product->name, '', 'w-100 h-100') !!}
                 @else
                     <img src="{{ $img }}" alt="{{ $product->name }}" loading="lazy" decoding="async">
                 @endif

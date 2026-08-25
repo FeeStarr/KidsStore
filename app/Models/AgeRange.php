@@ -10,7 +10,7 @@ class AgeRange extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'is_active'];
+    protected $fillable = ['name', 'is_active', 'default_size_id'];
 
     protected $casts = [
         'is_active' => 'boolean',
@@ -19,5 +19,10 @@ class AgeRange extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function defaultSize()
+    {
+        return $this->belongsTo(Size::class, 'default_size_id');
     }
 }
