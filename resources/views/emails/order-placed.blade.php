@@ -22,12 +22,12 @@
     <tr>
         <td style="padding:28px 30px 0;">
             @if($isInternal ?? false)
-                <p style="margin:0;font-size:16px;color:#1f2937;">New order from {{ $order->customer?->name ?? 'a customer' }}</p>
+                <p style="margin:0;font-size:16px;color:#1f2937;">New order from {{ $order->customer?->name ?? $order->guest_name ?? 'a customer' }}</p>
                 <p style="margin:10px 0 0;font-size:14px;color:#4b5563;line-height:1.6;">
                     A new order <strong>{{ $order->reference }}</strong> has been placed. Please review and process.
                 </p>
             @else
-                <p style="margin:0;font-size:16px;color:#1f2937;">Hello {{ $order->customer?->name ?? 'there' }},</p>
+                <p style="margin:0;font-size:16px;color:#1f2937;">Hello {{ $order->customer?->name ?? $order->guest_name ?? 'there' }},</p>
                 <p style="margin:10px 0 0;font-size:14px;color:#4b5563;line-height:1.6;">
                     Thank you for your order! We've received it and will begin processing shortly.
                 </p>

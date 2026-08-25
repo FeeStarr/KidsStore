@@ -34,6 +34,17 @@ class SendOrderPlacedNotifications
                     'email' => $order->customer->email,
                 ]);
             }
+        } elseif ($order->guest_email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($order->guest_email)
+                    ->send(new OrderPlacedNotification($order));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('OrderPlaced notification to guest failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $order->reference,
+                    'email' => $order->guest_email,
+                ]);
+            }
         }
 
         foreach (NotificationRecipients::adminUsers() as $admin) {
