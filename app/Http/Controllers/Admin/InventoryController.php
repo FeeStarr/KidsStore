@@ -16,7 +16,7 @@ class InventoryController extends Controller
 
     public function index(Request $request): View
     {
-        $query = Inventory::with(['product', 'variant.product', 'variant.ageRange', 'variant.sizeRef', 'variant.colorRef']);
+        $query = Inventory::with(['product', 'variant.product', 'variant.image', 'variant.ageRange', 'variant.sizeRef', 'variant.colorRef']);
 
         if ($request->boolean('low_stock')) {
             $query->whereRaw('COALESCE(quantity_on_hand, quantity) <= reorder_level');

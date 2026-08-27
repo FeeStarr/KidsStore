@@ -15,10 +15,10 @@
             <div class="card-body">
                 <h6 class="text-uppercase text-muted small">Categories</h6>
                 <ul class="list-unstyled mb-3">
-                    <li><a href="{{ route('shop.products.index', request()->except(['category','page'])) }}" class="{{ request('category') ? '' : 'fw-bold' }}">All</a></li>
+                    <li><a href="{{ route('shop.products.index', request()->except(['category','page','q'])) }}" class="{{ request('category') ? '' : 'fw-bold' }}">All</a></li>
                     @foreach($categories as $c)
                         <li>
-                            <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category']), ['category' => $c->id])) }}"
+                            <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category','q']), ['category' => $c->id])) }}"
                                class="{{ (int) request('category') === $c->id ? 'fw-bold text-primary' : 'text-dark' }}">
                                 {{ $c->name }}
                             </a>

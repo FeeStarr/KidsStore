@@ -2,14 +2,10 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class VerifyEmailNotification extends Notification implements ShouldQueue
-{
-    use Queueable;
+class VerifyEmailNotification extends Notification
 
     public function __construct(private int $userId) {}
 

@@ -98,7 +98,7 @@ class CheckoutController extends Controller
             $shippingFee = (float) ($data['shipping_fee'] ?? 0);
         }
 
-        $orderStatus = ($data['payment_method'] ?? '') === 'instant_bank_transfer'
+        $orderStatus = in_array($data['payment_method'] ?? '', ['pay_now', 'pay_on_delivery'])
             ? 'pending payment'
             : 'confirmed';
 
@@ -134,14 +134,9 @@ class CheckoutController extends Controller
                 ->with('success', 'Order placed! Order Number: '.$order->reference.'. Please enter correct email for order tracking.');
         }
 
-        $redirect = redirect()->route('shop.account.orders.show', $order)
-            ->with('success', 'Order placed! Order Number: '.$order->reference);
-
-        if (($data['payment_method'] ?? '') === 'instant_bank_transfer') {
-            $redirect = $redirect->with('show_pay_now', true);
-        }
-
-        return $redirect;
+        return redirect()->route('shop.account.orders.show', $order)
+            ->with('success', 'Order placed! Order Number: '.$order->reference)
+            ->with('show_pay_now', true);
     }
 
     public function orderLookupForm()

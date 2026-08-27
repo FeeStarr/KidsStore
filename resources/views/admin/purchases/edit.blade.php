@@ -7,26 +7,27 @@
 $productsJson = $products->map(fn($p) => [
     'id'       => $p->id,
     'name'     => $p->name,
+    'image'    => $p->images->first()?->url ?? '',
     'variants' => $p->variants->map(fn($v) => [
         'id'            => $v->id,
         'sku'           => $v->sku,
         'color'         => $v->colorRef?->name ?? '',
-        'age'           => $v->ageRange?->name ?? '',
-        'size'          => $v->sizeRef?->name ?? '',
+        'age'           => $v->ageRange?->name ?? ($v->options['age'] ?? ''),
+        'size'          => $v->sizeRef?->name ?? ($v->options['size'] ?? ($v->options['shoe_size'] ?? '')),
         'selling_price' => (float) $v->selling_price,
         'label'         => $v->options_label,
+        'image'         => $v->image?->url ?? $p->images->first()?->url ?? '',
     ])->values(),
 ])->values();
 
-// Existing items grouped by product+color for pre-population.
-// Structure: [ productId => [ colorName => [ variantId => item ] ] ]
+// Existing items grouped by product for pre-population.
+// Structure: [ productId => [ variantId => item ] ]
 $existingGroups = [];
 foreach ($purchase->items as $item) {
     $v      = $item->variant;
     $pid    = $item->product_id;
-    $color  = $v?->colorRef?->name ?? '';
     $vid    = $item->product_variant_id;
-    $existingGroups[$pid][$color][$vid] = [
+    $existingGroups[$pid][$vid] = [
         'qty'      => $item->quantity,
         'cost'     => (float) $item->cost_price,
         'shipping' => (float) $item->shipping_fee,
@@ -285,7 +286,8 @@ $allocOther     = (float) $purchase->total_other_costs;
                 <table class="table table-sm table-bordered mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Age Range</th><th>Size</th><th>Age Range</th>
+                            <th style="width:44px"></th>
+                            <th>Age Range</th><th>Size</th>
                             <th style="width:80px">Qty</th>
                             <th style="width:110px">Unit Cost (₦)</th>
                             <th style="width:80px">Markup %</th>
@@ -395,9 +397,9 @@ $allocOther     = (float) $purchase->total_other_costs;
                     : flt(markupInp.value);
 
                 tr.innerHTML = `
+                    <td><img src="${v.image || ''}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;${v.image ? '' : 'display:none'}" class="vthumb" alt=""></td>
                     <td class="small">${v.age || '<span class="text-muted">-</span>'}</td>
                     <td class="small">${v.size || '<span class="text-muted">-</span>'}</td>
-                    <td class="text-muted small">${v.age || '<span class="text-muted">-</span>'}</td>
                     <td><input type="number" min="0" value="${qty}" class="form-control form-control-sm vqty"></td>
                     <td><input type="number" step="0.01" min="0" value="${cost.toFixed(2)}" class="form-control form-control-sm vcost"></td>
                     <td><input type="number" step="0.01" min="0" value="${derivedMarkup}" class="form-control form-control-sm vmarkup"></td>
@@ -511,19 +513,20 @@ $allocOther     = (float) $purchase->total_other_costs;
         this.submit();
     });
 
+    // ── Prevent Enter key from submitting the form ───────────────────────────
+    document.getElementById('purchase-form').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON' && e.target.type !== 'submit') {
+            e.preventDefault();
+        }
+    });
+
     // ── Wire buttons ──────────────────────────────────────────────────────────
     document.getElementById('add-group').addEventListener('click', () => addGroup());
     document.getElementById('add-group-2').addEventListener('click', () => addGroup());
 
     // ── Pre-populate from existing purchase items ─────────────────────────────
-    const seen = new Set();
-    Object.entries(EXISTING).forEach(([pid, colorMap]) => {
-        Object.entries(colorMap).forEach(([color, items]) => {
-            const key = `${pid}|${color}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            addGroup(parseInt(pid), color, items);
-        });
+    Object.entries(EXISTING).forEach(([pid, items]) => {
+        addGroup(parseInt(pid), undefined, items);
     });
 
     // If no existing items, start with an empty group
