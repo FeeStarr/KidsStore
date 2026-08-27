@@ -39,7 +39,7 @@
             <div class="mb-3">
                 <label class="form-label">Phone *</label>
                 <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"
-                       value="{{ old('phone', $customer->phone) }}" required>
+                       value="{{ old('phone', $customer?->phone) }}" required>
                 @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
