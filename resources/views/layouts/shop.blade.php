@@ -200,7 +200,7 @@
                     <li><a class="dropdown-item" href="{{ route('shop.contact') }}">Contact</a></li>
                     <li><a class="dropdown-item" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ route('shop.custom-orders.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
+                    <li><a class="dropdown-item" href="{{ route('custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                 </ul>
             </li>
         </ul>
