@@ -153,7 +153,7 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
             <p class="promo-sub mb-3" style="font-size:1rem; color:rgba(255,255,255,.9);">
                 Pick your style, fabric & colours. We bring your dream frock to life for your little one.
             </p>
-            <a href="{{ route('shop.custom-orders.create') }}" class="btn btn-light btn-lg" style="border-radius:50px; font-weight:600;">
+            <a href="{{ route('custom-frock.create') }}" class="btn btn-light btn-lg" style="border-radius:50px; font-weight:600;">
                 <i class="bi bi-palette-fill"></i> Start Ordering
             </a>
         </div>
