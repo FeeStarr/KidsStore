@@ -75,7 +75,7 @@
                 <label class="form-label">Delivery Address *</label>
                 <textarea name="address" rows="3"
                           class="form-control @error('address') is-invalid @enderror"
-                          placeholder="Full delivery address">{{ old('address', $customer->address) }}</textarea>
+                          placeholder="Full delivery address">{{ old('address', $customer?->address) }}</textarea>
                 @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
