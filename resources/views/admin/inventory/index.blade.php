@@ -12,6 +12,7 @@
 <table id="inventory-table" class="table align-middle w-100">
     <thead>
     <tr>
+        <th data-dt-no-export></th>
         <th>Product</th>
         <th>Variant</th>
         <th>SKU</th>
@@ -25,6 +26,15 @@
     @foreach($inventories as $inv)
         @php $v = $inv->variant; @endphp
         <tr>
+            <td data-dt-no-export>
+                @if($v?->image)
+                    <img src="{{ $v->image->url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
+                @elseif($v?->product?->primaryImage)
+                    <img src="{{ $v->product->primaryImage->url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
+                @else
+                    <div style="width:40px;height:40px;background:#f8f9fa;border-radius:6px;" class="d-flex align-items-center justify-content-center text-muted"><i class="bi bi-image" style="font-size:.7rem"></i></div>
+                @endif
+            </td>
             <td>{{ $v?->product?->name ?? $inv->product?->name }}</td>
             <td>
                 @if($v)

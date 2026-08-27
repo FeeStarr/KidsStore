@@ -47,22 +47,22 @@
             <h5 class="mb-3">Delivery Method</h5>
 
             <div class="d-flex gap-3 mb-3">
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'pickup') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'delivery') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
                      id="opt-delivery">
                     <input class="form-check-input" type="radio" name="delivery_method" value="delivery"
-                           id="dm_delivery" {{ old('delivery_method') === 'delivery' ? 'checked' : '' }}>
+                           id="dm_delivery" {{ old('delivery_method', 'delivery') === 'delivery' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="dm_delivery">
                         <i class="bi bi-truck me-1"></i> Home Delivery
                         <small class="text-muted d-block fw-normal">Delivered to your address</small>
                     </label>
                 </div>
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'pickup') === 'pickup' ? 'border-primary bg-primary-subtle' : '' }}"
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 text-muted" style="opacity:.55; pointer-events:none;"
                      id="opt-pickup">
                     <input class="form-check-input" type="radio" name="delivery_method" value="pickup"
-                           id="dm_pickup" {{ old('delivery_method', 'pickup') !== 'delivery' ? 'checked' : '' }}>
+                           id="dm_pickup" disabled>
                     <label class="form-check-label fw-semibold" for="dm_pickup">
                         <i class="bi bi-geo-alt me-1"></i> Pick Up
-                        <small class="text-muted d-block fw-normal">Collect from a station near you</small>
+                        <small class="text-muted d-block fw-normal">Currently unavailable</small>
                     </label>
                 </div>
             </div>
@@ -190,12 +190,10 @@
                                    {{ $loop->first ? 'checked' : '' }}>
                             <label class="form-check-label" for="pm_{{ $method->key }}">
                                 {{ $method->label }}
-                                @if($method->key === 'instant_bank_transfer')
-                                    <div class="small text-muted mt-1">A virtual account number will be generated for you to transfer to. Payment is verified automatically.</div>
-                                @elseif($method->key === 'pay_at_pickup')
-                                    <div class="small text-muted mt-1">Pay when you collect your order at the pickup station. Station staff will provide bank details.</div>
-                                @elseif($method->key === 'transfer')
-                                    <div class="small text-muted mt-1">Pay on delivery is by bank transfer. Transfer to the account details shown when your order is delivered.</div>
+                                @if($method->key === 'pay_now')
+                                    <div class="small text-muted mt-1">Pay securely now via Paystack. Your order is confirmed immediately.</div>
+                                @elseif($method->key === 'pay_on_delivery')
+                                    <div class="small text-muted mt-1">Pay securely via Paystack when your order is delivered.</div>
                                 @endif
                             </label>
                         </div>

@@ -151,11 +151,11 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
                 <i class="bi bi-scissors"></i> Custom Orders
             </div>
             <p class="promo-sub mb-3" style="font-size:1rem; color:rgba(255,255,255,.9);">
-                Pick your style, fabric, colours & embellishments. We bring your dream frock to life - measured perfectly for your little one.
+                Pick your style, fabric & colours. We bring your dream frock to life for your little one.
             </p>
-            <span class="btn btn-light btn-lg disabled" style="border-radius:50px; font-weight:600; color:#6b7280; pointer-events:none; opacity:.7;">
-                <i class="bi bi-palette-fill"></i> Start Designing <span class="badge bg-secondary bg-opacity-25 text-dark ms-1" style="font-size:.65rem;">Coming Soon</span>
-            </span>
+            <a href="{{ route('shop.custom-orders.create') }}" class="btn btn-light btn-lg" style="border-radius:50px; font-weight:600;">
+                <i class="bi bi-palette-fill"></i> Start Ordering
+            </a>
         </div>
         <div class="col-md-4 text-center d-none d-md-block">
             <span style="font-size:7rem; filter:grayscale(.6); opacity:.5;">&#127870;</span>

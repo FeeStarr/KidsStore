@@ -145,6 +145,11 @@ Route::name('shop.')->group(function () {
     });
 });
 
+// Guest Paystack payment — uses order lookup token for guest access
+Route::post('/order-track/{token}/pay', [PaystackController::class, 'guestInitiate'])->name('shop.paystack.guest-initiate');
+Route::get('/order-track/{token}/pay/callback', [PaystackController::class, 'guestCallback'])->name('shop.paystack.guest-callback');
+Route::post('/order-track/{token}/pay/query', [PaystackController::class, 'guestQuery'])->name('shop.paystack.guest-query');
+
 // Paystack webhook — no auth, no CSRF (exempted in bootstrap/app.php)
 Route::post('/paystack/webhook', [PaystackController::class, 'webhook'])->name('paystack.webhook')->middleware('throttle:60,1');
 

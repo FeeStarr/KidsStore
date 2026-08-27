@@ -12,8 +12,8 @@ $productsJson = $products->map(fn($p) => [
         'id'            => $v->id,
         'sku'           => $v->sku,
         'color'         => $v->colorRef?->name ?? '',
-        'age'           => $v->ageRange?->name ?? '',
-        'size'          => $v->sizeRef?->name ?? '',
+        'age'           => $v->ageRange?->name ?? ($v->options['age'] ?? ''),
+        'size'          => $v->sizeRef?->name ?? ($v->options['size'] ?? ($v->options['shoe_size'] ?? '')),
         'selling_price' => (float) $v->selling_price,
         'label'         => $v->options_label,
         'image'         => $v->image?->url ?? $p->images->first()?->url ?? '',
@@ -523,6 +523,13 @@ $productsJson = $products->map(fn($p) => [
         });
 
         this.submit();
+    });
+
+    // ── Prevent Enter key from submitting the form ───────────────────────────
+    document.getElementById('purchase-form').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON' && e.target.type !== 'submit') {
+            e.preventDefault();
+        }
     });
 
     // ── Wire up both "Add Product Group" buttons ──────────────────────────────
