@@ -6,6 +6,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class VerifyEmailNotification extends Notification
+{
 
     public function __construct(private int $userId) {}
 
