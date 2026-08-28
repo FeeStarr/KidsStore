@@ -20,9 +20,6 @@
                     <input type="email" class="form-control" value="{{ $customer->email }}" disabled>
                 </div>
             @else
-                <div class="alert alert-info small mb-3">
-                    <i class="bi bi-info-circle me-1"></i> Please enter your correct email to enable order tracking.
-                </div>
                 <div class="mb-3">
                     <label class="form-label">Name *</label>
                     <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
@@ -30,10 +27,13 @@
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Email *</label>
-                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
-                           value="{{ old('email') }}" required>
-                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <label class="form-label">Email</label>
+                    <div class="input-group">
+                        <input type="email" class="form-control" value="{{ $guestEmail ?? '' }}" disabled>
+                        <span class="input-group-text bg-success text-white"><i class="bi bi-check-lg"></i></span>
+                    </div>
+                    <input type="hidden" name="email" value="{{ $guestEmail ?? '' }}">
+                    <small class="text-success"><i class="bi bi-shield-check me-1"></i>Verified</small>
                 </div>
             @endif
             <div class="mb-3">
@@ -179,26 +179,24 @@
                 <dd class="col-6 text-end fw-bold">&#8358;{{ number_format($totalAmount, 2) }}</dd>
             </dl>
             <div class="mb-3">
-                <label class="form-label">Payment Method</label>
-                @if($paymentMethods->isEmpty())
-                    <div class="text-muted small">No payment methods available.</div>
-                @else
-                    @foreach($paymentMethods as $method)
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="payment_method"
-                                   id="pm_{{ $method->key }}" value="{{ $method->key }}"
-                                   {{ $loop->first ? 'checked' : '' }}>
-                            <label class="form-check-label" for="pm_{{ $method->key }}">
-                                {{ $method->label }}
-                                @if($method->key === 'pay_now')
-                                    <div class="small text-muted mt-1">Pay securely now via Paystack. Your order is confirmed immediately.</div>
-                                @elseif($method->key === 'pay_on_delivery')
-                                    <div class="small text-muted mt-1">Pay securely via Paystack when your order is delivered.</div>
-                                @endif
-                            </label>
-                        </div>
-                    @endforeach
-                @endif
+                <label class="form-label">How would you like to pay?</label>
+                <div class="form-check border rounded p-3 mb-2 {{ old('payment_method', 'pay_now') === 'pay_now' ? 'border-primary bg-primary-subtle' : '' }}">
+                    <input class="form-check-input" type="radio" name="payment_method" value="pay_now"
+                           id="pm_pay_now" {{ old('payment_method', 'pay_now') === 'pay_now' ? 'checked' : '' }}>
+                    <label class="form-check-label fw-semibold" for="pm_pay_now">
+                        <i class="bi bi-credit-card me-1"></i> Pay Now
+                        <div class="small text-muted fw-normal mt-1">Pay securely via Paystack now. Your order is confirmed immediately.</div>
+                    </label>
+                </div>
+                <div class="form-check border rounded p-3 {{ old('payment_method') === 'pay_on_delivery' ? 'border-primary bg-primary-subtle' : '' }}">
+                    <input class="form-check-input" type="radio" name="payment_method" value="pay_on_delivery"
+                           id="pm_pay_on_delivery" {{ old('payment_method') === 'pay_on_delivery' ? 'checked' : '' }}>
+                    <label class="form-check-label fw-semibold" for="pm_pay_on_delivery">
+                        <i class="bi bi-cash-stack me-1"></i> Pay on Delivery
+                        <div class="small text-muted fw-normal mt-1">Pay via Paystack when your order arrives. Your order will be reviewed before confirmation.</div>
+                    </label>
+                </div>
+                @error('payment_method')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             </div>
             </div>
             <button class="btn btn-primary w-100" type="submit">

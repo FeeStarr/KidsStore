@@ -92,8 +92,14 @@ Route::name('shop.')->group(function () {
     Route::post('/logout', [ShopAuthController::class, 'logout'])
         ->middleware('auth')->name('logout');
 
-    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show')->middleware('verified');
-    Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place')->middleware('verified');
+    // Guest checkout OTP verification (before checkout routes)
+    Route::post('/checkout/send-otp', [CheckoutController::class, 'sendOtp'])->name('checkout.send-otp')->middleware('throttle:3,1');
+    Route::get('/checkout/verify-otp', [CheckoutController::class, 'showVerifyOtp'])->name('checkout.verify-otp');
+    Route::post('/checkout/verify-otp', [CheckoutController::class, 'verifyOtp'])->name('checkout.verify-otp.post');
+    Route::post('/checkout/resend-otp', [CheckoutController::class, 'resendOtp'])->name('checkout.resend-otp')->middleware('throttle:3,1');
+
+    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+    Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
     Route::get('/order-lookup', [CheckoutController::class, 'orderLookupForm'])->name('order.lookup');
     Route::post('/order-lookup', [CheckoutController::class, 'orderLookup'])->name('order.lookup.submit');
     Route::get('/order-track/{token}', [CheckoutController::class, 'orderTrack'])->name('order.track');
