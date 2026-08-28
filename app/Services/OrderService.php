@@ -46,6 +46,10 @@ class OrderService
             $order = Order::create([
                 'reference'              => $data['reference'] ?? $this->generateReference(),
                 'customer_id'            => $data['customer_id'] ?? null,
+                'lookup_token'           => $data['lookup_token'] ?? null,
+                'guest_name'             => $data['guest_name'] ?? null,
+                'guest_email'            => $data['guest_email'] ?? null,
+                'guest_phone'            => $data['guest_phone'] ?? null,
                 'order_date'             => $data['order_date'],
                 'status'                 => $data['status'] ?? 'confirmed',
                 'delivery_method'        => $data['delivery_method'] ?? 'delivery',
@@ -55,6 +59,7 @@ class OrderService
                 'discount'               => (float) ($data['discount'] ?? 0),
                 'shipping_fee'           => (float) ($data['shipping_fee'] ?? 0),
                 'note'                   => $data['note'] ?? null,
+                'coupon_id'              => $data['coupon_id'] ?? null,
                 'expected_delivery_date' => $data['expected_delivery_date']
                     ?? now()->parse($data['order_date'])->addDays(7)->toDateString(),
             ]);
