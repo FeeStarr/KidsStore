@@ -99,7 +99,8 @@ class PaystackController extends Controller
         }
 
         return redirect()->route('shop.account.orders.show', $order)
-            ->with('error', 'We could not confirm your payment yet. Please check again shortly.');
+            ->with('info', 'Your payment is being verified. This usually takes a few seconds.')
+            ->with('verifying_payment', true);
     }
 
     // ── Customer: query status ────────────────────────────────────────────────
@@ -225,7 +226,8 @@ class PaystackController extends Controller
         }
 
         return redirect()->route('shop.order.track', $token)
-            ->with('error', 'We could not confirm your payment yet. Please check again shortly.');
+            ->with('info', 'Your payment is being verified. This usually takes a few seconds.')
+            ->with('verifying_payment', true);
     }
 
     // ── Guest: query status ───────────────────────────────────────────────────
