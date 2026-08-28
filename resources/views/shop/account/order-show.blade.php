@@ -34,6 +34,13 @@
             <div id="pay-now-review" class="small text-muted" data-order-id="{{ $order->id }}">
                 Waiting for admin confirmation...
             </div>
+        @elseif(session('verifying_payment'))
+            <h5 class="mb-2"><i class="bi bi-hourglass-split me-2"></i>Verifying Your Payment</h5>
+            <p class="text-muted small mb-3">We received your payment and are confirming it with Paystack. This usually takes a few seconds.</p>
+            <div class="spinner-border text-primary mb-2" role="status"></div>
+            <div id="pn-verifying" class="small text-muted" data-order-id="{{ $order->id }}">
+                Checking payment status...
+            </div>
         @else
             <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
             <p class="text-muted small mb-3">Click Pay Now. A secure payment window will open where you can pay with your preferred method.</p>
@@ -575,6 +582,31 @@
             })
             .catch(function() {});
         }, 30000);
+    }
+
+    // ── Verifying payment auto-poll (after callback redirect) ────────────────
+    var verifyEl = document.getElementById('pn-verifying');
+    if (verifyEl) {
+        var verifyPoll = setInterval(function() {
+            fetch('{{ route("shop.paystack.query", $order) }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.paid || data.payment_status === 'paid') {
+                    clearInterval(verifyPoll);
+                    location.reload();
+                } else if (data.payment_status === 'under_review') {
+                    clearInterval(verifyPoll);
+                    location.reload();
+                } else if (data.seconds_remaining !== undefined && data.seconds_remaining <= 0) {
+                    clearInterval(verifyPoll);
+                    verifyEl.innerHTML = 'Verification is taking longer than expected. <button class="btn btn-sm btn-outline-primary ms-2" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>';
+                }
+            })
+            .catch(function() {});
+        }, 5000);
     }
 
     // ── Refund form: toggle item fields on scope selection ────────────────────
