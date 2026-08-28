@@ -26,7 +26,7 @@
                                 <ul class="list-unstyled ms-3">
                                     @foreach($c->children->filter(fn($sub) => $sub->is_active) as $sub)
                                         <li>
-                                            <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category']), ['category' => $sub->id])) }}"
+                                            <a href="{{ route('shop.products.index', array_merge(request()->except(['page','category','q']), ['category' => $sub->id])) }}"
                                                class="small {{ (int) request('category') === $sub->id ? 'fw-bold text-primary' : 'text-muted' }}">
                                                 - {{ $sub->name }}
                                             </a>
@@ -66,10 +66,6 @@
     </aside>
 
     <div class="col-md-9">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0 text-muted">{{ $products->total() }} {{ Str::plural('product', $products->total()) }}</h5>
-        </div>
-
         <div class="row g-3">
             @forelse($products as $product)
                 <div class="col-6 col-md-4">@include('shop.partials.product-card', ['product' => $product])</div>
