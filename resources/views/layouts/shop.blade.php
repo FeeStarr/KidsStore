@@ -200,7 +200,7 @@
                     <li><a class="dropdown-item" href="{{ route('shop.contact') }}">Contact</a></li>
                     <li><a class="dropdown-item" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ route('custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
+                    <li><a class="dropdown-item" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                 </ul>
             </li>
         </ul>
@@ -233,7 +233,7 @@
                         @endif
                         <li><a class="dropdown-item" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
-                        <li><span class="dropdown-item text-muted" style="cursor:default"><i class="bi bi-scissors me-1"></i>Custom Orders <span class="badge bg-secondary bg-opacity-25 text-secondary ms-1" style="font-size:.6rem">Soon</span></span></li>
+                        <li><a class="dropdown-item" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf

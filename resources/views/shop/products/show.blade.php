@@ -336,13 +336,10 @@
         if (!items.length) { container.style.display = 'none'; return; }
         container.style.display = '';
 
-        const wrap = document.createElement('div');
-        wrap.className = 'w-100 mb-1';
         const lbl = document.createElement('small');
-        lbl.className = 'text-muted';
+        lbl.className = 'text-muted me-2';
         lbl.textContent = label;
-        wrap.appendChild(lbl);
-        container.appendChild(wrap);
+        container.appendChild(lbl);
 
         items.forEach(item => {
             const btn = document.createElement('button');
