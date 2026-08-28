@@ -86,7 +86,7 @@ class PaystackController extends Controller
                 $transaction = $this->paystack->queryStatus($transaction);
                 $order->refresh();
 
-                if ($order->payment_status === 'paid') {
+                if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
                     return redirect()->route('shop.account.orders.show', $order)
                         ->with('success', 'Payment confirmed. Thank you!');
                 }
@@ -96,6 +96,13 @@ class PaystackController extends Controller
                         ->with('info', 'Payment received and is under review.');
                 }
             }
+        }
+
+        // Check once more — webhook may have arrived while we were redirecting
+        $order->refresh();
+        if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            return redirect()->route('shop.account.orders.show', $order)
+                ->with('success', 'Payment confirmed. Thank you!');
         }
 
         return redirect()->route('shop.account.orders.show', $order)
@@ -213,7 +220,7 @@ class PaystackController extends Controller
                 $transaction = $this->paystack->queryStatus($transaction);
                 $order->refresh();
 
-                if ($order->payment_status === 'paid') {
+                if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
                     return redirect()->route('shop.order.track', $token)
                         ->with('success', 'Payment confirmed. Thank you!');
                 }
@@ -223,6 +230,12 @@ class PaystackController extends Controller
                         ->with('info', 'Payment received and is under review.');
                 }
             }
+        }
+
+        $order->refresh();
+        if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            return redirect()->route('shop.order.track', $token)
+                ->with('success', 'Payment confirmed. Thank you!');
         }
 
         return redirect()->route('shop.order.track', $token)
