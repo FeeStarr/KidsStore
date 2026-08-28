@@ -98,9 +98,7 @@ class CheckoutController extends Controller
             $shippingFee = (float) ($data['shipping_fee'] ?? 0);
         }
 
-        $orderStatus = in_array($data['payment_method'] ?? '', ['pay_now', 'pay_on_delivery'])
-            ? 'pending payment'
-            : 'confirmed';
+        $orderStatus = 'pending payment';
 
         try {
             $order = $this->orders->create([

@@ -92,8 +92,8 @@ Route::name('shop.')->group(function () {
     Route::post('/logout', [ShopAuthController::class, 'logout'])
         ->middleware('auth')->name('logout');
 
-    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
-    Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
+    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show')->middleware('verified');
+    Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place')->middleware('verified');
     Route::get('/order-lookup', [CheckoutController::class, 'orderLookupForm'])->name('order.lookup');
     Route::post('/order-lookup', [CheckoutController::class, 'orderLookup'])->name('order.lookup.submit');
     Route::get('/order-track/{token}', [CheckoutController::class, 'orderTrack'])->name('order.track');
