@@ -260,9 +260,15 @@ class OrderService
 
     public function generateReference(): string
     {
-        $next = (Order::max('id') ?? 0) + 1;
+        // Avoid max(id)+1 race under concurrent guest checkouts — previous
+        // implementation gave two simultaneous orders the same ORD-xxxxx, which
+        // then caused Paystack Duplicate Transaction Reference (KS-{ORD}-*).
+        // Use time + strong random; loop until truly unique.
+        do {
+            $ref = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+        } while (Order::where('reference', $ref)->exists());
 
-        return 'ORD-'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        return $ref;
     }
 
     private function createItem(Order $order, array $row): OrderItem
