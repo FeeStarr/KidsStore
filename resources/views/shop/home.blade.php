@@ -144,21 +144,40 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
 </div>
 @endif
 
-<div class="promo-section mb-5" style="background: linear-gradient(120deg, #9ca3af, #6b7280 50%, #4b5563); opacity:.85;">
+<div class="mb-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, #ff6fa3 0%, #c77dff 38%, #7b68ee 68%, #4cc9f0 100%); border-radius:24px; padding:2.2rem 1.6rem;">
+    {{-- floating doodles --}}
+    <span class="position-absolute" style="top:-12px; right:12%; font-size:2.2rem; opacity:.28; transform:rotate(12deg);">✦</span>
+    <span class="position-absolute" style="bottom:10px; right:6%; font-size:1.6rem; opacity:.22;">❤</span>
+    <span class="position-absolute" style="top:18px; left:4%; font-size:1.3rem; opacity:.2;">✿</span>
     <div class="row align-items-center position-relative" style="z-index:1;">
-        <div class="col-md-8">
-            <div class="promo-title mb-2" style="font-size:1.5rem;">
-                <i class="bi bi-scissors"></i> Custom Orders
+        <div class="col-md-8 text-white">
+            <div class="d-inline-flex align-items-center gap-2 mb-2 px-3 py-1 bg-white bg-opacity-25 rounded-pill" style="backdrop-filter:blur(6px); font-weight:700; font-size:.82rem; letter-spacing:.04em;">
+                <span style="background:#fff; color:#c77dff; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;"><i class="bi bi-stars"></i></span>
+                Custom Frock • Made just for her
             </div>
-            <p class="promo-sub mb-3" style="font-size:1rem; color:rgba(255,255,255,.9);">
-                Pick your style, fabric & colours. We bring your dream frock to life for your little one.
+            <h3 class="fw-bold mb-2" style="font-size:1.65rem; line-height:1.2; color:#fff;">
+                Pick your style &amp; colours. We bring your dream frock to life, from beautiful birthday dresses to special outfits made just for her. ✨
+            </h3>
+            <p class="mb-3" style="color:rgba(255,255,255,.92); font-size:.96rem;">
+                Choose fabrics, colours &amp; details — we stitch the magic.
             </p>
-            <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-light btn-lg" style="border-radius:50px; font-weight:600;">
-                <i class="bi bi-palette-fill"></i> Start Ordering
+            <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-light btn-lg px-4" style="border-radius:50px; font-weight:800; color:#7b2d8b; box-shadow:0 8px 22px rgba(0,0,0,.18);">
+                <i class="bi bi-palette-fill me-1"></i> Design Your Frock
+                <i class="bi bi-arrow-right ms-1"></i>
             </a>
+            <div class="mt-2 small" style="color:rgba(255,255,255,.78);"><i class="bi bi-check-circle-fill me-1"></i> No stock limits — made to order</div>
         </div>
         <div class="col-md-4 text-center d-none d-md-block">
-            <span style="font-size:7rem; filter:grayscale(.6); opacity:.5;">&#127870;</span>
+            <div class="position-relative d-inline-block">
+                <span class="position-absolute" style="top:-6px; right:-8px; background:#ffd166; color:#5a3a00; font-size:.7rem; font-weight:800; padding:4px 8px; border-radius:50px; transform:rotate(6deg); box-shadow:0 4px 10px rgba(0,0,0,.12);">✨ NEW</span>
+                <div style="font-size:6.2rem; filter:drop-shadow(0 10px 18px rgba(0,0,0,.18)); line-height:1;">👗</div>
+                <div class="mx-auto mt-2 d-flex justify-content-center gap-1">
+                    <span style="width:14px; height:14px; border-radius:50%; background:#ffd166; border:2px solid rgba(255,255,255,.9);"></span>
+                    <span style="width:14px; height:14px; border-radius:50%; background:#ff6fa3; border:2px solid rgba(255,255,255,.9);"></span>
+                    <span style="width:14px; height:14px; border-radius:50%; background:#7b68ee; border:2px solid rgba(255,255,255,.9);"></span>
+                    <span style="width:14px; height:14px; border-radius:50%; background:#4cc9f0; border:2px solid rgba(255,255,255,.9);"></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
