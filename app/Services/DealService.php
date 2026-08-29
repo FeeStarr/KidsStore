@@ -11,7 +11,7 @@ use RuntimeException;
 
 /**
  * Central deal logic: lifecycle, pricing rules, overlap prevention.
- * The deal price is ALWAYS computed server-side here — never trusted from input.
+ * The deal price is ALWAYS computed server-side here - never trusted from input.
  */
 class DealService
 {

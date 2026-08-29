@@ -38,7 +38,7 @@ class OrderItemPickedUpNotification extends Notification
         $stationName = $order->pickupStation?->name ?? 'the pickup station';
 
         $message = (new MailMessage)
-            ->subject("Item picked up — {$order->reference}")
+            ->subject("Item picked up - {$order->reference}")
             ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line("**{$productName}** has been picked up from **{$stationName}**.")

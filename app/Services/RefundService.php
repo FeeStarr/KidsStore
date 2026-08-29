@@ -226,7 +226,7 @@ class RefundService
 
     /**
      * Approve the return request. This moves to approved status.
-     * Stock is NOT restored yet — that happens when the item is received.
+     * Stock is NOT restored yet - that happens when the item is received.
      */
     public function approve(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
     {
@@ -468,7 +468,7 @@ class RefundService
             } else {
                 $refundRequest->update([
                     'status'     => RefundRequest::STATUS_REFUNDED,
-                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund — no Paystack transaction]',
+                    'admin_note' => ($note ? $note . "\n" : '') . '[Manual refund - no Paystack transaction]',
                 ]);
                 $this->logAudit($refundRequest, 'refund_completed', $admin->id, 'Manual refund');
                 if (! $refundRequest->order_item_id) {

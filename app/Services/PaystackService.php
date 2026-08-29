@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Paystack integration — standard transaction (popup / redirect checkout).
+ * Paystack integration - standard transaction (popup / redirect checkout).
  *
  * Docs: https://paystack.com/docs/api/#transaction-initialize
  *       https://paystack.com/docs/payments/accept-payments/#popup
@@ -50,7 +50,7 @@ class PaystackService
      *
      * Our own KS- reference is passed to Paystack as the transaction reference,
      * which means the webhook tier-1 lookup and queryStatus tier-3 verify will
-     * both match directly — no virtual account or customer-scoped fallback needed.
+     * both match directly - no virtual account or customer-scoped fallback needed.
      *
      * @param  string|null  $callbackUrl  Override callback URL (guest vs registered)
      * @throws \RuntimeException if Paystack returns an error
@@ -73,7 +73,7 @@ class PaystackService
                 'amount'       => (float) $order->grand_total,
                 'status'       => 'pending',
                 'expires_at'   => now()->addMinutes($this->expireMinutes),
-                'opay_payload' => ['note' => 'Stub — PAYSTACK_SECRET_KEY not set'],
+                'opay_payload' => ['note' => 'Stub - PAYSTACK_SECRET_KEY not set'],
             ]);
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ class PaystackService
                 : route('shop.paystack.guest-callback', $order->lookup_token);
         }
 
-        // Paystack treats reference as globally unique forever — retry with a fresh
+        // Paystack treats reference as globally unique forever - retry with a fresh
         // reference if Paystack reports duplicate (random collision or stale retry).
         $response = null;
         $attempts = 0;
@@ -118,7 +118,7 @@ class PaystackService
             $isDuplicate = str_contains(strtolower($msg), 'duplicate');
 
             if ($isDuplicate && $attempts < 3) {
-                Log::warning('Paystack duplicate reference — retrying with new reference', [
+                Log::warning('Paystack duplicate reference - retrying with new reference', [
                     'order' => $order->reference,
                     'old_reference' => $reference,
                     'attempt' => $attempts,
@@ -153,9 +153,9 @@ class PaystackService
     {
         $transaction->update(['last_queried_at' => now()]);
 
-        // Stub mode — simulate success
+        // Stub mode - simulate success
         if (empty($this->secretKey)) {
-            $this->markTransactionSuccess($transaction, ['note' => 'Stub success — no credentials configured']);
+            $this->markTransactionSuccess($transaction, ['note' => 'Stub success - no credentials configured']);
             return $transaction->refresh();
         }
 
@@ -181,7 +181,7 @@ class PaystackService
             $orderAmount = (float) $transaction->order->grand_total;
 
             // Amount must match to the kobo. Any deviation is an anomaly that
-            // must NOT auto-confirm — route it to manual review instead.
+            // must NOT auto-confirm - route it to manual review instead.
             if (abs($paystackAmount - $orderAmount) > 0.01) {
                 $this->markUnderReview($transaction, $response, 'Amount mismatch: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
             } else {
@@ -203,10 +203,10 @@ class PaystackService
      * Try to locate a Paystack transaction for the given local transaction.
      *
      * Resolution order:
-     *   1. /transaction/{id}                 — stored Paystack transaction id
-     *   2. /transaction/verify/{reference}   — Paystack reference stored from webhook/earlier lookup
-     *   3. /transaction/verify/{appReference}— our KS- reference (usually 404)
-     *   4. /transaction?customer={numeric id} — unclaimed success for this customer
+     *   1. /transaction/{id}                 - stored Paystack transaction id
+     *   2. /transaction/verify/{reference}   - Paystack reference stored from webhook/earlier lookup
+     *   3. /transaction/verify/{appReference}- our KS- reference (usually 404)
+     *   4. /transaction?customer={numeric id} - unclaimed success for this customer
      *                                             matching amount + closest time
      */
     private function resolveTransactionFromPaystack(PaymentTransaction $transaction): ?array
@@ -306,7 +306,7 @@ class PaystackService
                         }
 
                         // A payment must have been made AFTER this payment
-                        // session/account was provisioned — an older transfer
+                        // session/account was provisioned - an older transfer
                         // belongs to a previous order, never this one.
                         $created = isset($txn['created_at'])
                             ? \Carbon\Carbon::parse($txn['created_at'])
@@ -315,7 +315,7 @@ class PaystackService
                             continue;
                         }
 
-                        // Amount must match to the kobo — a similar-amount
+                        // Amount must match to the kobo - a similar-amount
                         // payment for another order must never auto-confirm.
                         // (Verified before the receiver preference so we do not
                         // rely on an account field Paystack may not always send.)
@@ -534,7 +534,7 @@ class PaystackService
             $paystackAmount = (float) ($data['amount'] ?? 0) / 100;
             $orderAmount = (float) $transaction->order->grand_total;
 
-            // Exact amount required — a same-amount charge for a different order
+            // Exact amount required - a same-amount charge for a different order
             // must never confirm this one; flag for review instead.
             if (abs($paystackAmount - $orderAmount) > 0.01) {
                 $this->markUnderReview($transaction, $payload, 'Amount mismatch via webhook: expected ₦' . number_format($orderAmount, 2) . ', received ₦' . number_format($paystackAmount, 2));
@@ -690,7 +690,7 @@ class PaystackService
 
     private function generateReference(Order $order): string
     {
-        // Must be globally unique for Paystack — include order id (never re-used),
+        // Must be globally unique for Paystack - include order id (never re-used),
         // timestamp and strong random. Previous KS-{ORD-ref}-{6} could collide when
         // ORD-ref itself collided under concurrent checkouts (max(id)+1 race).
         return 'KS-' . $order->id . '-' . $order->reference . '-' . time() . '-' . strtoupper(Str::random(8));
@@ -709,8 +709,8 @@ class PaystackService
     private function verifyWebhookSignatureRaw(string $rawBody, string $receivedSignature): bool
     {
         // Paystack supports two signing modes:
-        // 1. Webhook secret (PAYSTACK_WEBHOOK_SECRET) — preferred, set in dashboard
-        // 2. Secret key (PAYSTACK_SECRET_KEY) — legacy fallback
+        // 1. Webhook secret (PAYSTACK_WEBHOOK_SECRET) - preferred, set in dashboard
+        // 2. Secret key (PAYSTACK_SECRET_KEY) - legacy fallback
         // Try webhook secret first; fall back to secret key for backward compat.
         $keys = array_filter([$this->webhookSecret, $this->secretKey]);
 

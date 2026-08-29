@@ -34,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->redirectGuestsTo(fn () => route('shop.login'));
 
-        // Paystack webhook is an unauthenticated server-to-server POST — exempt from CSRF
+        // Paystack webhook is an unauthenticated server-to-server POST - exempt from CSRF
         $middleware->validateCsrfTokens(except: [
             'paystack/webhook',
         ]);
@@ -110,7 +110,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->view('errors.429', [], 429);
         });
 
-        // Global fallback — log everything, show generic page
+        // Global fallback - log everything, show generic page
         $exceptions->reportable(function (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Unhandled exception', [
                 'message' => $e->getMessage(),

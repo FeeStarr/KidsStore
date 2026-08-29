@@ -210,7 +210,7 @@ class UserController extends Controller
     {
         $plain = $user->generateBackupCode();
 
-        // Flash the plaintext once — it is NEVER stored in plaintext anywhere
+        // Flash the plaintext once - it is NEVER stored in plaintext anywhere
         return redirect()->back()->with('backup_code', $plain)
             ->with('backup_code_user', $user->name);
     }

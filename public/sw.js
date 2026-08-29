@@ -8,7 +8,7 @@ const STATIC_ASSETS = [
     'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap',
 ];
 
-// Install — cache static assets
+// Install - cache static assets
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate - clean old caches
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys =>
@@ -26,7 +26,7 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-// Fetch — network first, fallback to cache (never cache API/cart/auth routes)
+// Fetch - network first, fallback to cache (never cache API/cart/auth routes)
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 

@@ -32,7 +32,7 @@ class RefundReturnNotification extends Notification
         $scope = $rr->getScopeLabel();
         $amount = '₦' . number_format($rr->amount, 2);
 
-        $subject = "Return approved for collection — {$order->reference}";
+        $subject = "Return approved for collection - {$order->reference}";
 
         $customerName = $order->customer?->name ?? 'N/A';
 

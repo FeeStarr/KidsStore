@@ -45,12 +45,12 @@ class SlaEscalationNotification extends Notification implements ShouldQueue
         };
 
         if ($this->urgency === 'breached') {
-            $subject = "SLA BREACHED: {$typeLabel} overdue — Return #{$rr->id}";
+            $subject = "SLA BREACHED: {$typeLabel} overdue - Return #{$rr->id}";
             $intro = "The <strong>{$typeLabel}</strong> SLA for Return <strong>#{$rr->id}</strong> ({$scope}) has been <strong>breached</strong>. Deadline was {$deadline->format('M d, Y')}.";
             $headerColor = '#dc2626';
             $headerLabel = 'SLA BREACHED';
         } else {
-            $subject = "SLA Warning: {$typeLabel} due soon — Return #{$rr->id}";
+            $subject = "SLA Warning: {$typeLabel} due soon - Return #{$rr->id}";
             $intro = "The <strong>{$typeLabel}</strong> SLA for Return <strong>#{$rr->id}</strong> ({$scope}) is due on <strong>{$deadline->format('M d, Y')}</strong>. Please take action soon.";
             $headerColor = '#f59e0b';
             $headerLabel = 'SLA WARNING';

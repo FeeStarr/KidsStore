@@ -42,7 +42,7 @@ class OrderStatusNotification extends Notification
             'ready for pick up'      => "Order {$order->reference} is ready for pick up",
             'delivered'              => "Order {$order->reference} has been delivered",
             'cancelled'              => "Order {$order->reference} has been cancelled",
-            'pickup window expired'  => "Order {$order->reference} — pickup window expired",
+            'pickup window expired'  => "Order {$order->reference} - pickup window expired",
             default                  => "Update on your order {$order->reference}",
         };
 

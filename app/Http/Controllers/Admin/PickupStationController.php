@@ -270,13 +270,13 @@ class PickupStationController extends Controller
             $status = $item->pickup_status;
             $color = $statusColors[$status] ?? 'secondary';
             return [
-                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '—',
-                'customer' => e($item->order?->customer?->name ?? '—'),
-                'product' => e($item->product?->name ?? '—'),
-                'variant' => e($item->variant?->options_label ?? '—'),
+                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '-',
+                'customer' => e($item->order?->customer?->name ?? '-'),
+                'product' => e($item->product?->name ?? '-'),
+                'variant' => e($item->variant?->options_label ?? '-'),
                 'quantity' => $item->quantity,
                 'unit_price' => '₦' . number_format($item->unit_price, 2),
-                'commission' => $status === 'picked_up' ? '<span class="text-success fw-bold">₦' . number_format($item->commission, 2) . '</span>' : '—',
+                'commission' => $status === 'picked_up' ? '<span class="text-success fw-bold">₦' . number_format($item->commission, 2) . '</span>' : '-',
                 'status' => '<span class="badge bg-' . $color . '">' . e(ucwords(str_replace('_', ' ', $status))) . '</span>',
             ];
         })->values();

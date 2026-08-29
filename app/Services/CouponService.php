@@ -191,7 +191,7 @@ class CouponService
      * Atomically record a usage for a customer/order. Throws if the global
      * limit or the per-customer limit has been reached (race-safe).
      *
-     * Call only on a successful/confirmed order or its payment verification —
+     * Call only on a successful/confirmed order or its payment verification -
      * NOT merely when a coupon is added to a cart or an unpaid order is made.
      */
     public function recordUsage(Coupon $coupon, int $customerId, int $orderId, float $discountAmount): void

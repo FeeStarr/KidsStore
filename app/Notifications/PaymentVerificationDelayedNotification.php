@@ -30,7 +30,7 @@ class PaymentVerificationDelayedNotification extends Notification
         $stationName = $station?->name ?? 'Unknown Station';
 
         $message = (new MailMessage)
-            ->subject("⚠ Payment Verification Overdue — {$this->order->reference}")
+            ->subject("⚠ Payment Verification Overdue - {$this->order->reference}")
             ->greeting("Hello {$notifiable->name},")
             ->line("A payment verification request has been waiting for **{$minutes} minutes** without admin action.")
             ->line("**Order:** {$this->order->reference}")

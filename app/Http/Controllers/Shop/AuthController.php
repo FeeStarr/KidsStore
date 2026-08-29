@@ -27,7 +27,7 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        // Brute-force protection — 5 attempts per email+IP per minute
+        // Brute-force protection - 5 attempts per email+IP per minute
         $throttleKey = 'shop-login:' . Str::lower($credentials['email']) . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);

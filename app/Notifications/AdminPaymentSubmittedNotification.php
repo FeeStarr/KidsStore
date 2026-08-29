@@ -29,7 +29,7 @@ class AdminPaymentSubmittedNotification extends Notification
         $stationName = $station?->name ?? 'Unknown Station';
 
         $message = (new MailMessage)
-            ->subject("Payment Verification Required — {$this->order->reference}")
+            ->subject("Payment Verification Required - {$this->order->reference}")
             ->greeting("Hello {$notifiable->name},")
             ->line("A pickup station has submitted a payment verification request.")
             ->line("**Order:** {$this->order->reference}")

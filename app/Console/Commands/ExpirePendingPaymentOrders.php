@@ -35,7 +35,7 @@ class ExpirePendingPaymentOrders extends Command
             $order->update(['status' => 'expired']);
 
             // Release any stock reserved for this unpaid order
-            $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order expired — unpaid');
+            $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order expired - unpaid');
 
             // Release deal usage reserved for this unpaid order
             foreach ($order->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {

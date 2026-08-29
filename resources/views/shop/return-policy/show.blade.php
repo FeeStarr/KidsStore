@@ -6,7 +6,7 @@
     <div class="position-relative" style="z-index:1;">
         <div class="d-inline-flex align-items-center gap-2 mb-2 px-3 py-1 bg-white bg-opacity-25 rounded-pill" style="backdrop-filter:blur(6px); font-weight:700; font-size:.78rem;"> <i class="bi bi-arrow-repeat"></i> Easy Returns</div>
         <h2 class="fw-bold mb-1" style="color:#fff;">Return Policy</h2>
-        <p class="mb-0" style="color:rgba(255,255,255,.9);">Shop with confidence — here's how returns & refunds work at KidsFlairr.</p>
+        <p class="mb-0" style="color:rgba(255,255,255,.9);">Shop with confidence - here's how returns & refunds work at KidsFlairr.</p>
     </div>
 </div>
 

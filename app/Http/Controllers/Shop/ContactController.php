@@ -22,7 +22,7 @@ class ContactController extends Controller
 
     public function send(Request $request): RedirectResponse
     {
-        // Honeypot check — if filled, silently accept but discard
+        // Honeypot check - if filled, silently accept but discard
         if ($request->filled('website_url')) {
             return back()->with('success', 'Thanks for reaching out! We\'ll be in touch soon.');
         }

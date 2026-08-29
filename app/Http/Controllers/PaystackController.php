@@ -98,7 +98,7 @@ class PaystackController extends Controller
             }
         }
 
-        // Check once more — webhook may have arrived while we were redirecting
+        // Check once more - webhook may have arrived while we were redirecting
         $order->refresh();
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
             return redirect()->route('shop.account.orders.show', $order)
@@ -122,7 +122,7 @@ class PaystackController extends Controller
 
         $order->refresh();
 
-        // Already paid — tell the polling JS immediately
+        // Already paid - tell the polling JS immediately
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
             return response()->json([
                 'success'          => true,
@@ -279,7 +279,7 @@ class PaystackController extends Controller
 
         $order->refresh();
 
-        // Already paid — tell the polling JS immediately
+        // Already paid - tell the polling JS immediately
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
             return response()->json([
                 'success'          => true,
@@ -357,7 +357,7 @@ class PaystackController extends Controller
             Log::error('Paystack webhook exception', ['error' => $e->getMessage()]);
         }
 
-        // Always return 200 — Paystack will retry on non-2xx
+        // Always return 200 - Paystack will retry on non-2xx
         return response('OK', 200);
     }
 }

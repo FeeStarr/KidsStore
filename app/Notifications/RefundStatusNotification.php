@@ -61,19 +61,19 @@ class RefundStatusNotification extends Notification
         $order = $this->refundRequest->order;
 
         return match ($this->refundRequest->status) {
-            RefundRequest::STATUS_REQUESTED            => "Return request received — {$order->reference}",
-            RefundRequest::STATUS_AWAITING_EVIDENCE    => "Evidence needed for your return — {$order->reference}",
-            RefundRequest::STATUS_APPROVED             => "Return approved — {$order->reference}",
-            RefundRequest::STATUS_REJECTED             => "Return request update — {$order->reference}",
-            RefundRequest::STATUS_RECEIVED             => "Item received — {$order->reference}",
+            RefundRequest::STATUS_REQUESTED            => "Return request received - {$order->reference}",
+            RefundRequest::STATUS_AWAITING_EVIDENCE    => "Evidence needed for your return - {$order->reference}",
+            RefundRequest::STATUS_APPROVED             => "Return approved - {$order->reference}",
+            RefundRequest::STATUS_REJECTED             => "Return request update - {$order->reference}",
+            RefundRequest::STATUS_RECEIVED             => "Item received - {$order->reference}",
             RefundRequest::STATUS_REFUND_APPROVED,
-            RefundRequest::STATUS_REFUND_PROCESSING    => "Refund approved — {$order->reference}",
-            RefundRequest::STATUS_REFUNDED             => "Refund completed — {$order->reference}",
-            RefundRequest::STATUS_REPLACEMENT_APPROVED => "Replacement approved — {$order->reference}",
-            RefundRequest::STATUS_REPLACEMENT_SHIPPED  => "Replacement shipped — {$order->reference}",
-            RefundRequest::STATUS_CANCELLED            => "Return request cancelled — {$order->reference}",
-            RefundRequest::STATUS_RETURN_COLLECTED     => "Return item collected — {$order->reference}",
-            default                                    => "Return update — {$order->reference}",
+            RefundRequest::STATUS_REFUND_PROCESSING    => "Refund approved - {$order->reference}",
+            RefundRequest::STATUS_REFUNDED             => "Refund completed - {$order->reference}",
+            RefundRequest::STATUS_REPLACEMENT_APPROVED => "Replacement approved - {$order->reference}",
+            RefundRequest::STATUS_REPLACEMENT_SHIPPED  => "Replacement shipped - {$order->reference}",
+            RefundRequest::STATUS_CANCELLED            => "Return request cancelled - {$order->reference}",
+            RefundRequest::STATUS_RETURN_COLLECTED     => "Return item collected - {$order->reference}",
+            default                                    => "Return update - {$order->reference}",
         };
     }
 }

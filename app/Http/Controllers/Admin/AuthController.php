@@ -32,7 +32,7 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        // Brute-force protection — max 5 attempts per email+IP per minute
+        // Brute-force protection - max 5 attempts per email+IP per minute
         $throttleKey = 'admin-login:' . Str::lower($credentials['email']) . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
@@ -79,7 +79,7 @@ class AuthController extends Controller
                 ->with('success', 'A verification code has been sent to your email.');
         }
 
-        // 2FA disabled — log in directly
+        // 2FA disabled - log in directly
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 

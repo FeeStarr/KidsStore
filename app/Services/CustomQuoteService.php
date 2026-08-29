@@ -147,7 +147,7 @@ class CustomQuoteService
 
         $fabric = $order->getCustomizationValue('fabric');
         if ($fabric) {
-            $fabricCost = 3500; // Default — admin overrides
+            $fabricCost = 3500; // Default - admin overrides
         }
 
         $customizations = $order->customizations()->pluck('value')->count();

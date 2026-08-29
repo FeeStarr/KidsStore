@@ -23,7 +23,7 @@ return new class extends Migration
                     $table->dropForeign(['variant_size_id']);
                 });
             } catch (\Throwable $e) {
-                // FK may already be missing — continue.
+                // FK may already be missing - continue.
             }
             Schema::table('inventories', function (Blueprint $table) {
                 $table->dropColumn('variant_size_id');

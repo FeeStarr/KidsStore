@@ -78,7 +78,7 @@ class ProductVariant extends Model
     }
 
     /**
-     * "Pink / Large / 5-6 years" — built from FK relations only.
+     * "Pink / Large / 5-6 years" - built from FK relations only.
      */
     public function getOptionsLabelAttribute(): string
     {
@@ -136,7 +136,7 @@ class ProductVariant extends Model
     {
         $base = $this->product?->name ?: 'Product';
         $attr = $this->options_label;
-        return $attr === 'Default' ? $base : "{$base} — {$attr}";
+        return $attr === 'Default' ? $base : "{$base} - {$attr}";
     }
 
     /**

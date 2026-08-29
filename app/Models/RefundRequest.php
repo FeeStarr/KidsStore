@@ -213,7 +213,7 @@ class RefundRequest extends Model
         if ($this->orderItem) {
             $item = $this->orderItem;
             return ($item->product?->name ?? 'Item') .
-                   ($item->variant?->options_label ? ' — ' . $item->variant->options_label : '') .
+                   ($item->variant?->options_label ? ' - ' . $item->variant->options_label : '') .
                    ' (×' . $this->quantity . ')';
         }
         return 'Full Order';
@@ -266,7 +266,7 @@ class RefundRequest extends Model
         $label = $variant->options_label;
 
         if ($variant->selling_price !== null) {
-            $label .= ' — ₦' . number_format($variant->net_price, 2);
+            $label .= ' - ₦' . number_format($variant->net_price, 2);
         }
 
         return $label;

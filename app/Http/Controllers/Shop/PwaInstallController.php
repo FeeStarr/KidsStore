@@ -22,7 +22,7 @@ class PwaInstallController extends Controller
                 'updated_at' => now(),
             ]);
         } catch (\Throwable $e) {
-            // Silently fail — tracking is best-effort
+            // Silently fail - tracking is best-effort
         }
 
         return response()->json(['success' => true]);

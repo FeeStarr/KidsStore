@@ -60,7 +60,7 @@ class CustomFileService
     {
         $fullPath = Storage::disk('custom_orders')->path($file->file_path);
 
-        // Path containment check — prevent path traversal even if DB is compromised
+        // Path containment check - prevent path traversal even if DB is compromised
         $basePath = realpath(Storage::disk('custom_orders')->path(''));
         if ($basePath === false || strpos(realpath($fullPath), $basePath) !== 0) {
             abort(403, 'Invalid file path.');

@@ -35,7 +35,7 @@ class SafeMysqlConnection extends MySqlConnection
 
         $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $query)));
 
-        // TRUNCATE TABLE x — wipes every row and resets auto-increment.
+        // TRUNCATE TABLE x - wipes every row and resets auto-increment.
         if (preg_match('/^truncate\s+table?\s+/', $normalized)) {
             throw new \RuntimeException(
                 'Blocked destructive query: TRUNCATE is not allowed outside test environments.'

@@ -38,7 +38,7 @@ class OrderItemReceivedNotification extends Notification
         $stationName = $order->pickupStation?->name ?? 'the pickup station';
 
         $message = (new MailMessage)
-            ->subject("Your item has arrived at {$stationName} — {$order->reference}")
+            ->subject("Your item has arrived at {$stationName} - {$order->reference}")
             ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->greeting("Hello {$notifiable->name},")
             ->line("Good news! **{$productName}** has arrived at **{$stationName}** and has been marked as received.")

@@ -40,16 +40,16 @@ class SendPickupReminders extends Command
             };
 
             $subject = match ($daysElapsed) {
-                2 => "Reminder: Your order is ready for pickup — {$order->reference}",
-                3 => "Action Required: Your pickup window expires tomorrow — {$order->reference}",
-                4 => "Last Day: Collect your order today — {$order->reference}",
-                default => "Pickup Reminder — {$order->reference}",
+                2 => "Reminder: Your order is ready for pickup - {$order->reference}",
+                3 => "Action Required: Your pickup window expires tomorrow - {$order->reference}",
+                4 => "Last Day: Collect your order today - {$order->reference}",
+                default => "Pickup Reminder - {$order->reference}",
             };
 
             if ($order->customer) {
                 $order->customer->notify(new PickupReminderNotification($order, $message, $subject));
                 $sent++;
-                $this->line("  <info>{$order->reference}</info> — Day {$daysElapsed} reminder sent to {$order->customer->email}");
+                $this->line("  <info>{$order->reference}</info> - Day {$daysElapsed} reminder sent to {$order->customer->email}");
             }
         }
 
