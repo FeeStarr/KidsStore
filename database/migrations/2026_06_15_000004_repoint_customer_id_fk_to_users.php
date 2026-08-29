@@ -19,7 +19,7 @@ return new class extends Migration
             // Drop any existing constraint on orders.customer_id
             DB::statement('ALTER TABLE orders DROP FOREIGN KEY IF EXISTS orders_customer_id_foreign');
         } catch (\Throwable) {
-            // Constraint name may differ — try the generic approach
+            // Constraint name may differ - try the generic approach
         }
 
         // Re-add pointing to users

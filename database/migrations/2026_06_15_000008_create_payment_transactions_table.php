@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('virtual_account_number')->nullable();
             $table->string('virtual_bank_name')->nullable();
 
-            // Amount in Naira (NOT kobo — we convert internally)
+            // Amount in Naira (NOT kobo - we convert internally)
             $table->decimal('amount', 12, 2);
 
             // pending | success | failed | expired | cancelled

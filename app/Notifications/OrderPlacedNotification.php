@@ -35,8 +35,8 @@ class OrderPlacedNotification extends Notification
         $isInternal = $notifiable->isAdmin() || $notifiable->isStaff();
 
         $subject = $isInternal
-            ? "New Order Placed — {$order->reference}"
-            : "Your order has been received — {$order->reference}";
+            ? "New Order Placed - {$order->reference}"
+            : "Your order has been received - {$order->reference}";
 
         $message = (new MailMessage)
             ->subject($subject);

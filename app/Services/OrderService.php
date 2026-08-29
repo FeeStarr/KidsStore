@@ -124,7 +124,7 @@ class OrderService
 
             $this->notifyStatusChange($order->fresh(), $prev);
 
-            // Send order placed notification (skip for custom orders — they have their own notifications)
+            // Send order placed notification (skip for custom orders - they have their own notifications)
             if (!$order->custom_order_id) {
                 $this->notifyOrderPlaced($order->fresh());
             }
@@ -260,7 +260,7 @@ class OrderService
 
     public function generateReference(): string
     {
-        // Avoid max(id)+1 race under concurrent guest checkouts — previous
+        // Avoid max(id)+1 race under concurrent guest checkouts - previous
         // implementation gave two simultaneous orders the same ORD-xxxxx, which
         // then caused Paystack Duplicate Transaction Reference (KS-{ORD}-*).
         // Use time + strong random; loop until truly unique.

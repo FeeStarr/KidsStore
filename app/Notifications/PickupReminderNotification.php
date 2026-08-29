@@ -30,7 +30,7 @@ class PickupReminderNotification extends Notification
         $stationName = $station?->name ?? 'our pickup station';
         $stationAddress = $station?->address ?? '';
 
-        $subject = $this->subject ?? "Reminder: Your order is ready for pickup — {$order->reference}";
+        $subject = $this->subject ?? "Reminder: Your order is ready for pickup - {$order->reference}";
 
         $mail = (new MailMessage)
             ->subject($subject)

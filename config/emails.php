@@ -8,11 +8,11 @@ return [
     |
     | KidsFlairr mailbox routing:
     |
-    |   noreply  — Automated transactional emails (OTPs, password resets, confirmations)
-    |   orders   — Customer-facing order updates (status, ready for pickup, delivery)
-    |   stations — Internal station operations (payment verification, returns, alerts)
-    |   support  — Customer enquiries, complaints, returns (Reply-To on customer emails)
-    |   accounts — Financial matters (settlements, refunds, payouts, invoices)
+    |   noreply  - Automated transactional emails (OTPs, password resets, confirmations)
+    |   orders   - Customer-facing order updates (status, ready for pickup, delivery)
+    |   stations - Internal station operations (payment verification, returns, alerts)
+    |   support  - Customer enquiries, complaints, returns (Reply-To on customer emails)
+    |   accounts - Financial matters (settlements, refunds, payouts, invoices)
     |
     */
 

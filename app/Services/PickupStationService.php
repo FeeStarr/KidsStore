@@ -100,7 +100,7 @@ class PickupStationService
 
         // Check if order is paid
         if ($item->order->payment_status !== 'paid') {
-            throw new \RuntimeException('Cannot confirm pickup — payment has not been received yet. Please collect payment first.');
+            throw new \RuntimeException('Cannot confirm pickup - payment has not been received yet. Please collect payment first.');
         }
 
         DB::transaction(function () use ($item) {

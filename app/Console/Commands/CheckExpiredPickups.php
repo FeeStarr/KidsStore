@@ -40,7 +40,7 @@ class CheckExpiredPickups extends Command
 
             $orders->markPickupWindowExpired($order);
 
-            $this->line("  <info>{$order->reference}</info> — {$order->pickupStation?->name ?? 'N/A'} — {$daysElapsed} days elapsed");
+            $this->line("  <info>{$order->reference}</info> - {$order->pickupStation?->name ?? 'N/A'} - {$daysElapsed} days elapsed");
         }
 
         $this->newLine();

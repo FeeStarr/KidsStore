@@ -79,7 +79,7 @@ class PaymentVerification extends Model
         $remaining = max(0, 40 - $elapsed);
 
         if ($remaining <= 0) {
-            return 'Overdue — awaiting admin';
+            return 'Overdue - awaiting admin';
         }
 
         $mins = (int) floor($remaining / 60);

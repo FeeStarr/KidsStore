@@ -139,7 +139,7 @@ Route::name('shop.')->group(function () {
     });
 });
 
-// Custom Frock — create is public, rest requires auth
+// Custom Frock - create is public, rest requires auth
 Route::get('/custom-frock', [CustomOrderController::class, 'index'])->name('shop.custom-frock.index')->middleware('auth');
 Route::get('/custom-frock/create', [CustomOrderController::class, 'create'])->name('shop.custom-frock.create')->middleware('auth');
 Route::post('/custom-frock', [CustomOrderController::class, 'store'])->name('shop.custom-frock.store')->middleware(['auth', 'throttle:10,1']);
@@ -150,12 +150,12 @@ Route::post('/custom-frock/{customOrder}/request-changes', [CustomOrderControlle
 Route::post('/custom-frock/{customOrder}/cancel', [CustomOrderController::class, 'cancel'])->name('shop.custom-frock.cancel')->middleware('auth');
 Route::get('/custom-frock/{customOrder}/files/{file}', [CustomOrderFileController::class, 'show'])->name('shop.custom-frock.file')->middleware('auth');
 
-// Guest Paystack payment — uses order lookup token for guest access
+// Guest Paystack payment - uses order lookup token for guest access
 Route::post('/order-track/{token}/pay', [PaystackController::class, 'guestInitiate'])->name('shop.paystack.guest-initiate');
 Route::get('/order-track/{token}/pay/callback', [PaystackController::class, 'guestCallback'])->name('shop.paystack.guest-callback');
 Route::post('/order-track/{token}/pay/query', [PaystackController::class, 'guestQuery'])->name('shop.paystack.guest-query');
 
-// Paystack webhook — no auth, no CSRF (exempted in bootstrap/app.php)
+// Paystack webhook - no auth, no CSRF (exempted in bootstrap/app.php)
 Route::post('/paystack/webhook', [PaystackController::class, 'webhook'])->name('paystack.webhook')->middleware('throttle:60,1');
 
 /*
@@ -383,7 +383,7 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
     Route::post('/login', [PickupPortalController::class, 'login'])->name('login.post');
     Route::post('/logout', [PickupPortalController::class, 'logout'])->name('logout');
 
-    // Protected portal routes — require portal PIN session
+    // Protected portal routes - require portal PIN session
     Route::middleware('auth.portal')->group(function () {
         Route::get('/dashboard', [PickupPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('/dashboard/data', [PickupPortalController::class, 'dashboardData'])->name('dashboard.data');

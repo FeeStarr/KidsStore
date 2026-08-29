@@ -26,7 +26,7 @@ return new class extends Migration
             'hero_title'    => 'About Kids Store',
             'hero_subtitle' => 'Where little dreams come to play!',
             'story'         => 'Kids Store was founded by parents who wanted to make it easy to find safe, fun, and affordable products for children of all ages. We carefully handpick every item in our collection to ensure it meets the highest quality and safety standards.',
-            'mission'       => 'Our mission is to bring joy to every child and peace of mind to every parent. We believe every kid deserves the best — from the toys they play with to the clothes they wear.',
+            'mission'       => 'Our mission is to bring joy to every child and peace of mind to every parent. We believe every kid deserves the best - from the toys they play with to the clothes they wear.',
             'email'         => 'hello@kidsstore.example',
             'phone'         => '+234 800 000 0000',
             'address'       => '12 Happy Lane, Lagos, Nigeria',

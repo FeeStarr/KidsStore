@@ -46,7 +46,7 @@ class CheckReturnSla extends Command
                 $reviewBreached++;
                 Log::info("SLA BREACHED: Review for Return #{$rr->id} ({$daysUsed} business days)");
             } elseif ($daysUsed >= 5) {
-                // Warning — only notify once (check if last audit log is not already a review warning)
+                // Warning - only notify once (check if last audit log is not already a review warning)
                 $lastWarning = $rr->auditLogs()
                     ->where('action', 'sla_review_warning')
                     ->whereDate('created_at', today())
@@ -54,7 +54,7 @@ class CheckReturnSla extends Command
 
                 if (! $lastWarning) {
                     $this->notifyAdmins($rr, 'review', 'warning');
-                    $this->logSlaAudit($rr, 'sla_review_warning', "Day {$daysUsed} of 6 — warning");
+                    $this->logSlaAudit($rr, 'sla_review_warning', "Day {$daysUsed} of 6 - warning");
                     $reviewWarning++;
                 }
             }
@@ -83,7 +83,7 @@ class CheckReturnSla extends Command
 
                 if (! $lastWarning) {
                     $this->notifyAdmins($rr, 'inspection', 'warning');
-                    $this->logSlaAudit($rr, 'sla_inspection_warning', "Day {$daysUsed} of 5 — warning");
+                    $this->logSlaAudit($rr, 'sla_inspection_warning', "Day {$daysUsed} of 5 - warning");
                     $inspWarning++;
                 }
             }
@@ -103,10 +103,10 @@ class CheckReturnSla extends Command
             $daysUsed = BusinessDayHelper::businessDaysBetween($rr->reviewed_at ?? $rr->created_at, now());
 
             if ($daysUsed >= 3 && ! $rr->dropoff_sla_breached) {
-                // Final day — breach
+                // Final day - breach
                 $rr->update(['dropoff_sla_breached' => true]);
                 $this->notifyCustomerDropoff($rr, 'final');
-                $this->logSlaAudit($rr, 'sla_dropoff_breached', "Day {$daysUsed} of 3 — drop-off deadline breached");
+                $this->logSlaAudit($rr, 'sla_dropoff_breached', "Day {$daysUsed} of 3 - drop-off deadline breached");
                 $dropoffFinal++;
                 Log::info("SLA BREACHED: Drop-off for Return #{$rr->id} ({$daysUsed} business days)");
             } elseif ($daysUsed >= 2) {
@@ -118,7 +118,7 @@ class CheckReturnSla extends Command
 
                 if (! $lastReminder) {
                     $this->notifyCustomerDropoff($rr, 'reminder');
-                    $this->logSlaAudit($rr, 'sla_dropoff_reminder', "Day {$daysUsed} of 3 — reminder sent");
+                    $this->logSlaAudit($rr, 'sla_dropoff_reminder', "Day {$daysUsed} of 3 - reminder sent");
                     $dropoffReminder++;
                 }
             }

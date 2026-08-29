@@ -136,7 +136,7 @@ class ProductVariantController extends Controller
 
     public function show(ProductVariant $variant): RedirectResponse
     {
-        // Redirect to the parent product's edit page — variants are managed from there.
+        // Redirect to the parent product's edit page - variants are managed from there.
         return redirect()->route('admin.products.edit', $variant->product);
     }
 

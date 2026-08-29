@@ -31,16 +31,16 @@ class DropoffReminderNotification extends Notification implements ShouldQueue
         $deadline = $rr->dropoff_deadline;
 
         if ($this->urgency === 'final') {
-            $subject = "Last day to drop off your return — Return #{$rr->id}";
+            $subject = "Last day to drop off your return - Return #{$rr->id}";
             $intro = "This is a reminder that <strong>today is the last day</strong> to drop off your return item for Return <strong>#{$rr->id}</strong> ({$scope}). Please bring the item to your assigned pickup station before the end of the day.";
         } else {
-            $subject = "Reminder: Drop off your return soon — Return #{$rr->id}";
+            $subject = "Reminder: Drop off your return soon - Return #{$rr->id}";
             $intro = "This is a friendly reminder to drop off your return item for Return <strong>#{$rr->id}</strong> ({$scope}). Please bring the item to your assigned pickup station by <strong>{$deadline->format('M d, Y')}</strong>.";
         }
 
         $pickupStation = $rr->pickupStation;
         $stationInfo = $pickupStation
-            ? "{$pickupStation->name}" . ($pickupStation->address ? " — {$pickupStation->address}" : '')
+            ? "{$pickupStation->name}" . ($pickupStation->address ? " - {$pickupStation->address}" : '')
             : null;
 
         $mail = (new MailMessage)

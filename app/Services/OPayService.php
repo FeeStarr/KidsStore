@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * OPay Checkout — Bank Transfer integration.
+ * OPay Checkout - Bank Transfer integration.
  *
  * Docs: https://documentation.opaycheckout.com/bank-transfer
  *
@@ -58,11 +58,11 @@ class OPayService
                 'reference'              => $reference,
                 'opay_order_no'          => null,
                 'virtual_account_number' => '0000000000',
-                'virtual_bank_name'      => 'OPay (Test — no credentials)',
+                'virtual_bank_name'      => 'OPay (Test - no credentials)',
                 'amount'                 => (float) $order->grand_total,
                 'status'                 => 'pending',
                 'expires_at'             => now()->addMinutes($this->expireMinutes),
-                'opay_payload'           => ['note' => 'Stub — OPAY_MERCHANT_ID / OPAY_SECRET_KEY not set'],
+                'opay_payload'           => ['note' => 'Stub - OPAY_MERCHANT_ID / OPAY_SECRET_KEY not set'],
             ]);
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -124,9 +124,9 @@ class OPayService
     {
         $transaction->update(['last_queried_at' => now()]);
 
-        // Stub mode — nothing to query, simulate success so testing can proceed
+        // Stub mode - nothing to query, simulate success so testing can proceed
         if (empty($this->merchantId) || empty($this->secretKey)) {
-            $this->markTransactionSuccess($transaction, ['note' => 'Stub success — no credentials configured']);
+            $this->markTransactionSuccess($transaction, ['note' => 'Stub success - no credentials configured']);
             return $transaction->refresh();
         }
 
@@ -259,7 +259,7 @@ class OPayService
      */
     private function verifyWebhookSignature(array $payloadData, string $receivedSignature): bool
     {
-        // Never skip signature verification — an empty secret means webhook events are unverifiable.
+        // Never skip signature verification - an empty secret means webhook events are unverifiable.
         // Reject all webhook calls if the secret key is not configured.
         if (empty($this->secretKey)) {
             Log::error('OPay webhook rejected: OPAY_SECRET_KEY is not configured.');
@@ -287,7 +287,7 @@ class OPayService
                 'MerchantId'   => $this->merchantId,
             ]);
 
-        // On local dev XAMPP, PHP lacks a CA bundle — skip SSL verification.
+        // On local dev XAMPP, PHP lacks a CA bundle - skip SSL verification.
         // Never disable in production.
         if (config('app.env') !== 'production') {
             $http = $http->withoutVerifying();

@@ -109,7 +109,7 @@ class PickupPortalController extends Controller
         return redirect()->route('pickup-portal.login');
     }
 
-    /** Dashboard — items for this station grouped by status */
+    /** Dashboard - items for this station grouped by status */
     public function dashboard(Request $request): View|RedirectResponse
     {
         if (! session('portal_station_id')) {
@@ -159,7 +159,7 @@ class PickupPortalController extends Controller
             ? $pendingReturns
             : ($itemsByStatus[$filter] ?? collect());
 
-        // Commission summary for picked-up tab — apply per-order cap from settings
+        // Commission summary for picked-up tab - apply per-order cap from settings
         $commissionSummary = null;
         if ($filter === 'picked_up') {
             $pickedUpItems = $itemsByStatus['picked_up'];
@@ -224,7 +224,7 @@ class PickupPortalController extends Controller
             'data' => $items->map(fn ($item) => [
                 'id' => $item->id,
                 'order_ref' => $item->order?->reference,
-                'customer' => $item->order?->customer?->name ?? '—',
+                'customer' => $item->order?->customer?->name ?? '-',
                 'product' => $item->product?->name,
                 'variant' => $item->variant?->options_label,
                 'quantity' => $item->quantity,
@@ -234,7 +234,7 @@ class PickupPortalController extends Controller
         ]);
     }
 
-    /** Data endpoint for DataTables — picked up items */
+    /** Data endpoint for DataTables - picked up items */
     public function pickedUpData(Request $request)
     {
         if (! session('portal_station_id')) return response()->json(['error' => 'Not authenticated.'], 401);
@@ -272,9 +272,9 @@ class PickupPortalController extends Controller
             return [
                 'id' => $item->id,
                 'order_reference' => $item->order?->reference,
-                'customer' => $item->order?->customer?->name ?? '—',
+                'customer' => $item->order?->customer?->name ?? '-',
                 'product' => $item->product?->name,
-                'variant' => $item->variant?->options_label ?? '—',
+                'variant' => $item->variant?->options_label ?? '-',
                 'quantity' => $item->quantity,
                 'line_total' => number_format($item->line_total, 2),
                 'commission' => number_format($item->commission, 2),
@@ -316,9 +316,9 @@ class PickupPortalController extends Controller
             foreach ($items as $item) {
                 fputcsv($handle, [
                     $item->order?->reference,
-                    $item->order?->customer?->name ?? '—',
+                    $item->order?->customer?->name ?? '-',
                     $item->product?->name,
-                    $item->variant?->options_label ?? '—',
+                    $item->variant?->options_label ?? '-',
                     $item->quantity,
                     number_format($item->line_total, 2),
                     number_format($item->commission, 2),
@@ -510,15 +510,15 @@ class PickupPortalController extends Controller
                 'amount' => '₦' . number_format($p->amount, 2),
                 'status' => $p->is_reversed ? 'Reversed' : 'Paid',
                 'status_class' => $p->is_reversed ? 'bg-danger' : 'bg-success',
-                'note' => $p->note ?? '—',
-                'orders' => $orderRefs->implode(', ') ?: '—',
+                'note' => $p->note ?? '-',
+                'orders' => $orderRefs->implode(', ') ?: '-',
                 'item_count' => $itemCount,
                 'products' => $productNames . ($itemCount > 3 ? ' +' . ($itemCount - 3) . ' more' : ''),
                 'items_detail' => $items->map(fn($it) => [
-                    'product' => $it->orderItem?->product?->name ?? '—',
-                    'variant' => $it->orderItem?->variant?->options_label ?? '—',
+                    'product' => $it->orderItem?->product?->name ?? '-',
+                    'variant' => $it->orderItem?->variant?->options_label ?? '-',
                     'fee' => '₦' . number_format($it->fee_amount, 2),
-                    'order' => $it->order?->reference ?? '—',
+                    'order' => $it->order?->reference ?? '-',
                 ])->values(),
             ];
         })->values();
@@ -933,7 +933,7 @@ class PickupPortalController extends Controller
                 'id'          => $r->id,
                 'type'        => $r->type_label,
                 'description' => Str::limit($r->description, 80),
-                'order_ref'   => $r->order ? '#' . $r->order->id : '—',
+                'order_ref'   => $r->order ? '#' . $r->order->id : '-',
                 'status'      => $r->status_label,
                 'status_badge'=> match($r->status) {
                     'open'          => 'danger',

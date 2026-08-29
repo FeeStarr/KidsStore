@@ -307,10 +307,13 @@ class CheckoutController extends Controller
             'email'     => ['required', 'email', 'max:255'],
         ]);
 
-        $order = Order::where('reference', $data['reference'])
-            ->where(function ($q) use ($data) {
-                $q->where('guest_email', $data['email'])
-                  ->orWhereHas('customer', fn ($q2) => $q2->where('email', $data['email']));
+        $email = strtolower(trim($data['email']));
+        $reference = trim($data['reference']);
+
+        $order = Order::where('reference', $reference)
+            ->where(function ($q) use ($email) {
+                $q->whereRaw('LOWER(guest_email) = ?', [$email])
+                  ->orWhereHas('customer', fn ($q2) => $q2->whereRaw('LOWER(email) = ?', [$email]));
             })
             ->first();
 
@@ -318,15 +321,14 @@ class CheckoutController extends Controller
             return back()->with('error', 'No order found with that reference and email combination.');
         }
 
-        if ($order->lookup_token) {
-            return redirect()->route('shop.order.track', $order->lookup_token);
+        // Backfill missing lookup_token for legacy orders so Track page works for everyone
+        if (! $order->lookup_token) {
+            $order->update(['lookup_token' => Str::random(64)]);
+            $order->refresh();
         }
 
-        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
-            return redirect()->route('shop.account.orders.show', $order);
-        }
-
-        return back()->with('error', 'Unable to access this order.');
+        // Guest-accessible track page - email already verified by the query above
+        return redirect()->route('shop.order.track', $order->lookup_token);
     }
 
     public function orderTrack(string $token)

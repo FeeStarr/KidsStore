@@ -11,7 +11,7 @@ use App\Services\CouponService;
 class Order extends Model
 {
     // Order Status Constants
-    public const STATUS_PENDING              = 'pending';           // legacy — not a valid ENUM value, kept for BC
+    public const STATUS_PENDING              = 'pending';           // legacy - not a valid ENUM value, kept for BC
     public const STATUS_ORDERED              = 'ordered';
     public const STATUS_PENDING_CONFIRMATION = 'pending confirmation';
     public const STATUS_PENDING_PAYMENT      = 'pending payment';
@@ -80,7 +80,7 @@ class Order extends Model
      * Record the matching timestamp column whenever the order status is set
      * (on create and on every status change). Centralizes timestamping for
      * OrderService, admin fallback updates, pickup-station service, and the
-     * expiry scheduler — no matter how the status is written.
+     * expiry scheduler - no matter how the status is written.
      */
     protected static function booted(): void
     {
@@ -136,7 +136,7 @@ class Order extends Model
 
                 // Restore stock for each item
                 $inventory = app(InventoryServiceInterface::class);
-                $inventory->reverseMovementsFor(static::class, $o->id, 'Order cancelled — unpaid 24h window');
+                $inventory->reverseMovementsFor(static::class, $o->id, 'Order cancelled - unpaid 24h window');
 
                 // Release deal usage
                 foreach ($o->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
@@ -284,17 +284,17 @@ class Order extends Model
      */
     public function getDeliveryWindowAttribute(): string
     {
-        // Already delivered, cancelled, or expired — no estimate needed
+        // Already delivered, cancelled, or expired - no estimate needed
         if (in_array($this->status, ['delivered', 'cancelled', 'expired', 'pickup window expired'], true)) {
             return 'N/A';
         }
 
-        // Pending payment — show payment window
+        // Pending payment - show payment window
         if ($this->status === 'pending payment') {
             return 'Awaiting payment';
         }
 
-        // Ready for pickup — 4-day collection window (working days)
+        // Ready for pickup - 4-day collection window (working days)
         if ($this->status === 'ready for pick up') {
             $readyAt = $this->ready_for_pickup_at ?? $this->shipped_at ?? $this->order_date;
             $latest = $this->addWorkingDays($readyAt, 4);

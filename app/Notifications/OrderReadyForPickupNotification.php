@@ -31,7 +31,7 @@ class OrderReadyForPickupNotification extends Notification
         $order = $this->order;
 
         $message = (new MailMessage)
-            ->subject("Your order is ready for pickup — {$order->reference}")
+            ->subject("Your order is ready for pickup - {$order->reference}")
             ->replyTo(config('emails.support'), 'KidsFlairr Support')
             ->view('emails.order-ready-for-pickup', ['order' => $order]);
 

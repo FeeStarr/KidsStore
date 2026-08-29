@@ -301,7 +301,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Generate a one-time backup code, store it hashed, and return the plaintext.
-     * The plaintext is shown once by the admin — never stored or logged.
+     * The plaintext is shown once by the admin - never stored or logged.
      */
     public function generateBackupCode(): string
     {
@@ -328,7 +328,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return false;
         }
 
-        // Consume — clear so it cannot be used again
+        // Consume - clear so it cannot be used again
         $this->update(['two_factor_backup_code' => null]);
 
         return true;

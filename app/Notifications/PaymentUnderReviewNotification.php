@@ -26,7 +26,7 @@ class PaymentUnderReviewNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $message = (new MailMessage)
-            ->subject("Payment Under Review — {$this->order->reference}")
+            ->subject("Payment Under Review - {$this->order->reference}")
             ->greeting("Hello {$notifiable->name},")
             ->line("A payment for an order requires manual review. The payment result is uncertain.")
             ->line("**Order:** {$this->order->reference}")

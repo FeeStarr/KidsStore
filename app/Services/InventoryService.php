@@ -196,7 +196,7 @@ class InventoryService implements InventoryServiceInterface
 
             $this->refreshProductStock($variant->product_id);
 
-            $combinedNote = $note ? $reason.' — '.$note : $reason;
+            $combinedNote = $note ? $reason.' - '.$note : $reason;
 
             return InventoryMovement::create([
                 'product_id'         => $variant->product_id,

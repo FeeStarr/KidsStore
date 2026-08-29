@@ -158,14 +158,11 @@ document.querySelectorAll('.promo-home-copy').forEach(btn => {
             <h3 class="fw-bold mb-2" style="font-size:1.65rem; line-height:1.2; color:#fff;">
                 Pick your style &amp; colours. We bring your dream frock to life, from beautiful birthday dresses to special outfits made just for her. ✨
             </h3>
-            <p class="mb-3" style="color:rgba(255,255,255,.92); font-size:.96rem;">
-                Choose fabrics, colours &amp; details — we stitch the magic.
-            </p>
             <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-light btn-lg px-4" style="border-radius:50px; font-weight:800; color:#7b2d8b; box-shadow:0 8px 22px rgba(0,0,0,.18);">
-                <i class="bi bi-palette-fill me-1"></i> Design Your Frock
+                <i class="bi bi-palette-fill me-1"></i> Make your request
                 <i class="bi bi-arrow-right ms-1"></i>
             </a>
-            <div class="mt-2 small" style="color:rgba(255,255,255,.78);"><i class="bi bi-check-circle-fill me-1"></i> No stock limits — made to order</div>
+            <div class="mt-2 small" style="color:rgba(255,255,255,.78);"><i class="bi bi-check-circle-fill me-1"></i> No stock limits - made to order</div>
         </div>
         <div class="col-md-4 text-center d-none d-md-block">
             <div class="position-relative d-inline-block">

@@ -19,7 +19,7 @@ Artisan::command('backfill:pickup-fees {--batch=500} {--dry-run}', function () {
     $batch = (int) $this->option('batch');
     $dry = (bool) $this->option('dry-run');
 
-    $this->info('Starting pickup fee backfill'.($dry ? ' (dry run)' : '')." — batch={$batch}");
+    $this->info('Starting pickup fee backfill'.($dry ? ' (dry run)' : '')." - batch={$batch}");
 
     $totalOrders = DB::table('orders')->count();
     $this->info("Orders to check: {$totalOrders}");

@@ -38,7 +38,7 @@ class PickupPayoutController extends Controller
         return view('admin.payouts.index', compact('summary'));
     }
 
-    /** Show details for a station — item-level commission breakdown */
+    /** Show details for a station - item-level commission breakdown */
     public function show(Request $request, PickupStation $pickupStation): View
     {
         $payoutSummary = $this->pickupService->getPayoutSummary($pickupStation->id);
@@ -89,10 +89,10 @@ class PickupPayoutController extends Controller
         $data = $items->map(function ($item) {
             $isPaid = $item->pickup_station_fee_paid;
             return [
-                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '—',
+                'order_reference' => $item->order?->reference ? '<a href="' . route('admin.orders.show', $item->order_id) . '">' . e($item->order->reference) . '</a>' : '-',
                 'order_date' => $item->order?->order_date?->format('M d, Y g:i A'),
-                'product' => e($item->product?->name ?? '—'),
-                'variant' => e($item->variant?->options_label ?? '—'),
+                'product' => e($item->product?->name ?? '-'),
+                'variant' => e($item->variant?->options_label ?? '-'),
                 'quantity' => $item->quantity,
                 'unit_price' => '₦' . number_format($item->unit_price, 2),
                 'line_total' => '₦' . number_format($item->line_total, 2),
@@ -113,7 +113,7 @@ class PickupPayoutController extends Controller
         ]);
     }
 
-    /** Mark selected items as paid (bulk) — pays commission on picked_up items */
+    /** Mark selected items as paid (bulk) - pays commission on picked_up items */
     public function markPaid(Request $request, PickupStation $pickupStation)
     {
         $data = $request->validate([

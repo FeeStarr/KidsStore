@@ -25,7 +25,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Max Width — images wider than this are resized down (px)
+    | Max Width - images wider than this are resized down (px)
     |--------------------------------------------------------------------------
     */
     'max_width' => (int) env('IMAGE_MAX_WIDTH', 1200),

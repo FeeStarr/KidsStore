@@ -22,7 +22,7 @@ class OPayController extends Controller
 
     /**
      * POST /orders/{order}/pay
-     * Customer clicks "Pay Now" — creates a virtual account on OPay and returns it.
+     * Customer clicks "Pay Now" - creates a virtual account on OPay and returns it.
      */
     public function initiate(Request $request, Order $order): JsonResponse|RedirectResponse
     {
@@ -79,7 +79,7 @@ class OPayController extends Controller
             ]);
         }
 
-        // Throttle: don't hammer OPay — minimum 15 s between queries
+        // Throttle: don't hammer OPay - minimum 15 s between queries
         if ($transaction->last_queried_at &&
             now()->diffInSeconds($transaction->last_queried_at) < 15) {
             return response()->json([
@@ -121,7 +121,7 @@ class OPayController extends Controller
             Log::error('OPay webhook exception', ['error' => $e->getMessage()]);
         }
 
-        // Always return 200 — OPay will retry on non-2xx for 72 hours
+        // Always return 200 - OPay will retry on non-2xx for 72 hours
         return response('OK', 200);
     }
 }
