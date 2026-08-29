@@ -34,7 +34,7 @@ class PaystackController extends Controller
 
         try {
             $transaction = $this->paystack->initiate($order);
-        } catch (\RuntimeException $e) {
+        } catch (\Throwable $e) {
             Log::warning('Paystack initiate failed', ['order' => $order->reference, 'error' => $e->getMessage()]);
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unable to initiate payment. Please try again.'], 422);
@@ -120,16 +120,41 @@ class PaystackController extends Controller
     {
         abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
 
+        $order->refresh();
+
+        // Already paid — tell the polling JS immediately
+        if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            return response()->json([
+                'success'          => true,
+                'status'           => 'success',
+                'payment_status'   => $order->payment_status,
+                'paid'             => true,
+                'seconds_remaining'=> 0,
+            ]);
+        }
+
         $transaction = $order->paymentTransactions()
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'success'])
             ->latest()
             ->first();
 
         if (! $transaction) {
             return response()->json([
-                'success' => false,
-                'status'  => $order->payment_status,
-                'message' => 'No pending payment found.',
+                'success'        => false,
+                'status'         => $order->status,
+                'payment_status' => $order->payment_status,
+                'message'        => 'No pending payment found.',
+            ]);
+        }
+
+        // If already success, skip API call
+        if ($transaction->status === 'success') {
+            return response()->json([
+                'success'          => true,
+                'status'           => 'success',
+                'payment_status'   => $order->payment_status,
+                'paid'             => true,
+                'seconds_remaining'=> 0,
             ]);
         }
 
@@ -171,7 +196,7 @@ class PaystackController extends Controller
 
         try {
             $transaction = $this->paystack->initiate($order);
-        } catch (\RuntimeException $e) {
+        } catch (\Throwable $e) {
             Log::warning('Paystack guest initiate failed', ['order' => $order->reference, 'error' => $e->getMessage()]);
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unable to initiate payment. Please try again.'], 422);
@@ -252,16 +277,41 @@ class PaystackController extends Controller
     {
         $order = Order::where('lookup_token', $token)->firstOrFail();
 
+        $order->refresh();
+
+        // Already paid — tell the polling JS immediately
+        if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            return response()->json([
+                'success'          => true,
+                'status'           => 'success',
+                'payment_status'   => $order->payment_status,
+                'paid'             => true,
+                'seconds_remaining'=> 0,
+            ]);
+        }
+
         $transaction = $order->paymentTransactions()
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'success'])
             ->latest()
             ->first();
 
         if (! $transaction) {
             return response()->json([
-                'success' => false,
-                'status'  => $order->payment_status,
-                'message' => 'No pending payment found.',
+                'success'        => false,
+                'status'         => $order->status,
+                'payment_status' => $order->payment_status,
+                'message'        => 'No pending payment found.',
+            ]);
+        }
+
+        // If already success, skip API call
+        if ($transaction->status === 'success') {
+            return response()->json([
+                'success'          => true,
+                'status'           => 'success',
+                'payment_status'   => $order->payment_status,
+                'paid'             => true,
+                'seconds_remaining'=> 0,
             ]);
         }
 

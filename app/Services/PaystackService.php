@@ -27,6 +27,7 @@ class PaystackService
     private string $publicKey;
     private string $baseUrl;
     private int    $expireMinutes;
+    private string $webhookSecret;
 
     public function __construct()
     {
@@ -34,6 +35,7 @@ class PaystackService
         $this->publicKey     = (string) config('paystack.public_key');
         $this->baseUrl       = (string) config('paystack.base_url');
         $this->expireMinutes = (int) config('paystack.expire_minutes', 45);
+        $this->webhookSecret = (string) config('paystack.webhook_secret', '');
     }
 
     public function publicKey(): string
@@ -50,9 +52,10 @@ class PaystackService
      * which means the webhook tier-1 lookup and queryStatus tier-3 verify will
      * both match directly — no virtual account or customer-scoped fallback needed.
      *
+     * @param  string|null  $callbackUrl  Override callback URL (guest vs registered)
      * @throws \RuntimeException if Paystack returns an error
      */
-    public function initiate(Order $order): PaymentTransaction
+    public function initiate(Order $order, ?string $callbackUrl = null): PaymentTransaction
     {
         // Expire any previous pending transactions for this order
         $order->paymentTransactions()
@@ -76,27 +79,57 @@ class PaystackService
         // ─────────────────────────────────────────────────────────────────────
 
         $amountKobo = (int) round((float) $order->grand_total * 100);
-        $email = $order->customer?->email ?? 'customer@kidsstore.com';
+        $email = $order->customer?->email ?? $order->guest_email ?? 'customer@kidsstore.com';
 
-        $response = $this->post('/transaction/initialize', [
-            'email'        => $email,
-            'amount'       => $amountKobo,
-            'reference'    => $reference,
-            'currency'     => config('paystack.currency', 'NGN'),
-            'callback_url' => route('shop.paystack.callback', $order),
-            'metadata'     => [
-                'order_id'      => $order->id,
-                'order_ref'     => $order->reference,
-                'customer_id'   => $order->customer_id,
-                'cancel_action' => route('shop.account.orders.show', $order),
-            ],
-        ]);
+        // Use provided callback URL, or determine from order type
+        if (! $callbackUrl) {
+            $callbackUrl = $order->customer_id
+                ? route('shop.paystack.callback', $order)
+                : route('shop.paystack.guest-callback', $order->lookup_token);
+        }
 
-        if (! ($response['status'] ?? false)) {
+        // Paystack treats reference as globally unique forever — retry with a fresh
+        // reference if Paystack reports duplicate (random collision or stale retry).
+        $response = null;
+        $attempts = 0;
+        do {
+            $attempts++;
+            $response = $this->post('/transaction/initialize', [
+                'email'        => $email,
+                'amount'       => $amountKobo,
+                'reference'    => $reference,
+                'currency'     => config('paystack.currency', 'NGN'),
+                'callback_url' => $callbackUrl,
+                'metadata'     => [
+                    'order_id'      => $order->id,
+                    'order_ref'     => $order->reference,
+                    'customer_id'   => $order->customer_id,
+                    'cancel_action' => $order->customer_id
+                        ? route('shop.account.orders.show', $order)
+                        : route('shop.order.track', $order->lookup_token),
+                ],
+            ]);
+
+            if ($response['status'] ?? false) {
+                break;
+            }
+
             $msg = $response['message'] ?? 'Unknown Paystack error';
+            $isDuplicate = str_contains(strtolower($msg), 'duplicate');
+
+            if ($isDuplicate && $attempts < 3) {
+                Log::warning('Paystack duplicate reference — retrying with new reference', [
+                    'order' => $order->reference,
+                    'old_reference' => $reference,
+                    'attempt' => $attempts,
+                ]);
+                $reference = $this->generateReference($order->fresh() ?? $order);
+                continue;
+            }
+
             Log::error('Paystack initiate failed', ['order' => $order->reference, 'response' => $response]);
             throw new \RuntimeException("Payment initiation failed: {$msg}");
-        }
+        } while ($attempts < 3);
 
         $data = $response['data'];
 
@@ -610,7 +643,7 @@ class PaystackService
                 return;
             }
 
-            $order = $order->lockForUpdate()->first();
+            $order = Order::lockForUpdate()->find($order->id);
             if ($order->payment_status === 'paid') {
                 return;
             }
@@ -657,7 +690,10 @@ class PaystackService
 
     private function generateReference(Order $order): string
     {
-        return 'KS-' . $order->reference . '-' . strtoupper(Str::random(6));
+        // Must be globally unique for Paystack — include order id (never re-used),
+        // timestamp and strong random. Previous KS-{ORD-ref}-{6} could collide when
+        // ORD-ref itself collided under concurrent checkouts (max(id)+1 race).
+        return 'KS-' . $order->id . '-' . $order->reference . '-' . time() . '-' . strtoupper(Str::random(8));
     }
 
     /**
@@ -672,25 +708,32 @@ class PaystackService
 
     private function verifyWebhookSignatureRaw(string $rawBody, string $receivedSignature): bool
     {
-        if (empty($this->secretKey)) {
-            Log::error('Paystack webhook rejected: PAYSTACK_SECRET_KEY is not configured.');
+        // Paystack supports two signing modes:
+        // 1. Webhook secret (PAYSTACK_WEBHOOK_SECRET) — preferred, set in dashboard
+        // 2. Secret key (PAYSTACK_SECRET_KEY) — legacy fallback
+        // Try webhook secret first; fall back to secret key for backward compat.
+        $keys = array_filter([$this->webhookSecret, $this->secretKey]);
+
+        if (empty($keys)) {
+            Log::error('Paystack webhook rejected: neither PAYSTACK_WEBHOOK_SECRET nor PAYSTACK_SECRET_KEY is configured.');
             return false;
         }
 
-        $expected = hash_hmac('sha512', $rawBody, $this->secretKey);
-
-        $match = hash_equals($expected, $receivedSignature);
-
-        if (! $match) {
-            Log::warning('Paystack webhook signature mismatch', [
-                'received_sig'   => $receivedSignature,
-                'expected_sig'   => $expected,
-                'raw_body_len'   => strlen($rawBody),
-                'raw_body_head'  => substr($rawBody, 0, 80),
-            ]);
+        foreach ($keys as $key) {
+            $expected = hash_hmac('sha512', $rawBody, $key);
+            if (hash_equals($expected, $receivedSignature)) {
+                return true;
+            }
         }
 
-        return $match;
+        Log::warning('Paystack webhook signature mismatch', [
+            'received_sig'   => $receivedSignature,
+            'tried_keys'     => count($keys),
+            'raw_body_len'   => strlen($rawBody),
+            'raw_body_head'  => substr($rawBody, 0, 80),
+        ]);
+
+        return false;
     }
 
     /**
