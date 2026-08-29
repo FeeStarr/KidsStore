@@ -110,10 +110,11 @@ class Order extends Model
             }
         });
 
-        // Self-healing: expire stale pending-payment orders once per hour.
+        // Self-healing: cancel/expire stale pending-payment orders once per hour.
         // On shared hosting without a system cron, the Laravel scheduler never
-        // runs. This ensures orders past their 24h payment window are cleaned
-        // up on the next page visit.
+        // runs. This ensures unpaid Pay Now orders past their 24h window are
+        // cleaned up on the next page visit. Pending-payment = cancelled to
+        // match business rule "pay now not paid → cancelled after 24h".
         static::retrieved(function (Order $order) {
             // Only run once per request and at most once per hour
             if (static::$expireRan || \Illuminate\Support\Facades\Cache::get('order_expire_ran')) {
@@ -125,14 +126,17 @@ class Order extends Model
             $cutoff = now()->subHours(24);
             $stale = static::where('status', self::STATUS_PENDING_PAYMENT)
                 ->where('created_at', '<=', $cutoff)
+                ->where('payment_status', '!=', 'paid')
                 ->get();
 
             foreach ($stale as $o) {
-                $o->update(['status' => self::STATUS_EXPIRED]);
+                // Pay Now + unpaid => cancelled (user requirement). Keep 'expired'
+                // as legacy status but map to cancelled for customer clarity.
+                $o->update(['status' => self::STATUS_CANCELLED]);
 
                 // Restore stock for each item
                 $inventory = app(InventoryServiceInterface::class);
-                $inventory->reverseMovementsFor(static::class, $o->id, 'Order expired — unpaid');
+                $inventory->reverseMovementsFor(static::class, $o->id, 'Order cancelled — unpaid 24h window');
 
                 // Release deal usage
                 foreach ($o->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
@@ -142,7 +146,7 @@ class Order extends Model
                 // Release coupon usage
                 app(CouponService::class)->releaseForOrder($o);
 
-                // Expire pending payment transactions
+                // Expire/cancel pending payment transactions
                 $o->paymentTransactions()->where('status', 'pending')->update(['status' => 'expired']);
             }
         });
