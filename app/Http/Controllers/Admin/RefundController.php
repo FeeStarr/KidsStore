@@ -141,11 +141,55 @@ class RefundController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        $msg = $refundRequest->fresh()->status === RefundRequest::STATUS_REFUNDED
+        $fresh = $refundRequest->fresh();
+        $msg = $fresh->status === RefundRequest::STATUS_REFUNDED
             ? 'Refund processed successfully.'
-            : 'Refund processing initiated - check Paystack status.';
+            : ($fresh->status === RefundRequest::STATUS_REFUND_PROCESSING ? 'Refund accepted - awaiting Paystack webhook.' : 'Refund processing initiated - check Paystack status.');
 
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', $msg);
+    }
+
+    public function approveRefund(Request $request, RefundRequest $refundRequest): RedirectResponse
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_REQUIRED) {
+            return back()->with('error', 'Only refund-required requests can be approved.');
+        }
+        try {
+            $refundRequest->update([
+                'status' => RefundRequest::STATUS_REFUND_APPROVED,
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+            ]);
+            app(\App\Models\ReturnAuditLog::class)::create([
+                'refund_request_id' => $refundRequest->id,
+                'action' => 'approved',
+                'user_id' => Auth::id(),
+                'details' => $request->input('admin_note'),
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Cancellation refund approved - ready to process.');
+    }
+
+    public function retryRefund(Request $request, RefundRequest $refundRequest): RedirectResponse
+    {
+        try {
+            $this->refunds->retryRefund($refundRequest, Auth::user());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Refund retry initiated.');
+    }
+
+    public function syncRefund(RefundRequest $refundRequest): RedirectResponse
+    {
+        try {
+            $this->refunds->syncRefundStatus($refundRequest);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Refund status synced - now: ' . $refundRequest->fresh()->statusLabel);
     }
 
     public function markReplacementShipped(Request $request, RefundRequest $refundRequest): RedirectResponse

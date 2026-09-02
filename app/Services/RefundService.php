@@ -417,12 +417,13 @@ class RefundService
     // ── Admin: process refund ─────────────────────────────────────────────────
 
     /**
-     * Process the actual refund via OPay after inspection approval.
+     * Process the refund via Paystack after inspection approval OR refund_required.
+     * Only moves to refund_processing on Paystack accept; final refunded comes via webhook/poll.
      */
     public function processRefund(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
     {
-        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_APPROVED) {
-            throw new \RuntimeException('Only inspection-approved refunds can be processed.');
+        if (! in_array($refundRequest->status, [RefundRequest::STATUS_REFUND_APPROVED, RefundRequest::STATUS_REFUND_REQUIRED], true)) {
+            throw new \RuntimeException('Only approved or required refunds can be processed.');
         }
 
         $transaction = $refundRequest->order->paymentTransactions()
@@ -434,31 +435,39 @@ class RefundService
             $refundRequest->update([
                 'status'     => RefundRequest::STATUS_REFUND_PROCESSING,
                 'admin_note' => $note,
+                'refund_processing_at' => now(),
             ]);
 
             $this->logAudit($refundRequest, 'refund_processing', $admin->id, $note);
 
-            if ($transaction?->opay_order_no) {
+            if ($transaction?->opay_order_no || $transaction?->reference) {
                 try {
+                    $ref = $refundRequest->provider_refund_reference ?: $refundRequest->opay_refund_no ?: $refundRequest->order->reference . '-R' . $refundRequest->id . '-' . time();
                     $opResult = $this->paystack->refund(
                         $transaction->reference,
                         $refundRequest->amount,
-                        $refundRequest->order->reference . '-R' . $refundRequest->id
+                        $ref
                     );
 
                     $paystackStatus = $opResult['status'] ?? false;
-                    $success = $paystackStatus === true;
 
-                    $refundRequest->update([
-                        'status'         => $success ? RefundRequest::STATUS_REFUNDED : RefundRequest::STATUS_REFUND_FAILED,
-                        'opay_refund_no' => $opResult['data']['refund_reference'] ?? null,
-                        'opay_payload'   => $opResult,
-                    ]);
-
-                    $this->logAudit($refundRequest, $success ? 'refund_completed' : 'refund_failed', $admin->id);
-
-                    if ($success && ! $refundRequest->order_item_id) {
-                        $refundRequest->order->update(['payment_status' => 'refunded']);
+                    if ($paystackStatus === true) {
+                        $refundRef = $opResult['data']['refund_reference'] ?? $opResult['data']['reference'] ?? $ref;
+                        $refundRequest->update([
+                            'opay_refund_no' => $refundRef,
+                            'provider_refund_reference' => $refundRef,
+                            'payment_provider' => 'paystack',
+                            'opay_payload'   => $opResult,
+                            'last_refund_check_at' => now(),
+                        ]);
+                        $this->logAudit($refundRequest, 'refund_processing_accepted', $admin->id, "Paystack accepted refund {$refundRef}");
+                        // Stay in refund_processing until webhook confirms
+                    } else {
+                        $refundRequest->update([
+                            'status'         => RefundRequest::STATUS_REFUND_FAILED,
+                            'opay_payload'   => $opResult,
+                        ]);
+                        $this->logAudit($refundRequest, 'refund_failed', $admin->id, $opResult['message'] ?? 'Paystack rejected refund');
                     }
                 } catch (\Throwable $e) {
                     Log::error('Paystack refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
@@ -482,6 +491,88 @@ class RefundService
         $this->notifyCustomer($result);
 
         return $result;
+    }
+
+    /**
+     * Poll Paystack for a refund in refund_processing - use refund_processing_at.
+     */
+    public function syncRefundStatus(RefundRequest $refundRequest): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_PROCESSING) {
+            return $refundRequest;
+        }
+
+        $ref = $refundRequest->provider_refund_reference ?: $refundRequest->opay_refund_no;
+        if (! $ref) {
+            return $refundRequest;
+        }
+
+        try {
+            $result = $this->paystack->fetchRefund($ref);
+            $refundRequest->update(['last_refund_check_at' => now(), 'opay_payload' => array_merge($refundRequest->opay_payload ?? [], ['last_sync' => $result])]);
+
+            $data = $result['data'] ?? [];
+            $status = strtolower($data['status'] ?? '');
+            if (in_array($status, ['processed', 'success', 'refunded'], true)) {
+                return $this->applyRefundSuccess($refundRequest);
+            }
+            if (in_array($status, ['failed', 'rejected'], true)) {
+                $refundRequest->update(['status' => RefundRequest::STATUS_REFUND_FAILED]);
+                $this->logAudit($refundRequest, 'refund_failed', null, 'Sync detected failed');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Refund sync failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
+        }
+
+        return $refundRequest->refresh();
+    }
+
+    public function applyRefundSuccess(RefundRequest $refundRequest): RefundRequest
+    {
+        if ($refundRequest->status === RefundRequest::STATUS_REFUNDED) {
+            return $refundRequest;
+        }
+        $refundRequest->update(['status' => RefundRequest::STATUS_REFUNDED]);
+        if (! $refundRequest->order_item_id) {
+            $refundRequest->order->update(['payment_status' => 'refunded']);
+        }
+        $this->logAudit($refundRequest, 'refund_completed', null, 'Confirmed via sync/webhook');
+        $this->notifyCustomer($refundRequest->refresh());
+        return $refundRequest->refresh();
+    }
+
+    /**
+     * Retry a failed refund - verifies no active provider refund exists before retry.
+     */
+    public function retryRefund(RefundRequest $refundRequest, User $admin): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_FAILED) {
+            throw new \RuntimeException('Only failed refunds can be retried.');
+        }
+
+        // Verify provider status before retry to avoid duplicate
+        $ref = $refundRequest->provider_refund_reference ?: $refundRequest->opay_refund_no;
+        if ($ref) {
+            try {
+                $check = $this->paystack->fetchRefund($ref);
+                $pStatus = strtolower($check['data']['status'] ?? '');
+                if (in_array($pStatus, ['pending', 'processing', 'processed'], true)) {
+                    throw new \RuntimeException('A refund for this request is already ' . $pStatus . ' on Paystack. Use Sync instead.');
+                }
+            } catch (\RuntimeException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                // ignore fetch failure, allow retry
+            }
+        }
+
+        $refundRequest->update([
+            'status' => RefundRequest::STATUS_REFUND_REQUIRED,
+            'admin_note' => null,
+        ]);
+        $this->logAudit($refundRequest, 'retry_queued', $admin->id, 'Retry requested');
+
+        return $this->processRefund($refundRequest->fresh(), $admin);
     }
 
     // ── Customer cancels ──────────────────────────────────────────────────────

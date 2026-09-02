@@ -428,7 +428,7 @@ class PaystackService
 
     /**
      * Handle an incoming webhook from Paystack.
-     * Verifies the signature, then updates the transaction + order.
+     * Verifies the signature, then updates the transaction + order or refund.
      */
     public function handleWebhook(array $payload, string $signature, string $rawBody = ''): bool
     {
@@ -440,6 +440,11 @@ class PaystackService
 
         $event = $payload['event'] ?? '';
         $data  = $payload['data'] ?? [];
+
+        // Refund webhooks - verify against Paystack docs for exact event name
+        if (str_contains(strtolower($event), 'refund')) {
+            return $this->handleRefundWebhook($event, $data, $payload);
+        }
 
         // We care about charge.success events
         if ($event !== 'charge.success') {
@@ -565,8 +570,96 @@ class PaystackService
             'transaction' => $transactionReference,
             'amount'      => $amountKobo,
             'currency'    => config('paystack.currency', 'NGN'),
+            'merchant_note' => $refundRef,
+            'reference'   => $refundRef,
             'note'        => 'Customer refund request',
         ]);
+    }
+
+    /**
+     * Query a refund status from Paystack.
+     */
+    public function fetchRefund(string $refundReference): array
+    {
+        return $this->get('/refund/' . urlencode($refundReference));
+    }
+
+    /**
+     * Handle refund webhook - idempotent, never moves terminal state backwards.
+     */
+    private function handleRefundWebhook(string $event, array $data, array $payload): bool
+    {
+        $eventLower = strtolower($event);
+        $isSuccess = str_contains($eventLower, 'processed') || str_contains($eventLower, 'success');
+        $isFailed  = str_contains($eventLower, 'failed');
+
+        $refundRef = $data['refund_reference'] ?? $data['reference'] ?? $data['merchant_note'] ?? null;
+        $status    = strtolower($data['status'] ?? ($isSuccess ? 'processed' : ($isFailed ? 'failed' : 'pending')));
+
+        // Find local refund request by provider reference (support legacy opay_refund_no).
+        $refund = null;
+        if ($refundRef) {
+            $refund = \App\Models\RefundRequest::where('provider_refund_reference', $refundRef)
+                ->orWhere('opay_refund_no', $refundRef)
+                ->first();
+        }
+        // Fallback by transaction reference if refund ref not found
+        if (! $refund && isset($data['transaction_reference'])) {
+            $refund = \App\Models\RefundRequest::where('opay_refund_no', $data['transaction_reference'])->first();
+        }
+
+        if (! $refund) {
+            Log::warning('Paystack refund webhook: refund not found', ['event' => $event, 'refund_ref' => $refundRef, 'data' => $data]);
+            return false;
+        }
+
+        // Idempotency: terminal states never move backwards
+        if (in_array($refund->status, [\App\Models\RefundRequest::STATUS_REFUNDED], true) && ! $isFailed) {
+            return true;
+        }
+        if ($refund->status === \App\Models\RefundRequest::STATUS_REFUND_FAILED && $status === 'pending') {
+            return true;
+        }
+
+        // Record raw payload
+        $payloadStored = $refund->opay_payload ?? [];
+        $payloadStored['last_webhook'] = $payload;
+
+        if ($status === 'processed' || $isSuccess) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored) {
+                $refund->update([
+                    'status'       => \App\Models\RefundRequest::STATUS_REFUNDED,
+                    'opay_payload' => $payloadStored,
+                ]);
+                if (! $refund->order_item_id) {
+                    $refund->order?->update(['payment_status' => 'refunded']);
+                }
+                \App\Models\ReturnAuditLog::create([
+                    'refund_request_id' => $refund->id,
+                    'action'            => 'refund_completed',
+                    'details'           => 'Refund confirmed via Paystack webhook',
+                    'metadata'          => $payloadStored,
+                ]);
+            });
+            try { $refund->order?->customer?->notify(new \App\Notifications\RefundStatusNotification($refund->fresh())); } catch (\Throwable $e) { Log::error('Refund webhook notify failed', ['id' => $refund->id]); }
+        } elseif ($status === 'failed' || $isFailed) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored, $data) {
+                $refund->update([
+                    'status'       => \App\Models\RefundRequest::STATUS_REFUND_FAILED,
+                    'opay_payload' => $payloadStored,
+                ]);
+                \App\Models\ReturnAuditLog::create([
+                    'refund_request_id' => $refund->id,
+                    'action'            => 'refund_failed',
+                    'details'           => $data['message'] ?? 'Refund failed via webhook',
+                ]);
+            });
+        } else {
+            // pending - just record check time
+            $refund->update(['last_refund_check_at' => now(), 'opay_payload' => $payloadStored]);
+        }
+
+        return true;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
