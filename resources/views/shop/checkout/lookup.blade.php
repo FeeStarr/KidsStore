@@ -7,7 +7,7 @@
             <div class="card-body p-4 text-center">
                 <div class="mb-3" style="font-size:2.5rem;">📦</div>
                 <h3 class="fw-bold mb-2">Track Your Order</h3>
-                <p class="text-muted mb-4">Enter your order reference and the email used at checkout.</p>
+                <p class="text-muted mb-4">Enter your order reference and email - we'll send a 6-digit code to verify it's you.</p>
 
                 <form action="{{ route('shop.order.lookup.submit') }}" method="post">
                     @csrf
