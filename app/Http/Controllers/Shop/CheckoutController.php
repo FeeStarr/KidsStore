@@ -327,14 +327,143 @@ class CheckoutController extends Controller
             $order->refresh();
         }
 
-        // Guest-accessible track page - email already verified by the query above
-        return redirect()->route('shop.order.track', $order->lookup_token);
+        // Logged-in owners bypass OTP
+        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
+            session(['track_verified_' . $order->lookup_token => true]);
+            return redirect()->route('shop.order.track', $order->lookup_token);
+        }
+
+        // Already verified this token in this session/cache (15 min)
+        if ($this->isTrackVerified($order->lookup_token)) {
+            return redirect()->route('shop.order.track', $order->lookup_token);
+        }
+
+        $sent = $this->otpService->sendOtp($email);
+        if (! $sent) {
+            return back()->with('error', 'Please wait a moment before requesting another code.');
+        }
+
+        session(['track_pending_token' => $order->lookup_token, 'track_pending_email' => $email]);
+
+        return redirect()->route('shop.order.track.verify', $order->lookup_token)
+            ->with('success', 'A 6-digit verification code has been sent to ' . $email);
+    }
+
+    public function showTrackOtp(string $token)
+    {
+        $order = Order::where('lookup_token', $token)->firstOrFail();
+
+        // Owners bypass
+        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
+            session(['track_verified_' . $token => true]);
+            return redirect()->route('shop.order.track', $token);
+        }
+
+        if ($this->isTrackVerified($token)) {
+            return redirect()->route('shop.order.track', $token);
+        }
+
+        $email = session('track_pending_email');
+
+        // Fallback to order email if session lost
+        if (! $email) {
+            $email = $order->guest_email ?? $order->customer?->email ?? '';
+        }
+
+        return view('shop.checkout.track-verify', ['order' => $order, 'email' => $email, 'token' => $token]);
+    }
+
+    public function verifyTrackOtp(Request $request, string $token)
+    {
+        $order = Order::where('lookup_token', $token)->firstOrFail();
+
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'code'  => ['required', 'string', 'size:6'],
+        ]);
+
+        $email = strtolower(trim($data['email']));
+        $code  = trim($data['code']);
+
+        // Verify email belongs to this order
+        $orderEmail = strtolower($order->guest_email ?? $order->customer?->email ?? '');
+        $isOwnerEmail = $orderEmail === $email || $this->otpService->isVerified($email);
+
+        if (! $isOwnerEmail) {
+            // Still allow if GuestOtp verification passes for the provided email,
+            // but ensure the order email matches or customer email matches via LOWER check
+            $matchesOrder = Order::where('id', $order->id)
+                ->where(function ($q) use ($email) {
+                    $q->whereRaw('LOWER(guest_email) = ?', [$email])
+                      ->orWhereHas('customer', fn ($q2) => $q2->whereRaw('LOWER(email) = ?', [$email]));
+                })->exists();
+            if (! $matchesOrder) {
+                return back()->with('error', 'Email does not match this order.');
+            }
+        }
+
+        $verified = $this->otpService->verify($email, $code);
+        if (! $verified) {
+            return back()->with('error', 'Invalid or expired verification code. Please try again.');
+        }
+
+        $this->markTrackVerified($token);
+        session()->forget(['track_pending_token', 'track_pending_email']);
+
+        return redirect()->route('shop.order.track', $token)
+            ->with('success', 'Email verified. Showing your order.');
+    }
+
+    public function resendTrackOtp(string $token)
+    {
+        $order = Order::where('lookup_token', $token)->firstOrFail();
+        $email = session('track_pending_email') ?? $order->guest_email ?? $order->customer?->email ?? null;
+
+        if (! $email) {
+            return redirect()->route('shop.order.lookup')->with('error', 'Please search for your order again.');
+        }
+
+        $sent = $this->otpService->sendOtp(strtolower($email));
+        if (! $sent) {
+            return back()->with('error', 'Please wait a moment before requesting another code.');
+        }
+
+        return back()->with('success', 'A new verification code has been sent to ' . $email);
     }
 
     public function orderTrack(string $token)
     {
         $order = Order::where('lookup_token', $token)->firstOrFail();
 
+        // Authenticated owner bypass
+        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
+            return view('shop.checkout.track', ['order' => $order->load(['items.product', 'items.variant', 'pickupStation'])]);
+        }
+
+        if (! $this->isTrackVerified($token)) {
+            // Store pending for resend
+            $email = $order->guest_email ?? $order->customer?->email ?? '';
+            if ($email) {
+                session(['track_pending_token' => $token, 'track_pending_email' => strtolower($email)]);
+            }
+            return redirect()->route('shop.order.track.verify', $token)
+                ->with('error', 'Please verify your email to view this order.');
+        }
+
         return view('shop.checkout.track', ['order' => $order->load(['items.product', 'items.variant', 'pickupStation'])]);
+    }
+
+    private function isTrackVerified(string $token): bool
+    {
+        if (session('track_verified_' . $token)) {
+            return true;
+        }
+        return (bool) \Illuminate\Support\Facades\Cache::get('track_verified_' . $token);
+    }
+
+    private function markTrackVerified(string $token): void
+    {
+        session(['track_verified_' . $token => true]);
+        \Illuminate\Support\Facades\Cache::put('track_verified_' . $token, true, 900); // 15 min
     }
 }
