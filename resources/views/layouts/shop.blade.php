@@ -296,7 +296,11 @@
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
-            <p class="text-muted small mb-3">Add to your home screen for faster shopping!</p>
+            <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
+            <div id="pwa-install-state" class="small text-muted mb-2" style="display:none;"></div>
+            <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed — open from your home screen.</div>
+            <div id="pwa-installing" class="small text-primary mb-2" style="display:none;"><span class="spinner-border spinner-border-sm me-1"></span> Installing… please wait</div>
+            <div id="pwa-cancelled" class="small text-muted mb-2" style="display:none;">Installation cancelled. You can try again anytime.</div>
             <div id="pwa-install-android" style="display:none;">
                 <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
                     <i class="bi bi-download me-1"></i> Install App
@@ -325,41 +329,33 @@
 
 <script>
 (function() {
-    var DISMISS_KEY = 'kidsflairr_pwa_dismissed';
+    if (window.__kidsflairrPwaInit) return;
+    window.__kidsflairrPwaInit = true;
+
+    var DISMISS_KEY = 'kidsflairr_pwa_dismissed_at';
     var INSTALLED_KEY = 'kidsflairr_pwa_installed';
+    var SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+    var SUCCESS_SHOWN_SESS = 'kidsflairr_pwa_success_shown';
 
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     var isAndroid = /Android/.test(navigator.userAgent);
     var isMobile = isIOS || isAndroid || (window.innerWidth < 768);
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-    // Already installed (standalone) - done
-    if (isStandalone) {
-        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
-        hideNav();
-        return;
+    function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches
+            || window.matchMedia('(display-mode: fullscreen)').matches
+            || window.navigator.standalone === true;
     }
-
-    // Not standalone but flag is set = app was uninstalled - clear it
-    try {
-        if (localStorage.getItem(INSTALLED_KEY) === '1') {
-            localStorage.removeItem(INSTALLED_KEY);
-        }
-    } catch(e) {}
-
-    // Dismissed - done
-    try {
-        if (localStorage.getItem(DISMISS_KEY) === '1') {
-            hideNav();
-            return;
-        }
-    } catch(e) {}
+    function isDesktopWidth() { return window.innerWidth >= 992; }
 
     function hideNav() {
         var nav = document.getElementById('nav-pwa-install-wrap');
         if (nav) nav.style.display = 'none';
     }
-
+    function showNav() {
+        var nav = document.getElementById('nav-pwa-install-wrap');
+        if (nav && isMobile && !isStandalone()) nav.style.display = '';
+    }
     function hideModal() {
         var modal = document.getElementById('pwa-install-modal');
         if (!modal) return;
@@ -374,7 +370,72 @@
         }, 300);
     }
 
-    function onInstalled() {
+    // --- standalone is primary truth ---
+    if (isStandalone()) {
+        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
+        hideNav();
+        // do not show any popup when already installed
+        return;
+    }
+    // clear stale installed flag if not standalone (uninstalled)
+    try {
+        if (localStorage.getItem(INSTALLED_KEY) === '1' && !isStandalone()) {
+            localStorage.removeItem(INSTALLED_KEY);
+        }
+    } catch(e) {}
+
+    // snooze check
+    try {
+        var ts = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
+        if (ts) {
+            if (Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
+            else localStorage.removeItem(DISMISS_KEY);
+        }
+    } catch(e) {}
+
+    // mobile-only: never show CTA/popup on desktop
+    if (!isMobile || isDesktopWidth()) { hideNav(); }
+    else { showNav(); }
+
+    var deferredPrompt = null;
+    var installBtn = document.getElementById('pwa-install-btn');
+    var stateEl = document.getElementById('pwa-install-state');
+    var alreadyEl = document.getElementById('pwa-already-installed');
+    var installingEl = document.getElementById('pwa-installing');
+    var cancelledEl = document.getElementById('pwa-cancelled');
+
+    function setState(s) {
+        if (stateEl) stateEl.textContent = s;
+        // visibility helpers
+        if (installBtn) {
+            if (s === 'installing' || s === 'waiting') {
+                installBtn.disabled = true;
+                installBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Installing...';
+                installBtn.style.display = '';
+            } else if (s === 'installable') {
+                installBtn.disabled = false;
+                installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+                installBtn.style.display = deferredPrompt ? '' : 'none';
+            } else if (s === 'cancelled') {
+                installBtn.disabled = false;
+                installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+                installBtn.style.display = deferredPrompt ? '' : 'none';
+            } else {
+                // hidden for ios / non-installable
+                if (!deferredPrompt && !isIOS) installBtn.style.display = 'none';
+            }
+        }
+        if (installingEl) installingEl.style.display = (s === 'installing' || s === 'waiting') ? '' : 'none';
+        if (cancelledEl) cancelledEl.style.display = (s === 'cancelled') ? '' : 'none';
+        if (alreadyEl) alreadyEl.style.display = (s === 'already') ? '' : 'none';
+    }
+
+    function onInstalledConfirmed() {
+        // prevent duplicate success from multiple events/page loads
+        try {
+            if (sessionStorage.getItem(SUCCESS_SHOWN_SESS) === '1') return;
+            sessionStorage.setItem(SUCCESS_SHOWN_SESS, '1');
+        } catch(e) {}
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideModal();
         hideNav();
@@ -383,82 +444,114 @@
                 icon: 'success',
                 title: 'App Installed!',
                 text: 'KidsFlairr is now on your home screen.',
-                timer: 4000,
-                showConfirmButton: false,
-                confirmButtonColor: '#d63384'
+                showConfirmButton: true,
+                confirmButtonText: 'Open KidsFlairr',
+                confirmButtonColor: '#d63384',
+                showCancelButton: false,
+                allowOutsideClick: false
+            }).then(function(r) {
+                if (r.isConfirmed) window.location.href = '/';
             });
         }
         try {
             fetch('/pwa/install', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
-                body: JSON.stringify({ platform: isIOS ? 'ios' : 'android' })
+                body: JSON.stringify({ platform: isIOS ? 'ios' : 'android', browser: navigator.userAgent })
             });
         } catch(e) {}
     }
 
-    // Dismiss button
+    // Dismiss -> 7-day snooze, no success
     var dismissBtn = document.getElementById('pwa-dismiss-btn');
     if (dismissBtn) {
         dismissBtn.addEventListener('click', function() {
-            try { localStorage.setItem(DISMISS_KEY, '1'); } catch(e) {}
+            try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
+            setState('cancelled');
             hideModal();
             hideNav();
         });
     }
 
-    // Show modal after 3s (works even without service worker)
-    if (isMobile) {
+    // Capture beforeinstallprompt - do not auto prompt, only via Install button
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        // only expose Install button on mobile when not standalone
+        if (isMobile && !isStandalone() && !isDesktopWidth()) {
+            setState('installable');
+            showNav();
+        }
+    });
+
+    // Confirmed install only via appinstalled + display-mode change
+    window.addEventListener('appinstalled', function() {
+        onInstalledConfirmed();
+    });
+    try {
+        window.matchMedia('(display-mode: standalone)').addEventListener('change', function(e) {
+            if (e.matches) onInstalledConfirmed();
+        });
+    } catch(e) {
+        try { window.matchMedia('(display-mode: standalone)').addListener(function(e){ if(e.matches) onInstalledConfirmed(); }); } catch(e2){}
+    }
+
+    // Nav Get the App click - respect mobile+installable gate
+    var navWrap = document.getElementById('nav-pwa-install-wrap');
+    if (navWrap) {
+        navWrap.addEventListener('click', function(e) {
+            if (!isMobile || isStandalone() || isDesktopWidth()) { e.preventDefault(); return; }
+        });
+    }
+
+    // Show modal after 3s only on mobile, not installed, not snoozed
+    if (isMobile && !isDesktopWidth() && !isStandalone()) {
         setTimeout(function() {
+            if (isStandalone()) return;
+            try {
+                var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
+                if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
+            } catch(e){}
             var modal = document.getElementById('pwa-install-modal');
             if (!modal || bootstrap.Modal.getInstance(modal)) return;
-
             var androidDiv = document.getElementById('pwa-install-android');
             var iosDiv = document.getElementById('pwa-install-ios');
             if (isIOS) {
                 if (iosDiv) iosDiv.style.display = 'block';
                 if (androidDiv) androidDiv.style.display = 'none';
+                setState('installable');
             } else {
                 if (androidDiv) androidDiv.style.display = 'block';
+                if (iosDiv) iosDiv.style.display = 'none';
+                setState(deferredPrompt ? 'installable' : 'installable');
+                if (!deferredPrompt && installBtn) installBtn.style.display = 'none';
             }
+            // already installed state
+            if (isStandalone()) { setState('already'); hideNav(); return; }
             new bootstrap.Modal(modal).show();
         }, 3000);
+    } else {
+        hideNav();
     }
 
-    var deferredPrompt = null;
-    var installBtn = document.getElementById('pwa-install-btn');
-
-    window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-        // Show button only when Chrome says install is available
-        if (installBtn) installBtn.style.display = 'block';
-    });
-
-    window.addEventListener('appinstalled', function() {
-        onInstalled();
-    });
-
     if (installBtn) {
+        // initially hidden until beforeinstallprompt
+        if (!isIOS) installBtn.style.display = 'none';
         installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) {
-                installBtn.style.display = 'none';
-                return;
-            }
-            installBtn.disabled = true;
-            installBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
+            if (!isMobile || isStandalone() || isDesktopWidth()) return;
+            if (!deferredPrompt) { return; }
+            setState('installing');
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(result) {
                 if (result.outcome === 'accepted') {
-                    onInstalled();
+                    setState('waiting');
+                    // do NOT show success here - wait for appinstalled / standalone
                 } else {
-                    installBtn.disabled = false;
-                    installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+                    setState('cancelled');
                 }
                 deferredPrompt = null;
             }).catch(function() {
-                installBtn.disabled = false;
-                installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+                setState('cancelled');
                 deferredPrompt = null;
             });
         });
