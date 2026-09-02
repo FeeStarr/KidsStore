@@ -406,23 +406,19 @@
 
     function setState(s) {
         if (stateEl) stateEl.textContent = s;
-        // visibility helpers
+        // visibility helpers - Install App is explicit and always visible on Android popup (mobile-only)
         if (installBtn) {
             if (s === 'installing' || s === 'waiting') {
                 installBtn.disabled = true;
                 installBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Installing...';
                 installBtn.style.display = '';
-            } else if (s === 'installable') {
+            } else if (s === 'installable' || s === 'cancelled') {
                 installBtn.disabled = false;
                 installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                installBtn.style.display = deferredPrompt ? '' : 'none';
-            } else if (s === 'cancelled') {
-                installBtn.disabled = false;
-                installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                installBtn.style.display = deferredPrompt ? '' : 'none';
+                // always show on Android popup when mobile; iOS uses share instructions so keep hidden
+                installBtn.style.display = isIOS ? 'none' : '';
             } else {
-                // hidden for ios / non-installable
-                if (!deferredPrompt && !isIOS) installBtn.style.display = 'none';
+                if (!isIOS) installBtn.style.display = '';
             }
         }
         if (installingEl) installingEl.style.display = (s === 'installing' || s === 'waiting') ? '' : 'none';
@@ -523,8 +519,7 @@
             } else {
                 if (androidDiv) androidDiv.style.display = 'block';
                 if (iosDiv) iosDiv.style.display = 'none';
-                setState(deferredPrompt ? 'installable' : 'installable');
-                if (!deferredPrompt && installBtn) installBtn.style.display = 'none';
+                setState('installable');
             }
             // already installed state
             if (isStandalone()) { setState('already'); hideNav(); return; }
@@ -535,11 +530,20 @@
     }
 
     if (installBtn) {
-        // initially hidden until beforeinstallprompt
-        if (!isIOS) installBtn.style.display = 'none';
+        // explicit Install App button - visible on mobile Android popup even before beforeinstallprompt fires
+        if (isIOS) installBtn.style.display = 'none';
+        else if (isMobile && !isStandalone() && !isDesktopWidth()) installBtn.style.display = '';
         installBtn.addEventListener('click', function() {
             if (!isMobile || isStandalone() || isDesktopWidth()) return;
-            if (!deferredPrompt) { return; }
+            if (!deferredPrompt) {
+                // prompt not yet ready - keep button but show hint (fallback 3-dot instructions already visible)
+                if (installBtn) {
+                    var orig = installBtn.innerHTML;
+                    installBtn.innerHTML = '<i class="bi bi-three-dots-vertical me-1"></i> Use browser menu';
+                    setTimeout(function(){ installBtn.innerHTML = orig; }, 1800);
+                }
+                return;
+            }
             setState('installing');
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(result) {
