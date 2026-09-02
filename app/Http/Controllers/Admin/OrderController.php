@@ -108,7 +108,14 @@ class OrderController extends Controller
     {
         $this->orders->cancel($order);
 
-        return back()->with('success', 'Order cancelled.');
+        return back()->with('success', 'Order cancelled. If paid, a refund request was queued for review.');
+    }
+
+    public function cancelItem(Request $request, Order $order, \App\Models\OrderItem $item): RedirectResponse
+    {
+        $data = $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:1000']]);
+        $this->orders->cancelItem($order, $item, (int) $data['quantity']);
+        return back()->with('success', 'Item cancelled - refund queued if paid.');
     }
 
     public function storePayment(PaymentRequest $request, Order $order): RedirectResponse

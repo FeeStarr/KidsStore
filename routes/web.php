@@ -369,7 +369,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('refunds/{refundRequest}/mark-received', [AdminRefundController::class, 'markReceived'])->name('refunds.mark-received')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/inspect', [AdminRefundController::class, 'inspect'])->name('refunds.inspect')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/process-refund', [AdminRefundController::class, 'processRefund'])->name('refunds.process-refund')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/approve-refund', [AdminRefundController::class, 'approveRefund'])->name('refunds.approve-refund')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/retry-refund', [AdminRefundController::class, 'retryRefund'])->name('refunds.retry-refund')->middleware('permission:manage_orders');
+        Route::post('refunds/{refundRequest}/sync-refund', [AdminRefundController::class, 'syncRefund'])->name('refunds.sync-refund')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/mark-replacement-shipped', [AdminRefundController::class, 'markReplacementShipped'])->name('refunds.mark-replacement-shipped')->middleware('permission:manage_orders');
+        Route::post('orders/{order}/items/{item}/cancel', [\App\Http\Controllers\Admin\OrderController::class, 'cancelItem'])->name('orders.items.cancel')->middleware('permission:update_order_status');
         Route::get('refunds/{refundRequest}/evidence', [AdminRefundController::class, 'evidence'])->name('refunds.evidence')->middleware('permission:manage_orders');
         Route::get('refunds/{refundRequest}/evidence-video', [AdminRefundController::class, 'evidenceVideo'])->name('refunds.evidence-video')->middleware('permission:manage_orders');
     });

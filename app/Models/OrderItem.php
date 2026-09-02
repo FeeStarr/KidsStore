@@ -9,6 +9,7 @@ class OrderItem extends Model
 {
     protected $fillable = [
         'order_id', 'product_id', 'product_variant_id', 'quantity',
+        'cancelled_quantity', 'cancelled_at',
         'unit_price', 'original_unit_price', 'landed_unit_cost', 'discount', 'discount_amount', 'deal_id', 'coupon_id',
         'coupon_discount', 'line_total',
         'selected_age_group', 'selected_size',
@@ -18,6 +19,8 @@ class OrderItem extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        'cancelled_quantity' => 'integer',
+        'cancelled_at' => 'datetime',
         'unit_price' => 'decimal:2',
         'original_unit_price' => 'decimal:2',
         'landed_unit_cost' => 'decimal:2',
@@ -79,6 +82,16 @@ class OrderItem extends Model
     public function isPickedUp(): bool
     {
         return $this->pickup_status === 'picked_up';
+    }
+
+    public function remainingQuantity(): int
+    {
+        return max(0, (int) $this->quantity - (int) $this->cancelled_quantity);
+    }
+
+    public function isFullyCancelled(): bool
+    {
+        return $this->remainingQuantity() === 0 && (int) $this->quantity > 0;
     }
 
     /**

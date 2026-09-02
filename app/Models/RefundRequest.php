@@ -27,6 +27,7 @@ class RefundRequest extends Model
     ];
 
     // ── Statuses ──────────────────────────────────────────────────────────────
+    public const STATUS_REFUND_REQUIRED      = 'refund_required';
     public const STATUS_REQUESTED            = 'requested';
     public const STATUS_PENDING_REVIEW      = 'pending_review';
     public const STATUS_AWAITING_EVIDENCE   = 'awaiting_evidence';
@@ -52,6 +53,7 @@ class RefundRequest extends Model
     public const STATUS_FAILED   = self::STATUS_REFUND_FAILED;
 
     public const STATUSES = [
+        self::STATUS_REFUND_REQUIRED     => 'Refund Required',
         self::STATUS_REQUESTED            => 'Requested',
         self::STATUS_PENDING_REVIEW      => 'Pending Review',
         self::STATUS_AWAITING_EVIDENCE   => 'Awaiting Customer Evidence',
@@ -83,6 +85,7 @@ class RefundRequest extends Model
         'incomplete_order'     => 'Incomplete order',
         'not_as_described'     => 'Product not as described',
         'changed_mind'         => 'Changed my mind',
+        'order_cancelled'      => 'Order cancelled',
     ];
 
     /**
@@ -123,7 +126,8 @@ class RefundRequest extends Model
         'status', 'reason', 'details', 'evidence_path', 'evidence_video_path',
         'admin_note', 'reviewed_by', 'reviewed_at',
         'review_deadline', 'review_sla_breached',
-        'opay_refund_no', 'opay_payload',
+        'opay_refund_no', 'opay_payload', 'payment_provider', 'provider_refund_reference',
+        'refund_processing_at', 'last_refund_check_at',
         'inspection_notes', 'inspected_by', 'inspected_at',
         'inspection_deadline', 'inspection_sla_breached',
         'return_collected_at',
@@ -142,6 +146,8 @@ class RefundRequest extends Model
         'return_collected_at'  => 'datetime',
         'dropoff_deadline'     => 'datetime',
         'dropoff_sla_breached' => 'boolean',
+        'refund_processing_at' => 'datetime',
+        'last_refund_check_at' => 'datetime',
         'opay_payload'         => 'array',
     ];
 

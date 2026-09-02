@@ -221,6 +221,7 @@ class OrderService
 
     /**
      * Cancel an order. If inventory was decreased, restore it.
+     * For paid orders, creates a refund_required request transactionally.
      */
     public function cancel(Order $order): Order
     {
@@ -233,13 +234,108 @@ class OrderService
                 $this->coupons->releaseForOrder($order);
             }
             $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            $fresh = $order->fresh();
 
-            return [$order->fresh(), $prev];
+            // Auto-create refund_required for paid orders transactionally
+            if ((float) $fresh->amount_paid > 0) {
+                $exists = \App\Models\RefundRequest::where('order_id', $fresh->id)
+                    ->whereIn('status', [RefundRequest::STATUS_REFUND_REQUIRED, RefundRequest::STATUS_REFUND_APPROVED, RefundRequest::STATUS_REFUND_PROCESSING])
+                    ->exists();
+                if (! $exists) {
+                    $amount = app(RefundAmountService::class)->forWholeOrder($fresh);
+                    if ($amount > 0) {
+                        $rr = \App\Models\RefundRequest::create([
+                            'order_id' => $fresh->id,
+                            'quantity' => 1,
+                            'amount'   => $amount,
+                            'status'   => \App\Models\RefundRequest::STATUS_REFUND_REQUIRED,
+                            'reason'   => 'order_cancelled',
+                            'details'  => 'Auto-created from order cancellation',
+                        ]);
+                        \App\Models\ReturnAuditLog::create([
+                            'refund_request_id' => $rr->id,
+                            'action'            => 'refund_required',
+                            'details'           => 'Cancellation refund required',
+                        ]);
+                    }
+                }
+            }
+
+            return [$fresh, $prev];
         });
 
         $this->notifyStatusChange($result[0], $result[1]);
 
         return $result[0];
+    }
+
+    /**
+     * Cancel a portion of an item quantity - quantity-based, keeps pickup_status separate.
+     */
+    public function cancelItem(Order $order, \App\Models\OrderItem $item, int $qty): Order
+    {
+        if ((int) $item->order_id !== (int) $order->id) {
+            throw new \RuntimeException('Item does not belong to this order.');
+        }
+        if (in_array($order->status, ['cancelled', 'expired', 'delivered'], true)) {
+            throw new \RuntimeException('Cannot cancel item on a ' . $order->status . ' order.');
+        }
+        if ($item->isPickedUp()) {
+            throw new \RuntimeException('Cannot cancel an already picked up item.');
+        }
+        $remaining = $item->quantity - (int) $item->cancelled_quantity;
+        if ($qty <= 0 || $qty > $remaining) {
+            throw new \RuntimeException('Invalid cancel quantity.');
+        }
+
+        return DB::transaction(function () use ($order, $item, $qty) {
+            // Restore inventory for cancelled qty
+            if ($item->variant) {
+                app(\App\Services\InventoryService::class)->restoreFromReturn(
+                    $item->variant,
+                    $qty,
+                    Order::class,
+                    $order->id,
+                    "Item cancellation: {$item->product?->name} x{$qty}"
+                );
+            }
+
+            $item->update([
+                'cancelled_quantity' => (int) $item->cancelled_quantity + $qty,
+                'cancelled_at' => now(),
+            ]);
+
+            // Recalculate totals explicitly via pricing logic
+            $this->recalculateTotals($order->fresh());
+
+            // If fully cancelled across all items, cancel whole order
+            $freshOrder = $order->fresh('items');
+            $allCancelled = $freshOrder->items->every(fn ($i) => $i->remainingQuantity() === 0);
+            if ($allCancelled) {
+                $freshOrder->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            }
+
+            // Create refund_required for paid portion
+            $refundAmount = app(RefundAmountService::class)->forItem($freshOrder, $item->fresh(), $qty);
+            if ($refundAmount > 0 && (float) $order->amount_paid > 0) {
+                $rr = \App\Models\RefundRequest::create([
+                    'order_id' => $order->id,
+                    'order_item_id' => $item->id,
+                    'quantity' => $qty,
+                    'amount'   => $refundAmount,
+                    'status'   => \App\Models\RefundRequest::STATUS_REFUND_REQUIRED,
+                    'reason'   => 'order_cancelled',
+                    'details'  => "Item cancellation: {$item->product?->name} x{$qty}",
+                ]);
+                \App\Models\ReturnAuditLog::create([
+                    'refund_request_id' => $rr->id,
+                    'action'            => 'refund_required',
+                    'details'           => 'Item cancellation refund required',
+                ]);
+            }
+
+            return $freshOrder->fresh('items');
+        });
     }
 
     public function recordPayment(Order $order, float $amount): Order
