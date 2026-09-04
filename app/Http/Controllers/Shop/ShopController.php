@@ -53,7 +53,9 @@ class ShopController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('brand', 'like', "%{$search}%")
-                  ->orWhereHas('brandRef', fn ($b) => $b->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('brandRef', fn ($b) => $b->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('category.parent', fn ($p) => $p->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -71,6 +73,16 @@ class ShopController extends Controller
         };
 
         $products   = $query->paginate(12)->withQueryString();
+
+        $matchingCategories = null;
+        if ($search) {
+            $matchingCategories = Category::withCount('products')
+                ->where('name', 'like', "%{$search}%")
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        }
+
         $categories = Category::with(['children' => fn ($q) => $q->where('is_active', true)])
             ->whereNull('parent_id')
             ->where('is_active', true)
@@ -79,7 +91,7 @@ class ShopController extends Controller
 
         $ageRanges = AgeRange::where('is_active', true)->orderBy('name')->get();
 
-        return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges'));
+        return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges', 'matchingCategories'));
     }
 
     public function show(Product $product)
