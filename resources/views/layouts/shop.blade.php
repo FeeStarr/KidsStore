@@ -298,7 +298,7 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
             <div id="pwa-install-state" class="small text-muted mb-2" style="display:none;"></div>
-            <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed — open from your home screen.</div>
+            <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed - open from your home screen.</div>
             <div id="pwa-installing" class="small text-primary mb-2" style="display:none;"><span class="spinner-border spinner-border-sm me-1"></span> Installing… please wait</div>
             <div id="pwa-cancelled" class="small text-muted mb-2" style="display:none;">Installation cancelled. You can try again anytime.</div>
             <div id="pwa-install-android" style="display:none;">

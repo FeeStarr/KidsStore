@@ -25,10 +25,10 @@
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
             <dt class="col-4">Purchase Number</dt><dd class="col-8">{{ $purchase->display_number }}</dd>
-            <dt class="col-4">Supplier</dt><dd class="col-8">{{ $purchase->supplier?->name ?? 'â€”' }}</dd>
+            <dt class="col-4">Supplier</dt><dd class="col-8">{{ $purchase->supplier?->name ?? '-' }}</dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $purchase->purchase_date->format('Y-m-d H:i') }}</dd>
             <dt class="col-4">Status</dt><dd class="col-8"><span class="badge text-bg-light">{{ $purchase->status }}</span></dd>
-            <dt class="col-4">Note</dt><dd class="col-8">{{ $purchase->note ?? 'â€”' }}</dd>
+            <dt class="col-4">Note</dt><dd class="col-8">{{ $purchase->note ?? '-' }}</dd>
         </dl>
     </div></div></div>
     <div class="col-md-6"><div class="card"><div class="card-body">

@@ -21,7 +21,7 @@
                     @forelse($recentOrders as $o)
                         <tr>
                             <td><a href="{{ route('admin.orders.show', $o) }}">{{ $o->reference }}</a></td>
-                            <td>{{ $o->customer?->name ?? 'â€”' }}</td>
+                            <td>{{ $o->customer?->name ?? '-' }}</td>
                             <td><span class="badge text-bg-light">{{ $o->status }}</span></td>
                             <td class="text-end">₦{{ number_format($o->grand_total, 2) }}</td>
                         </tr>
