@@ -574,11 +574,8 @@
                 return;
             }
             if (!deferredPrompt) {
-                // No programmatic prompt captured yet
-                // If browser supports it, wait briefly rather than immediately showing fallback
                 if ('onbeforeinstallprompt' in window) {
                     setState('installing');
-                    // give Chrome a moment to fire the event if user clicked very early
                     setTimeout(function() {
                         if (deferredPrompt) {
                             installBtn.click();
@@ -590,36 +587,38 @@
                     }, 400);
                     return;
                 }
-                // Browser doesn't support programmatic installation - show platform fallback
                 var fb2 = document.getElementById('pwa-android-fallback');
                 if (fb2) fb2.style.display = '';
                 return;
             }
+            hideModal();
             setState('installing');
-            try {
-                deferredPrompt.prompt();
-            } catch(err) {
-                setState('cancelled');
-                var fb = document.getElementById('pwa-android-fallback');
-                if (fb) fb.style.display = '';
-                deferredPrompt = null;
-                return;
-            }
-            deferredPrompt.userChoice.then(function(result) {
-                if (result.outcome === 'accepted') {
-                    onInstalledConfirmed();
-                } else {
+            setTimeout(function() {
+                try {
+                    deferredPrompt.prompt();
+                } catch(err) {
                     setState('cancelled');
                     var fb = document.getElementById('pwa-android-fallback');
                     if (fb) fb.style.display = '';
+                    deferredPrompt = null;
+                    return;
                 }
-                deferredPrompt = null;
-            }).catch(function() {
-                setState('cancelled');
-                var fb = document.getElementById('pwa-android-fallback');
-                if (fb) fb.style.display = '';
-                deferredPrompt = null;
-            });
+                deferredPrompt.userChoice.then(function(result) {
+                    if (result.outcome === 'accepted') {
+                        onInstalledConfirmed();
+                    } else {
+                        setState('cancelled');
+                        var fb = document.getElementById('pwa-android-fallback');
+                        if (fb) fb.style.display = '';
+                    }
+                    deferredPrompt = null;
+                }).catch(function() {
+                    setState('cancelled');
+                    var fb = document.getElementById('pwa-android-fallback');
+                    if (fb) fb.style.display = '';
+                    deferredPrompt = null;
+                });
+            }, 400);
         });
     }
 
