@@ -305,7 +305,7 @@
                 <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
                     <i class="bi bi-download me-1"></i> Install App
                 </button>
-                <div class="bg-light rounded-3 p-3 mb-2">
+                <div id="pwa-android-fallback" class="bg-light rounded-3 p-3 mb-2" style="display:none;">
                     <small class="text-muted">
                         <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
                     </small>
@@ -356,6 +356,22 @@
         var nav = document.getElementById('nav-pwa-install-wrap');
         if (nav && isMobile && !isStandalone()) nav.style.display = '';
     }
+    function showAlready() {
+        var modal = document.getElementById('pwa-install-modal');
+        var alreadyEl2 = document.getElementById('pwa-already-installed');
+        if (alreadyEl2) alreadyEl2.style.display = '';
+        if (alreadyEl2) alreadyEl2.textContent = 'KidsFlairr is already installed.';
+        // hide install UI
+        var aDiv = document.getElementById('pwa-install-android');
+        var iDiv = document.getElementById('pwa-install-ios');
+        if (aDiv) aDiv.style.display = 'none';
+        if (iDiv) iDiv.style.display = 'none';
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+        if (modal && !bootstrap.Modal.getInstance(modal)) {
+            try { new bootstrap.Modal(modal).show(); } catch(e) {}
+        }
+    }
     function hideModal() {
         var modal = document.getElementById('pwa-install-modal');
         if (!modal) return;
@@ -374,7 +390,12 @@
     if (isStandalone()) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
-        // do not show any popup when already installed
+        // do not show install prompt when already installed; if user somehow opens modal show already message
+        var _modalAlready = document.getElementById('pwa-install-modal');
+        if (_modalAlready) {
+            // intercept any manual show attempt
+            document.getElementById('nav-pwa-install-wrap')?.addEventListener('click', function(e){ e.preventDefault(); showAlready(); });
+        }
         return;
     }
     // clear stale installed flag if not standalone (uninstalled)
@@ -405,21 +426,30 @@
     var cancelledEl = document.getElementById('pwa-cancelled');
 
     function setState(s) {
-        if (stateEl) stateEl.textContent = s;
+        if (stateEl) stateEl.style.display = 'none';
+        var fallback = document.getElementById('pwa-android-fallback');
         // visibility helpers - Install App is explicit and always visible on Android popup (mobile-only)
         if (installBtn) {
             if (s === 'installing' || s === 'waiting') {
                 installBtn.disabled = true;
                 installBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Installing...';
-                installBtn.style.display = '';
+                installBtn.style.display = isIOS ? 'none' : '';
+                if (fallback) fallback.style.display = 'none';
             } else if (s === 'installable' || s === 'cancelled') {
                 installBtn.disabled = false;
                 installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                // always show on Android popup when mobile; iOS uses share instructions so keep hidden
                 installBtn.style.display = isIOS ? 'none' : '';
+                // only show fallback instructions when programmatic install not supported
+                if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
+            } else if (s === 'already') {
+                installBtn.style.display = 'none';
+                if (fallback) fallback.style.display = 'none';
             } else {
                 if (!isIOS) installBtn.style.display = '';
+                if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
             }
+        } else {
+            if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
         }
         if (installingEl) installingEl.style.display = (s === 'installing' || s === 'waiting') ? '' : 'none';
         if (cancelledEl) cancelledEl.style.display = (s === 'cancelled') ? '' : 'none';
@@ -438,7 +468,7 @@
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'success',
-                title: 'App Installed!',
+                title: 'KidsFlairr has been installed successfully.',
                 text: 'KidsFlairr is now on your home screen.',
                 showConfirmButton: true,
                 confirmButtonText: 'Open KidsFlairr',
@@ -477,6 +507,8 @@
         if (isMobile && !isStandalone() && !isDesktopWidth()) {
             setState('installable');
             showNav();
+            var fb = document.getElementById('pwa-android-fallback');
+            if (fb) fb.style.display = 'none';
         }
     });
 
@@ -503,7 +535,7 @@
     // Show modal after 3s only on mobile, not installed, not snoozed
     if (isMobile && !isDesktopWidth() && !isStandalone()) {
         setTimeout(function() {
-            if (isStandalone()) return;
+            if (isStandalone()) { setState('already'); var m=document.getElementById('pwa-install-modal'); if(m) showAlready(); return; }
             try {
                 var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
                 if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
@@ -519,10 +551,13 @@
             } else {
                 if (androidDiv) androidDiv.style.display = 'block';
                 if (iosDiv) iosDiv.style.display = 'none';
+                // Install button always visible on Android; fallback only if no programmatic support
                 setState('installable');
+                var fb2 = document.getElementById('pwa-android-fallback');
+                if (fb2) fb2.style.display = deferredPrompt ? 'none' : '';
             }
             // already installed state
-            if (isStandalone()) { setState('already'); hideNav(); return; }
+            if (isStandalone()) { setState('already'); if(document.getElementById('pwa-already-installed')) document.getElementById('pwa-already-installed').style.display=''; hideNav(); return; }
             new bootstrap.Modal(modal).show();
         }, 3000);
     } else {
@@ -534,23 +569,26 @@
         if (isIOS) installBtn.style.display = 'none';
         else if (isMobile && !isStandalone() && !isDesktopWidth()) installBtn.style.display = '';
         installBtn.addEventListener('click', function() {
-            if (!isMobile || isStandalone() || isDesktopWidth()) return;
+            if (!isMobile || isStandalone() || isDesktopWidth()) {
+                // if already installed, show already message
+                if (isStandalone()) { showAlready(); return; }
+                return;
+            }
             if (!deferredPrompt) {
-                // prompt not yet ready - keep button but show hint (fallback 3-dot instructions already visible)
-                if (installBtn) {
-                    var orig = installBtn.innerHTML;
-                    installBtn.innerHTML = '<i class="bi bi-three-dots-vertical me-1"></i> Use browser menu';
-                    setTimeout(function(){ installBtn.innerHTML = orig; }, 1800);
-                }
+                // Browser doesn't support programmatic installation - show platform fallback
+                var fb = document.getElementById('pwa-android-fallback');
+                if (fb) fb.style.display = '';
+                // keep Install App button available (do not replace text)
                 return;
             }
             setState('installing');
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(result) {
                 if (result.outcome === 'accepted') {
-                    setState('waiting');
-                    // do NOT show success here - wait for appinstalled / standalone
+                    // notify installed successfully - waiting for appinstalled will also trigger, but show now per spec
+                    onInstalledConfirmed();
                 } else {
+                    // dismissed -> leave button available, show cancelled state (no success)
                     setState('cancelled');
                 }
                 deferredPrompt = null;
