@@ -7,7 +7,24 @@
 
 <div class="text-center mb-4">
     <h2 class="mb-1">{{ $pageHeading }}</h2>
+    @if(request('q'))
+        <p class="text-muted small">Search results for "<strong>{{ request('q') }}</strong>"</p>
+    @endif
 </div>
+
+@if($matchingCategories && $matchingCategories->count())
+    <div class="mb-4">
+        <h6 class="text-muted mb-2">Categories matching "{{ request('q') }}"</h6>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach($matchingCategories as $cat)
+                <a href="{{ route('shop.products.index', array_merge(request()->except(['page']), ['category' => $cat->id, 'q' => request('q')])) }}"
+                   class="badge bg-primary text-decoration-none">
+                    {{ $cat->name }} ({{ $cat->products_count }})
+                </a>
+            @endforeach
+        </div>
+    </div>
+@endif
 
 <div class="row">
     <aside class="col-md-3 mb-3">
