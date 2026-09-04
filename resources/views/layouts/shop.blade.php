@@ -565,20 +565,34 @@
     }
 
     if (installBtn) {
-        // explicit Install App button - visible on mobile Android popup even before beforeinstallprompt fires
+        // explicit Install App button - always visible on mobile popup
         if (isIOS) installBtn.style.display = 'none';
         else if (isMobile && !isStandalone() && !isDesktopWidth()) installBtn.style.display = '';
         installBtn.addEventListener('click', function() {
             if (!isMobile || isStandalone() || isDesktopWidth()) {
-                // if already installed, show already message
                 if (isStandalone()) { showAlready(); return; }
                 return;
             }
             if (!deferredPrompt) {
+                // No programmatic prompt captured yet
+                // If browser supports it, wait briefly rather than immediately showing fallback
+                if ('onbeforeinstallprompt' in window) {
+                    setState('installing');
+                    // give Chrome a moment to fire the event if user clicked very early
+                    setTimeout(function() {
+                        if (deferredPrompt) {
+                            installBtn.click();
+                        } else {
+                            setState('installable');
+                            var fb = document.getElementById('pwa-android-fallback');
+                            if (fb) fb.style.display = '';
+                        }
+                    }, 400);
+                    return;
+                }
                 // Browser doesn't support programmatic installation - show platform fallback
-                var fb = document.getElementById('pwa-android-fallback');
-                if (fb) fb.style.display = '';
-                // keep Install App button available (do not replace text)
+                var fb2 = document.getElementById('pwa-android-fallback');
+                if (fb2) fb2.style.display = '';
                 return;
             }
             setState('installing');
