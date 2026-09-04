@@ -596,18 +596,28 @@
                 return;
             }
             setState('installing');
-            deferredPrompt.prompt();
+            try {
+                deferredPrompt.prompt();
+            } catch(err) {
+                setState('cancelled');
+                var fb = document.getElementById('pwa-android-fallback');
+                if (fb) fb.style.display = '';
+                deferredPrompt = null;
+                return;
+            }
             deferredPrompt.userChoice.then(function(result) {
                 if (result.outcome === 'accepted') {
-                    // notify installed successfully - waiting for appinstalled will also trigger, but show now per spec
                     onInstalledConfirmed();
                 } else {
-                    // dismissed -> leave button available, show cancelled state (no success)
                     setState('cancelled');
+                    var fb = document.getElementById('pwa-android-fallback');
+                    if (fb) fb.style.display = '';
                 }
                 deferredPrompt = null;
             }).catch(function() {
                 setState('cancelled');
+                var fb = document.getElementById('pwa-android-fallback');
+                if (fb) fb.style.display = '';
                 deferredPrompt = null;
             });
         });
