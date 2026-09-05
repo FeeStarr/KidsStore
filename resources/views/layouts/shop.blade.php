@@ -293,32 +293,18 @@
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
-            <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
+            <p class="text-muted small mb-3">Get the full app experience - faster, works offline!</p>
             <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;"></div>
-            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="border-radius:50px;">
-                <i class="bi bi-download"></i> Install KidsFlairr
+            <button id="pwa-install-btn" class="btn btn-primary w-100" style="border-radius:50px;">
+                <i class="bi bi-download me-1"></i> Install App
             </button>
-            <div id="pwa-install-android" class="text-start" style="display:none;">
-                <div class="bg-light rounded-3 p-3 mt-2">
-                    <small class="text-muted">
-                        <strong>Manual install:</strong><br>
-                        1. Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in Chrome<br>
-                        2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong><br>
-                        3. Tap <strong>Install</strong> to confirm
-                    </small>
+            <div id="pwa-install-manual" class="text-start mt-3" style="display:none;">
+                <div class="bg-light rounded-3 p-3">
+                    <small class="text-muted d-block mb-1" id="pwa-manual-title"></small>
+                    <small class="text-muted" id="pwa-manual-steps"></small>
                 </div>
             </div>
-            <div id="pwa-install-ios" class="text-start" style="display:none;">
-                <div class="bg-light rounded-3 p-3 mt-2">
-                    <small class="text-muted">
-                        <strong>How to install:</strong><br>
-                        1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>
-                        2. Scroll down &rarr; <strong>Add to Home Screen</strong><br>
-                        3. Tap <strong>Add</strong>
-                    </small>
-                </div>
-            </div>
-            <button id="pwa-dismiss-btn" class="btn btn-link text-muted small mt-1">Not now</button>
+            <button id="pwa-dismiss-btn" class="btn btn-link text-muted small mt-2">Not now</button>
         </div>
     </div>
 </div>
@@ -386,32 +372,26 @@
         document.querySelectorAll('.modal-backdrop').forEach(function(b) { b.remove(); });
     }
 
-    function updateInstallUI() {
-        var btn = document.getElementById('pwa-install-btn');
-        var aDiv = document.getElementById('pwa-install-android');
-        var iDiv = document.getElementById('pwa-install-ios');
-        var done = document.getElementById('pwa-already-installed');
+    var btn = document.getElementById('pwa-install-btn');
+    var manualDiv = document.getElementById('pwa-install-manual');
+    var manualTitle = document.getElementById('pwa-manual-title');
+    var manualSteps = document.getElementById('pwa-manual-steps');
 
+    function updateInstallUI() {
+        var done = document.getElementById('pwa-already-installed');
         if (done) done.style.display = 'none';
-        if (aDiv) aDiv.style.display = 'none';
-        if (iDiv) iDiv.style.display = 'none';
 
         if (isIOS) {
             if (btn) btn.style.display = 'none';
-            if (iDiv) iDiv.style.display = 'block';
+            if (manualDiv) manualDiv.style.display = 'block';
+            if (manualTitle) manualTitle.innerHTML = '<strong>iOS does not support automatic install.</strong>';
+            if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
         } else if (deferredPrompt) {
-            if (btn) {
-                btn.style.display = 'block';
-                btn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
-                btn.disabled = false;
-            }
+            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
+            if (manualDiv) manualDiv.style.display = 'none';
         } else {
-            if (btn) {
-                btn.style.display = 'block';
-                btn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
-                btn.disabled = false;
-            }
-            if (isAndroid) aDiv.style.display = 'block';
+            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
+            if (manualDiv) manualDiv.style.display = 'none';
         }
     }
 
@@ -423,7 +403,7 @@
             Swal.fire({
                 icon: 'success',
                 title: 'KidsFlairr installed!',
-                text: 'You can now open it from your home screen.',
+                text: 'Open it from your home screen anytime.',
                 confirmButtonText: 'Open KidsFlairr',
                 confirmButtonColor: '#d63384',
                 allowOutsideClick: false
@@ -436,6 +416,18 @@
                 body: JSON.stringify({ platform: isIOS ? 'ios' : 'android', browser: navigator.userAgent })
             });
         } catch(e) {}
+    }
+
+    function showManualFallback() {
+        if (!manualDiv) return;
+        manualDiv.style.display = 'block';
+        if (isAndroid) {
+            if (manualTitle) manualTitle.innerHTML = '<strong>Your browser does not support one-tap install.</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Use your browser menu instead:<br>1. Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i><br>2. Tap <strong>"Install app"</strong><br>3. Tap <strong>Install</strong> to confirm';
+        } else {
+            if (manualTitle) manualTitle.innerHTML = '<strong>Install not available in this browser.</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> for one-tap install.';
+        }
     }
 
     window.addEventListener('beforeinstallprompt', function(e) {
@@ -471,25 +463,26 @@
         });
     }
 
-    var installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) {
-        installBtn.addEventListener('click', function() {
+    if (btn) {
+        btn.addEventListener('click', function() {
             if (deferredPrompt) {
-                installBtn.disabled = true;
-                installBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Installing...';
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(function(choice) {
                     deferredPrompt = null;
                     if (choice.outcome === 'accepted') {
                         onInstalledConfirmed();
                     } else {
-                        installBtn.disabled = false;
-                        installBtn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
-                        updateInstallUI();
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
                     }
+                }).catch(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
                 });
             } else {
-                updateInstallUI();
+                showManualFallback();
             }
         });
     }
