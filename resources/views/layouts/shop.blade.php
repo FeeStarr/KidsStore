@@ -295,18 +295,21 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
             <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;"></div>
-            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="display:none;border-radius:50px;">
+            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="border-radius:50px;">
                 <i class="bi bi-download"></i> Install KidsFlairr
             </button>
-            <div id="pwa-install-android" style="display:none;">
-                <div class="bg-light rounded-3 p-3 mb-2">
+            <div id="pwa-install-android" class="text-start" style="display:none;">
+                <div class="bg-light rounded-3 p-3 mt-2">
                     <small class="text-muted">
-                        <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
+                        <strong>Manual install:</strong><br>
+                        1. Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in Chrome<br>
+                        2. Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong><br>
+                        3. Tap <strong>Install</strong> to confirm
                     </small>
                 </div>
             </div>
-            <div id="pwa-install-ios" style="display:none;">
-                <div class="bg-light rounded-3 p-3 mb-2">
+            <div id="pwa-install-ios" class="text-start" style="display:none;">
+                <div class="bg-light rounded-3 p-3 mt-2">
                     <small class="text-muted">
                         <strong>How to install:</strong><br>
                         1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>
@@ -315,7 +318,7 @@
                     </small>
                 </div>
             </div>
-            <button id="pwa-dismiss-btn" class="btn btn-link text-muted small">Not now</button>
+            <button id="pwa-dismiss-btn" class="btn btn-link text-muted small mt-1">Not now</button>
         </div>
     </div>
 </div>
@@ -361,10 +364,12 @@
     function showModal() {
         var m = getModal();
         if (m) { m.show(); return; }
-        modalEl.classList.add('show');
-        modalEl.style.display = 'block';
-        modalEl.removeAttribute('aria-hidden');
-        document.body.classList.add('modal-open');
+        if (modalEl) {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.removeAttribute('aria-hidden');
+            document.body.classList.add('modal-open');
+        }
     }
 
     function hideModal() {
@@ -395,9 +400,17 @@
             if (btn) btn.style.display = 'none';
             if (iDiv) iDiv.style.display = 'block';
         } else if (deferredPrompt) {
-            if (btn) btn.style.display = 'block';
+            if (btn) {
+                btn.style.display = 'block';
+                btn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
+                btn.disabled = false;
+            }
         } else {
-            if (btn) btn.style.display = 'none';
+            if (btn) {
+                btn.style.display = 'block';
+                btn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
+                btn.disabled = false;
+            }
             if (isAndroid) aDiv.style.display = 'block';
         }
     }
@@ -461,20 +474,23 @@
     var installBtn = document.getElementById('pwa-install-btn');
     if (installBtn) {
         installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) return;
-            installBtn.disabled = true;
-            installBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Installing...';
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choice) {
-                installBtn.disabled = false;
-                installBtn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
-                if (choice.outcome === 'accepted') {
-                    onInstalledConfirmed();
-                } else {
-                    updateInstallUI();
-                }
-                deferredPrompt = null;
-            });
+            if (deferredPrompt) {
+                installBtn.disabled = true;
+                installBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Installing...';
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function(choice) {
+                    deferredPrompt = null;
+                    if (choice.outcome === 'accepted') {
+                        onInstalledConfirmed();
+                    } else {
+                        installBtn.disabled = false;
+                        installBtn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
+                        updateInstallUI();
+                    }
+                });
+            } else {
+                updateInstallUI();
+            }
         });
     }
 
@@ -487,21 +503,10 @@
         });
     }
 
-    if (isMobile && window.innerWidth < 992 && !isStandalone()) {
-        setTimeout(function() {
-            if (isStandalone()) return;
-            try {
-                var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
-                if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
-            } catch(e){}
-            updateInstallUI();
-            showModal();
-        }, 3000);
-    }
-
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('[PWA] SW registered');
+            if (reg.waiting) reg.waiting.postMessage({ type: 'skipWaiting' });
         }).catch(function(err) {
             console.error('[PWA] SW registration failed:', err);
         });
