@@ -303,8 +303,11 @@
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
             <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed - open from your home screen.</div>
+            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="display:none;border-radius:50px;">
+                <i class="bi bi-download"></i> Install KidsFlairr
+            </button>
             <div id="pwa-install-android" style="display:none;">
-                <div id="pwa-android-fallback" class="bg-light rounded-3 p-3 mb-2">
+                <div class="bg-light rounded-3 p-3 mb-2">
                     <small class="text-muted">
                         <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
                     </small>
@@ -315,15 +318,12 @@
                     <small class="text-muted">
                         <strong>How to install:</strong><br>
                         1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>
-                        2. Scroll down → <strong>Add to Home Screen</strong><br>
+                        2. Scroll down &rarr; <strong>Add to Home Screen</strong><br>
                         3. Tap <strong>Add</strong>
                     </small>
                 </div>
             </div>
             <button id="pwa-dismiss-btn" class="btn btn-link text-muted small">Not now</button>
-            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="display:block;border-radius:50px;">
-                <i class="bi bi-download"></i> Install KidsFlairr
-            </button>
         </div>
     </div>
 </div>
@@ -334,17 +334,10 @@
     window.__kidsflairrPwaInit = true;
 
     var deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-        var btn = document.getElementById('pwa-install-btn');
-        if (btn) btn.style.display = 'block';
-    });
 
     var DISMISS_KEY = 'kidsflairr_pwa_dismissed_at';
     var INSTALLED_KEY = 'kidsflairr_pwa_installed';
     var SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
-    var SUCCESS_SHOWN_SESS = 'kidsflairr_pwa_success_shown';
 
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     var isAndroid = /Android/.test(navigator.userAgent);
@@ -366,29 +359,16 @@
         if (nav && isMobile && !isStandalone()) nav.style.display = '';
     }
 
-    var fallback = document.getElementById('pwa-android-fallback');
-
-    function showAlready() {
+    function showModal() {
         var modal = document.getElementById('pwa-install-modal');
-        var alreadyEl2 = document.getElementById('pwa-already-installed');
-        if (alreadyEl2) alreadyEl2.style.display = '';
-        if (alreadyEl2) alreadyEl2.textContent = 'KidsFlairr is already installed.';
-        var aDiv = document.getElementById('pwa-install-android');
-        var iDiv = document.getElementById('pwa-install-ios');
-        if (aDiv) aDiv.style.display = 'none';
-        if (iDiv) iDiv.style.display = 'none';
-        var installBtn = document.getElementById('pwa-install-btn');
-        if (installBtn) installBtn.style.display = 'none';
-        if (modal) {
-            try {
-                if (!bootstrap.Modal.getInstance(modal)) {
-                    new bootstrap.Modal(modal).show();
-                }
-            } catch(e) {
-                modal.style.display = 'block';
-                modal.style.opacity = '1';
-                document.body.classList.add('modal-open');
-            }
+        if (!modal) return;
+        try { new bootstrap.Modal(modal).show(); } catch(e) {
+            modal.style.display = 'block';
+            modal.style.opacity = '1';
+            document.body.classList.add('modal-open');
+            var bd = document.createElement('div');
+            bd.className = 'modal-backdrop fade show';
+            document.body.appendChild(bd);
         }
     }
 
@@ -403,37 +383,46 @@
         modal.style.opacity = '';
         document.body.classList.remove('modal-open');
         setTimeout(function() {
-            var bd = document.querySelector('.pwa-backdrop, .modal-backdrop');
-            if (bd) bd.remove();
-            document.body.classList.remove('modal-open');
+            document.querySelectorAll('.modal-backdrop').forEach(function(bd) { bd.remove(); });
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
-            var installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn && deferredPrompt) installBtn.style.display = 'block';
         }, 300);
     }
 
+    function updateInstallUI() {
+        var installBtn = document.getElementById('pwa-install-btn');
+        var androidDiv = document.getElementById('pwa-install-android');
+        var iosDiv = document.getElementById('pwa-install-ios');
+        var alreadyEl = document.getElementById('pwa-already-installed');
+
+        if (alreadyEl) alreadyEl.style.display = 'none';
+        if (androidDiv) androidDiv.style.display = 'none';
+        if (iosDiv) iosDiv.style.display = 'none';
+
+        if (isIOS) {
+            if (installBtn) installBtn.style.display = 'none';
+            if (iosDiv) iosDiv.style.display = 'block';
+        } else if (deferredPrompt) {
+            if (installBtn) installBtn.style.display = 'block';
+        } else {
+            if (installBtn) installBtn.style.display = 'none';
+            if (isAndroid) androidDiv.style.display = 'block';
+        }
+    }
+
     function onInstalledConfirmed() {
-        try {
-            if (sessionStorage.getItem(SUCCESS_SHOWN_SESS) === '1') return;
-            sessionStorage.setItem(SUCCESS_SHOWN_SESS, '1');
-        } catch(e) {}
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideModal();
         hideNav();
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'success',
-                title: 'KidsFlairr has been installed successfully.',
-                text: 'KidsFlairr is now on your home screen.',
-                showConfirmButton: true,
+                title: 'KidsFlairr installed!',
+                text: 'You can now open it from your home screen.',
                 confirmButtonText: 'Open KidsFlairr',
                 confirmButtonColor: '#d63384',
-                showCancelButton: false,
                 allowOutsideClick: false
-            }).then(function(r) {
-                if (r.isConfirmed) window.location.href = '/';
-            });
+            }).then(function(r) { if (r.isConfirmed) window.location.href = '/'; });
         }
         try {
             fetch('/pwa/install', {
@@ -444,76 +433,65 @@
         } catch(e) {}
     }
 
-    // --- standalone is primary truth ---
+    // --- beforeinstallprompt: capture and update UI ---
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        updateInstallUI();
+    });
+
+    // --- standalone: already installed ---
     if (isStandalone()) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
-        var _modalAlready = document.getElementById('pwa-install-modal');
-        if (_modalAlready) {
-            document.getElementById('nav-pwa-install-wrap')?.addEventListener('click', function(e){ e.preventDefault(); showAlready(); });
-        }
         return;
     }
-    // clear stale installed flag if not standalone (uninstalled)
+
+    // clear stale installed flag
     try {
-        if (localStorage.getItem(INSTALLED_KEY) === '1' && !isStandalone()) {
-            localStorage.removeItem(INSTALLED_KEY);
-        }
+        if (localStorage.getItem(INSTALLED_KEY) === '1') localStorage.removeItem(INSTALLED_KEY);
     } catch(e) {}
 
     // snooze check
     try {
         var ts = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
-        if (ts) {
-            if (Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
-            else localStorage.removeItem(DISMISS_KEY);
-        }
+        if (ts && Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
+        if (ts) localStorage.removeItem(DISMISS_KEY);
     } catch(e) {}
 
-    // mobile-only: never show CTA/popup on desktop
-    if (!isMobile || isDesktopWidth()) { hideNav(); }
-    else { showNav(); }
+    // mobile-only: never show on desktop
+    if (!isMobile || isDesktopWidth()) { hideNav(); return; }
+    showNav();
 
-    // Nav Get the App click
+    // Nav button click - open modal
     var navWrap = document.getElementById('nav-pwa-install-wrap');
     if (navWrap) {
         navWrap.addEventListener('click', function(e) {
-            if (!isMobile || isStandalone() || isDesktopWidth()) { e.preventDefault(); return; }
+            e.preventDefault();
+            if (!isMobile || isStandalone() || isDesktopWidth()) return;
+            updateInstallUI();
+            showModal();
         });
     }
 
-    // Show modal after 3s only on mobile, not installed, not snoozed
-    if (isMobile && !isDesktopWidth() && !isStandalone()) {
-        setTimeout(function() {
-            if (isStandalone()) { showAlready(); return; }
-            try {
-                var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
-                if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
-            } catch(e){}
-            var modal = document.getElementById('pwa-install-modal');
-            if (!modal) return;
-            var androidDiv = document.getElementById('pwa-install-android');
-            var iosDiv = document.getElementById('pwa-install-ios');
-            if (isIOS) {
-                if (iosDiv) iosDiv.style.display = 'block';
-                if (androidDiv) androidDiv.style.display = 'none';
-            } else {
-                if (androidDiv) androidDiv.style.display = 'block';
-                if (iosDiv) iosDiv.style.display = 'none';
-            }
-            if (isStandalone()) { showAlready(); hideNav(); return; }
-            // Always show via CSS — no dependency on Bootstrap JS
-            modal.style.display = 'block';
-            modal.style.opacity = '1';
-            document.body.classList.add('modal-open');
-            var installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) installBtn.style.display = 'none';
-            var bd = document.createElement('div');
-            bd.className = 'pwa-backdrop';
-            document.body.appendChild(bd);
-        }, 3000);
-    } else {
-        hideNav();
+    // Install button click - trigger native prompt
+    var installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) {
+        installBtn.addEventListener('click', function() {
+            if (!deferredPrompt) return;
+            installBtn.disabled = true;
+            installBtn.textContent = 'Installing...';
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+                installBtn.disabled = false;
+                installBtn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
+                if (choice.outcome === 'accepted') {
+                    onInstalledConfirmed();
+                }
+                deferredPrompt = null;
+                updateInstallUI();
+            });
+        });
     }
 
     // Dismiss -> 7-day snooze
@@ -526,25 +504,18 @@
         });
     }
 
-    // Install button -> trigger native prompt
-    var installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) {
-        installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) { showAlready(); return; }
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choice) {
-                if (choice.outcome === 'accepted') {
-                    try { sessionStorage.setItem(SUCCESS_SHOWN_SESS, '1'); } catch(e) {}
-                    try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
-                }
-                deferredPrompt = null;
-                installBtn.style.display = 'none';
-                hideModal();
-                hideNav();
-            });
-        });
-    }
+    // Auto-show modal after 3s on mobile (first visit, not snoozed)
+    setTimeout(function() {
+        if (isStandalone() || !isMobile || isDesktopWidth()) return;
+        try {
+            var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
+            if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
+        } catch(e){}
+        updateInstallUI();
+        showModal();
+    }, 3000);
 
+    // Register service worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('[PWA] SW registered');
@@ -552,49 +523,10 @@
             console.error('[PWA] SW registration failed:', err);
         });
     }
-
-    // Hide install button if no install prompt available after 1s
-    setTimeout(function() {
-        if (!deferredPrompt) {
-            var btn = document.getElementById('pwa-install-btn');
-            if (btn) btn.style.display = 'none';
-        }
-    }, 2000);
 })();
 
-// Global helper for inline onclick
 function showInstallModal() {
-    var modal = document.getElementById('pwa-install-modal');
-    if (!modal) return;
-    var androidDiv = document.getElementById('pwa-install-android');
-    var iosDiv = document.getElementById('pwa-install-ios');
-    var fallback = document.getElementById('pwa-android-fallback');
-    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-        if (iosDiv) iosDiv.style.display = 'block';
-        if (androidDiv) androidDiv.style.display = 'none';
-    } else {
-        if (androidDiv) androidDiv.style.display = 'block';
-        if (iosDiv) iosDiv.style.display = 'none';
-    }
-    if (fallback) fallback.style.display = '';
-    try {
-        var inst = bootstrap.Modal.getInstance(modal);
-        if (inst) {
-            inst.show();
-        } else {
-            new bootstrap.Modal(modal).show();
-        }
-    } catch(e) {
-        // Bootstrap JS not loaded — show modal via CSS fallback
-        modal.style.display = 'block';
-        modal.style.opacity = '1';
-        document.body.classList.add('modal-open');
-        var bd = document.createElement('div');
-        bd.className = 'pwa-backdrop';
-        bd.style.zIndex = '1050';
-        document.body.appendChild(bd);
-    }
+    document.getElementById('nav-pwa-install-wrap')?.click();
 }
 </script>
 
