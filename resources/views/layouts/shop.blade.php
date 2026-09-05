@@ -193,8 +193,13 @@
         <img src="{{ asset('images/logo.png') }}" alt="{{ $appName }}" height="40" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
         <span style="display:none"><i class="bi bi-balloon-heart-fill text-primary"></i> {{ $appName }}</span>
     </a>
-    <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
-    <div class="collapse navbar-collapse" id="nav">
+<button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+     <div class="d-lg-none">
+         <button id="nav-pwa-install-wrap" class="btn btn-sm btn-outline-primary m-2" onclick="showInstallModal()" style="border-radius:50px;font-size:.8rem;">
+             <i class="bi bi-phone"></i> Get the App
+         </button>
+     </div>
+     <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav me-auto">
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
@@ -214,11 +219,6 @@
             <input class="form-control form-control-sm" type="search" name="q" placeholder="Search products..." value="{{ request('q') }}">
         </form>
         <ul class="navbar-nav align-items-lg-center">
-            <li class="nav-item d-lg-none" id="nav-pwa-install-wrap">
-                <button class="btn btn-sm btn-outline-primary" onclick="showInstallModal()" style="border-radius:50px;font-size:.8rem;">
-                    <i class="bi bi-phone"></i> Get the App
-                </button>
-            </li>
             <li class="nav-item">
                 <a class="nav-link position-relative" href="{{ route('shop.cart.index') }}">
                     <i class="bi bi-bag fs-5"></i>
