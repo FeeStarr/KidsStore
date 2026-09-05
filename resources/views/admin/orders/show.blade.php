@@ -436,12 +436,72 @@
                 </div>
             </div>
         </div>
-    @elseif($order->payment_status !== 'paid')
+    @elseif($order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled', 'expired']))
         <div class="mt-2">
             <form method="post" action="{{ route('admin.orders.mark-paid', $order) }}">
                 @csrf
                 <button class="btn btn-sm btn-success">Mark Order As Paid</button>
             </form>
+        </div>
+    @endif
+
+    {{-- Cancellation refund status (auto-created by OrderService::cancel) --}}
+    @if($order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->count())
+        <div class="card mt-2 border-info">
+            <div class="card-header bg-info bg-opacity-10">
+                <i class="bi bi-cash-stack me-1"></i>
+                <strong>Refund</strong> — Auto-created on cancellation
+            </div>
+            <div class="card-body">
+                @foreach($order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->latest()->get() as $rr)
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="badge {{ match($rr->status) {
+                                'refund_required' => 'bg-warning text-dark',
+                                'refund_approved' => 'bg-primary',
+                                'refund_processing' => 'bg-info',
+                                'refund_failed' => 'bg-danger',
+                                default => 'bg-secondary'
+                            } }}">
+                                {{ ucfirst(str_replace('_', ' ', $rr->status)) }}
+                            </span>
+                            <span class="ms-2">₦{{ number_format($rr->amount, 2) }}</span>
+                            <small class="text-muted ms-2">{{ $rr->created_at->diffForHumans() }}</small>
+                        </div>
+                        <div class="d-flex gap-1">
+                            @if($rr->status === 'refund_required')
+                                <form method="post" action="{{ route('refunds.approve-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                                <form method="post" action="{{ route('refunds.retry-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-primary">Retry</button>
+                                </form>
+                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-info">Sync</button>
+                                </form>
+                            @elseif($rr->status === 'refund_failed')
+                                <form method="post" action="{{ route('refunds.retry-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-primary">Retry</button>
+                                </form>
+                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-info">Sync</button>
+                                </form>
+                            @elseif($rr->status === 'refund_processing')
+                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-info">Sync</button>
+                                </form>
+                            @endif
+                            <a href="{{ route('admin.refunds.show', $rr) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
         </div>
     @endif
 
