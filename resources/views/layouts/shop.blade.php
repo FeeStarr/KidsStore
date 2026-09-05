@@ -176,12 +176,6 @@
         .fill-tile { flex:1 1 0; min-width:150px; }
 
         footer { background: linear-gradient(135deg,#1f2d3d,#3a1f5d); color:#e2d5f5; padding:2.5rem 0; margin-top:3rem; }
-        /* CSS fallback for when Bootstrap JS is unavailable on shared hosting */
-        #pwa-install-modal { display: none; opacity: 0; }
-        #pwa-install-modal.modal-open { display: block !important; opacity: 1; }
-        #pwa-install-modal.fallback-show { display: block; opacity: 1; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0,0,0,.5); }
-        #pwa-install-modal.fallback-show .modal-dialog { position: fixed; top: 50%; transform: translateY(-50%); z-index: 1060; }
-        .pwa-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0,0,0,.5); }
     </style>
     @stack('styles')
 </head>
@@ -194,11 +188,6 @@
         <span style="display:none"><i class="bi bi-balloon-heart-fill text-primary"></i> {{ $appName }}</span>
     </a>
 <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
-     <div class="d-lg-none">
-         <button id="nav-pwa-install-wrap" class="btn btn-sm btn-outline-primary m-2" onclick="showInstallModal()" style="border-radius:50px;font-size:.8rem;">
-             <i class="bi bi-phone"></i> Get the App
-         </button>
-     </div>
      <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav me-auto">
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
@@ -213,6 +202,9 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                 </ul>
+            </li>
+            <li class="nav-item d-lg-none">
+                <a class="nav-link" href="#" id="nav-pwa-install-wrap"><i class="bi bi-phone me-1"></i>Get the App</a>
             </li>
         </ul>
         <form class="d-flex me-3" action="{{ route('shop.products.index') }}">
@@ -296,13 +288,13 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 @include('partials.flash-alerts')
 @stack('scripts')
-<div id="pwa-install-modal" class="modal fade" tabindex="-1" style="z-index:1060;">
+<div class="modal fade" id="pwa-install-modal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
-            <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed - open from your home screen.</div>
+            <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;"></div>
             <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="display:none;border-radius:50px;">
                 <i class="bi bi-download"></i> Install KidsFlairr
             </button>
@@ -334,7 +326,6 @@
     window.__kidsflairrPwaInit = true;
 
     var deferredPrompt = null;
-
     var DISMISS_KEY = 'kidsflairr_pwa_dismissed_at';
     var INSTALLED_KEY = 'kidsflairr_pwa_installed';
     var SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -348,65 +339,66 @@
             || window.matchMedia('(display-mode: fullscreen)').matches
             || window.navigator.standalone === true;
     }
-    function isDesktopWidth() { return window.innerWidth >= 992; }
 
     function hideNav() {
-        var nav = document.getElementById('nav-pwa-install-wrap');
-        if (nav) nav.style.display = 'none';
+        var el = document.getElementById('nav-pwa-install-wrap');
+        if (el) { var li = el.closest('.nav-item'); if (li) li.style.display = 'none'; else el.style.display = 'none'; }
     }
     function showNav() {
-        var nav = document.getElementById('nav-pwa-install-wrap');
-        if (nav && isMobile && !isStandalone()) nav.style.display = '';
+        var el = document.getElementById('nav-pwa-install-wrap');
+        if (el && isMobile && !isStandalone()) { var li = el.closest('.nav-item'); if (li) li.style.display = ''; else el.style.display = ''; }
+    }
+
+    var modalEl = document.getElementById('pwa-install-modal');
+    var bsModal = null;
+
+    function getModal() {
+        if (!modalEl) return null;
+        if (bsModal) return bsModal;
+        try { bsModal = new bootstrap.Modal(modalEl); return bsModal; } catch(e) { return null; }
     }
 
     function showModal() {
-        var modal = document.getElementById('pwa-install-modal');
-        if (!modal) return;
-        try { new bootstrap.Modal(modal).show(); } catch(e) {
-            modal.style.display = 'block';
-            modal.style.opacity = '1';
-            document.body.classList.add('modal-open');
-            var bd = document.createElement('div');
-            bd.className = 'modal-backdrop fade show';
-            document.body.appendChild(bd);
-        }
+        var m = getModal();
+        if (m) { m.show(); return; }
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+        modalEl.removeAttribute('aria-hidden');
+        document.body.classList.add('modal-open');
     }
 
     function hideModal() {
-        var modal = document.getElementById('pwa-install-modal');
-        if (!modal) return;
-        try {
-            var inst = bootstrap.Modal.getInstance(modal);
-            if (inst) inst.hide();
-        } catch(e) {}
-        modal.style.display = 'none';
-        modal.style.opacity = '';
+        var m = getModal();
+        if (m) { m.hide(); return; }
+        if (modalEl) {
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+        }
         document.body.classList.remove('modal-open');
-        setTimeout(function() {
-            document.querySelectorAll('.modal-backdrop').forEach(function(bd) { bd.remove(); });
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-        }, 300);
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.querySelectorAll('.modal-backdrop').forEach(function(b) { b.remove(); });
     }
 
     function updateInstallUI() {
-        var installBtn = document.getElementById('pwa-install-btn');
-        var androidDiv = document.getElementById('pwa-install-android');
-        var iosDiv = document.getElementById('pwa-install-ios');
-        var alreadyEl = document.getElementById('pwa-already-installed');
+        var btn = document.getElementById('pwa-install-btn');
+        var aDiv = document.getElementById('pwa-install-android');
+        var iDiv = document.getElementById('pwa-install-ios');
+        var done = document.getElementById('pwa-already-installed');
 
-        if (alreadyEl) alreadyEl.style.display = 'none';
-        if (androidDiv) androidDiv.style.display = 'none';
-        if (iosDiv) iosDiv.style.display = 'none';
+        if (done) done.style.display = 'none';
+        if (aDiv) aDiv.style.display = 'none';
+        if (iDiv) iDiv.style.display = 'none';
 
         if (isIOS) {
-            if (installBtn) installBtn.style.display = 'none';
-            if (iosDiv) iosDiv.style.display = 'block';
+            if (btn) btn.style.display = 'none';
+            if (iDiv) iDiv.style.display = 'block';
         } else if (deferredPrompt) {
-            if (installBtn) installBtn.style.display = 'block';
+            if (btn) btn.style.display = 'block';
         } else {
-            if (installBtn) installBtn.style.display = 'none';
-            if (isAndroid) androidDiv.style.display = 'block';
+            if (btn) btn.style.display = 'none';
+            if (isAndroid) aDiv.style.display = 'block';
         }
     }
 
@@ -433,68 +425,59 @@
         } catch(e) {}
     }
 
-    // --- beforeinstallprompt: capture and update UI ---
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
         updateInstallUI();
     });
 
-    // --- standalone: already installed ---
     if (isStandalone()) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
         return;
     }
 
-    // clear stale installed flag
-    try {
-        if (localStorage.getItem(INSTALLED_KEY) === '1') localStorage.removeItem(INSTALLED_KEY);
-    } catch(e) {}
+    try { if (localStorage.getItem(INSTALLED_KEY) === '1') localStorage.removeItem(INSTALLED_KEY); } catch(e) {}
 
-    // snooze check
     try {
         var ts = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
         if (ts && Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
         if (ts) localStorage.removeItem(DISMISS_KEY);
     } catch(e) {}
 
-    // mobile-only: never show on desktop
-    if (!isMobile || isDesktopWidth()) { hideNav(); return; }
+    if (!isMobile || window.innerWidth >= 992) { hideNav(); return; }
     showNav();
 
-    // Nav button click - open modal
     var navWrap = document.getElementById('nav-pwa-install-wrap');
     if (navWrap) {
         navWrap.addEventListener('click', function(e) {
             e.preventDefault();
-            if (!isMobile || isStandalone() || isDesktopWidth()) return;
+            if (!isMobile || isStandalone() || window.innerWidth >= 992) return;
             updateInstallUI();
             showModal();
         });
     }
 
-    // Install button click - trigger native prompt
     var installBtn = document.getElementById('pwa-install-btn');
     if (installBtn) {
         installBtn.addEventListener('click', function() {
             if (!deferredPrompt) return;
             installBtn.disabled = true;
-            installBtn.textContent = 'Installing...';
+            installBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Installing...';
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(choice) {
                 installBtn.disabled = false;
                 installBtn.innerHTML = '<i class="bi bi-download"></i> Install KidsFlairr';
                 if (choice.outcome === 'accepted') {
                     onInstalledConfirmed();
+                } else {
+                    updateInstallUI();
                 }
                 deferredPrompt = null;
-                updateInstallUI();
             });
         });
     }
 
-    // Dismiss -> 7-day snooze
     var dismissBtn = document.getElementById('pwa-dismiss-btn');
     if (dismissBtn) {
         dismissBtn.addEventListener('click', function() {
@@ -504,18 +487,18 @@
         });
     }
 
-    // Auto-show modal after 3s on mobile (first visit, not snoozed)
-    setTimeout(function() {
-        if (isStandalone() || !isMobile || isDesktopWidth()) return;
-        try {
-            var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
-            if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
-        } catch(e){}
-        updateInstallUI();
-        showModal();
-    }, 3000);
+    if (isMobile && window.innerWidth < 992 && !isStandalone()) {
+        setTimeout(function() {
+            if (isStandalone()) return;
+            try {
+                var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
+                if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
+            } catch(e){}
+            updateInstallUI();
+            showModal();
+        }, 3000);
+    }
 
-    // Register service worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('[PWA] SW registered');
@@ -524,10 +507,6 @@
         });
     }
 })();
-
-function showInstallModal() {
-    document.getElementById('nav-pwa-install-wrap')?.click();
-}
 </script>
 
 @if(!str_starts_with(request()->path(), 'admin'))
