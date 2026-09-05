@@ -116,26 +116,10 @@ class Order extends Model
         // cleaned up on the next page visit. Pending-payment = cancelled to
         // match business rule "pay now not paid → cancelled after 24h".
         static::retrieved(function (Order $order) {
-            // Only run once per request and at most once per hour
             if (static::$expireRan) {
                 return;
             }
-            try {
-                if (\Illuminate\Support\Facades\Cache::get('order_expire_ran')) {
-                    static::$expireRan = true;
-                    return;
-                }
-            } catch (\Throwable $e) {
-                // Cache unavailable — proceed with check via static flag only
-                static::$expireRan = true;
-                return;
-            }
             static::$expireRan = true;
-            try {
-                \Illuminate\Support\Facades\Cache::put('order_expire_ran', true, 3600);
-            } catch (\Throwable $e) {
-                // Cache unavailable — static flag is sufficient for single request
-            }
 
             try {
                 $cutoff = now()->subHours(24);
@@ -145,19 +129,12 @@ class Order extends Model
                     ->get();
 
                 foreach ($stale as $o) {
-                    // Pay Now + unpaid => cancelled (user requirement). Keep 'expired'
-                    // as legacy status but map to cancelled for customer clarity.
                     $o->update(['status' => self::STATUS_CANCELLED]);
-
-                    // Restore stock for each item
                     try {
-                        $inventory = app(InventoryServiceInterface::class);
-                        $inventory->reverseMovementsFor(static::class, $o->id, 'Order cancelled - unpaid 24h window');
+                        app(InventoryServiceInterface::class)->reverseMovementsFor(static::class, $o->id, 'Order cancelled - unpaid 24h window');
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::error('Stale order inventory reversal failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
                     }
-
-                    // Release deal usage
                     try {
                         foreach ($o->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
                             app(DealService::class)->releaseUsage((int) $dealId);
@@ -165,24 +142,19 @@ class Order extends Model
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::error('Stale order deal release failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
                     }
-
-                    // Release coupon usage
                     try {
                         app(CouponService::class)->releaseForOrder($o);
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::error('Stale order coupon release failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
                     }
-
-                    // Expire/cancel pending payment transactions
-                    try {
-                        $o->paymentTransactions()->where('status', 'pending')->update(['status' => 'expired']);
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::error('Stale order payment expire failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
-                    }
                 }
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Stale order cleanup failed', ['error' => $e->getMessage()]);
             }
+
+            try {
+                \Illuminate\Support\Facades\Cache::put('order_expire_ran', true, 3600);
+            } catch (\Throwable $e) {}
         });
     }
 
