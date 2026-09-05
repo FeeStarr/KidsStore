@@ -55,19 +55,21 @@ class OrderStatusNotification extends Notification
                 ->replyTo(config('emails.support'), 'KidsFlairr Support')
                 ->view('emails.order-delivered', ['order' => $order]);
 
+            $notifiableId = $notifiable->id ?? null;
+
             // CC admins + staff
             foreach (NotificationRecipients::adminUsers() as $admin) {
-                if ($admin->id !== $notifiable->id) {
+                if ($admin->id !== $notifiableId) {
                     $message->bcc($admin->email, $admin->name);
                 }
             }
             foreach (NotificationRecipients::orderProcessingStaff() as $staff) {
-                if ($staff->id !== $notifiable->id) {
+                if ($staff->id !== $notifiableId) {
                     $message->bcc($staff->email, $staff->name);
                 }
             }
             foreach (NotificationRecipients::customerSupportStaff() as $staff) {
-                if ($staff->id !== $notifiable->id) {
+                if ($staff->id !== $notifiableId) {
                     $message->bcc($staff->email, $staff->name);
                 }
             }
@@ -99,7 +101,7 @@ class OrderStatusNotification extends Notification
         $message = (new MailMessage)
             ->subject($subject)
             ->replyTo(config('emails.support'), 'KidsFlairr Support')
-            ->greeting("Hello {$notifiable->name},")
+            ->greeting("Hello " . ($notifiable->name ?? $order->guest_name ?? 'there') . ",")
             ->line($intro)
             ->line('')
             ->line("**Order Reference:** {$order->reference}")
@@ -119,18 +121,20 @@ class OrderStatusNotification extends Notification
         $message->line('If you have questions, please contact our support team.');
 
         // CC admins + order processing + customer support on status change notifications to customers
+        $notifiableId = $notifiable->id ?? null;
+
         foreach (NotificationRecipients::adminUsers() as $admin) {
-            if ($admin->id !== $notifiable->id) {
+            if ($admin->id !== $notifiableId) {
                 $message->bcc($admin->email, $admin->name);
             }
         }
         foreach (NotificationRecipients::orderProcessingStaff() as $staff) {
-            if ($staff->id !== $notifiable->id) {
+            if ($staff->id !== $notifiableId) {
                 $message->bcc($staff->email, $staff->name);
             }
         }
         foreach (NotificationRecipients::customerSupportStaff() as $staff) {
-            if ($staff->id !== $notifiable->id) {
+            if ($staff->id !== $notifiableId) {
                 $message->bcc($staff->email, $staff->name);
             }
         }

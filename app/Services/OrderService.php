@@ -697,8 +697,8 @@ class OrderService
             if ($order->customer) {
                 $order->customer->notify(new OrderStatusNotification($order, $previousStatus));
             } elseif ($order->guest_email) {
-                \Illuminate\Support\Facades\Mail::to($order->guest_email)
-                    ->send(new OrderStatusNotification($order, $previousStatus));
+                \Illuminate\Support\Facades\Notification::route('mail', $order->guest_email)
+                    ->notify(new OrderStatusNotification($order, $previousStatus));
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('OrderStatus notification failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
