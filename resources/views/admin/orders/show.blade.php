@@ -446,14 +446,15 @@
     @endif
 
     {{-- Cancellation refund status (auto-created by OrderService::cancel) --}}
-    @if($order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->count())
+    @php($cancellationRefunds = $order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->latest()->get())
+    @if($cancellationRefunds->count())
         <div class="card mt-2 border-info">
             <div class="card-header bg-info bg-opacity-10">
                 <i class="bi bi-cash-stack me-1"></i>
                 <strong>Refund</strong> — Auto-created on cancellation
             </div>
             <div class="card-body">
-                @foreach($order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->latest()->get() as $rr)
+                @foreach($cancellationRefunds as $rr)
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
                             <span class="badge {{ match($rr->status) {
@@ -497,7 +498,7 @@
                                     <button class="btn btn-sm btn-outline-info">Sync</button>
                                 </form>
                             @endif
-                            <a href="{{ route('admin.refunds.show', $rr) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                            <a href="{{ route('refunds.show', $rr) }}" class="btn btn-sm btn-outline-secondary">View</a>
                         </div>
                     </div>
                 @endforeach
