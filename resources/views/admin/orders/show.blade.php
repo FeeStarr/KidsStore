@@ -87,7 +87,7 @@
 <div class="row g-3 mb-3">
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? '-' }}</dd>
+            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? $order->guest_name ?? '-' }}</dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d H:i') }}</dd>
             <dt class="col-4">Status</dt>
             <dd class="col-8"><span class="badge {{ match($order->status) {
