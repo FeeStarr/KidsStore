@@ -321,6 +321,9 @@
                 </div>
             </div>
             <button id="pwa-dismiss-btn" class="btn btn-link text-muted small">Not now</button>
+            <button id="pwa-install-btn" class="btn btn-primary w-100 mt-2" style="display:block;border-radius:50px;">
+                <i class="bi bi-download"></i> Install KidsFlairr
+            </button>
         </div>
     </div>
 </div>
@@ -329,6 +332,14 @@
 (function() {
     if (window.__kidsflairrPwaInit) return;
     window.__kidsflairrPwaInit = true;
+
+    var deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'block';
+    });
 
     var DISMISS_KEY = 'kidsflairr_pwa_dismissed_at';
     var INSTALLED_KEY = 'kidsflairr_pwa_installed';
@@ -366,6 +377,8 @@
         var iDiv = document.getElementById('pwa-install-ios');
         if (aDiv) aDiv.style.display = 'none';
         if (iDiv) iDiv.style.display = 'none';
+        var installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn) installBtn.style.display = 'none';
         if (modal) {
             try {
                 if (!bootstrap.Modal.getInstance(modal)) {
@@ -395,6 +408,8 @@
             document.body.classList.remove('modal-open');
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
+            var installBtn = document.getElementById('pwa-install-btn');
+            if (installBtn && deferredPrompt) installBtn.style.display = 'block';
         }, 300);
     }
 
@@ -491,6 +506,8 @@
             modal.style.display = 'block';
             modal.style.opacity = '1';
             document.body.classList.add('modal-open');
+            var installBtn = document.getElementById('pwa-install-btn');
+            if (installBtn) installBtn.style.display = 'none';
             var bd = document.createElement('div');
             bd.className = 'pwa-backdrop';
             document.body.appendChild(bd);
@@ -509,6 +526,25 @@
         });
     }
 
+    // Install button -> trigger native prompt
+    var installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) {
+        installBtn.addEventListener('click', function() {
+            if (!deferredPrompt) { showAlready(); return; }
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+                if (choice.outcome === 'accepted') {
+                    try { sessionStorage.setItem(SUCCESS_SHOWN_SESS, '1'); } catch(e) {}
+                    try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
+                }
+                deferredPrompt = null;
+                installBtn.style.display = 'none';
+                hideModal();
+                hideNav();
+            });
+        });
+    }
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('[PWA] SW registered');
@@ -516,6 +552,14 @@
             console.error('[PWA] SW registration failed:', err);
         });
     }
+
+    // Hide install button if no install prompt available after 1s
+    setTimeout(function() {
+        if (!deferredPrompt) {
+            var btn = document.getElementById('pwa-install-btn');
+            if (btn) btn.style.display = 'none';
+        }
+    }, 1000);
 })();
 
 // Global helper for inline onclick
