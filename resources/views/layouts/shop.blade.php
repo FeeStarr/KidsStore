@@ -176,6 +176,10 @@
         .fill-tile { flex:1 1 0; min-width:150px; }
 
         footer { background: linear-gradient(135deg,#1f2d3d,#3a1f5d); color:#e2d5f5; padding:2.5rem 0; margin-top:3rem; }
+        /* CSS fallback for when Bootstrap JS is unavailable on shared hosting */
+        #pwa-install-modal.modal-open { display: block !important; opacity: 1; }
+        #pwa-install-modal.fallback-show { display: block; opacity: 1; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0,0,0,.5); }
+        #pwa-install-modal.fallback-show .modal-dialog { position: fixed; top: 50%; transform: translateY(-50%); z-index: 1060; }
     </style>
     @stack('styles')
 </head>
@@ -290,8 +294,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 @include('partials.flash-alerts')
 @stack('scripts')
-@if(!str_starts_with(request()->path(), 'admin'))
-<div id="pwa-install-modal" class="modal fade" tabindex="-1">
+<div id="pwa-install-modal" class="modal fade" tabindex="-1" style="z-index:1060;">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
@@ -319,7 +322,6 @@
         </div>
     </div>
 </div>
-@endif
 
 <script>
 (function() {
@@ -362,16 +364,30 @@
         var iDiv = document.getElementById('pwa-install-ios');
         if (aDiv) aDiv.style.display = 'none';
         if (iDiv) iDiv.style.display = 'none';
-        if (modal && !bootstrap.Modal.getInstance(modal)) {
-            try { new bootstrap.Modal(modal).show(); } catch(e) {}
+        if (modal) {
+            try {
+                if (!bootstrap.Modal.getInstance(modal)) {
+                    new bootstrap.Modal(modal).show();
+                }
+            } catch(e) {
+                modal.style.display = 'block';
+                modal.style.opacity = '1';
+                document.body.classList.add('modal-open');
+            }
         }
     }
 
     function hideModal() {
         var modal = document.getElementById('pwa-install-modal');
         if (!modal) return;
-        var inst = bootstrap.Modal.getInstance(modal);
-        if (inst) inst.hide();
+        try {
+            var inst = bootstrap.Modal.getInstance(modal);
+            if (inst) inst.hide();
+        } catch(e) {
+            modal.style.display = 'none';
+            modal.style.opacity = '';
+            document.body.classList.remove('modal-open');
+        }
         setTimeout(function() {
             var bd = document.querySelector('.modal-backdrop');
             if (bd) bd.remove();
@@ -459,7 +475,7 @@
                 if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
             } catch(e){}
             var modal = document.getElementById('pwa-install-modal');
-            if (!modal || bootstrap.Modal.getInstance(modal)) return;
+            if (!modal) return;
             var androidDiv = document.getElementById('pwa-install-android');
             var iosDiv = document.getElementById('pwa-install-ios');
             if (isIOS) {
@@ -470,7 +486,15 @@
                 if (iosDiv) iosDiv.style.display = 'none';
             }
             if (isStandalone()) { showAlready(); hideNav(); return; }
-            new bootstrap.Modal(modal).show();
+            try {
+                if (bootstrap.Modal.getInstance(modal)) return;
+                new bootstrap.Modal(modal).show();
+            } catch(e) {
+                modal.style.display = 'block';
+                modal.style.opacity = '1';
+                document.body.classList.add('modal-open');
+            }
+        }, 3000);
         }, 3000);
     } else {
         hideNav();
@@ -511,10 +535,22 @@ function showInstallModal() {
         if (iosDiv) iosDiv.style.display = 'none';
     }
     if (fallback) fallback.style.display = '';
-    if (bootstrap.Modal.getInstance(modal)) {
-        bootstrap.Modal.getInstance(modal).show();
-    } else {
-        try { new bootstrap.Modal(modal).show(); } catch(e) {}
+    try {
+        var inst = bootstrap.Modal.getInstance(modal);
+        if (inst) {
+            inst.show();
+        } else {
+            new bootstrap.Modal(modal).show();
+        }
+    } catch(e) {
+        // Bootstrap JS not loaded — show modal via CSS fallback
+        modal.style.display = 'block';
+        modal.style.opacity = '1';
+        document.body.classList.add('modal-open');
+        var bd = document.createElement('div');
+        bd.className = 'modal-backdrop fade show';
+        bd.style.zIndex = '1050';
+        document.body.appendChild(bd);
     }
 }
 </script>
