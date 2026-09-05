@@ -559,7 +559,7 @@
             var btn = document.getElementById('pwa-install-btn');
             if (btn) btn.style.display = 'none';
         }
-    }, 1000);
+    }, 2000);
 })();
 
 // Global helper for inline onclick
