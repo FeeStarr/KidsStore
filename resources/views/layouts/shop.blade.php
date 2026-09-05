@@ -209,7 +209,7 @@
         </form>
         <ul class="navbar-nav align-items-lg-center">
             <li class="nav-item d-lg-none" id="nav-pwa-install-wrap">
-                <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('pwa-install-modal') && new bootstrap.Modal(document.getElementById('pwa-install-modal')).show()" style="border-radius:50px;font-size:.8rem;">
+                <button class="btn btn-sm btn-outline-primary" onclick="showInstallModal()" style="border-radius:50px;font-size:.8rem;">
                     <i class="bi bi-phone"></i> Get the App
                 </button>
             </li>
@@ -297,15 +297,9 @@
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
             <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
             <p class="text-muted small mb-1">Add to your home screen for faster shopping!</p>
-            <div id="pwa-install-state" class="small text-muted mb-2" style="display:none;"></div>
             <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;">Already installed - open from your home screen.</div>
-            <div id="pwa-installing" class="small text-primary mb-2" style="display:none;"><span class="spinner-border spinner-border-sm me-1"></span> Installing… please wait</div>
-            <div id="pwa-cancelled" class="small text-muted mb-2" style="display:none;">Installation cancelled. You can try again anytime.</div>
             <div id="pwa-install-android" style="display:none;">
-                <button id="pwa-install-btn" class="btn btn-primary w-100 mb-3" style="border-radius:50px;">
-                    <i class="bi bi-download me-1"></i> Install App
-                </button>
-                <div id="pwa-android-fallback" class="bg-light rounded-3 p-3 mb-2" style="display:none;">
+                <div id="pwa-android-fallback" class="bg-light rounded-3 p-3 mb-2">
                     <small class="text-muted">
                         <strong>To install:</strong> Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> in your browser, then tap <strong>"Install app"</strong>
                     </small>
@@ -356,22 +350,23 @@
         var nav = document.getElementById('nav-pwa-install-wrap');
         if (nav && isMobile && !isStandalone()) nav.style.display = '';
     }
+
+    var fallback = document.getElementById('pwa-android-fallback');
+
     function showAlready() {
         var modal = document.getElementById('pwa-install-modal');
         var alreadyEl2 = document.getElementById('pwa-already-installed');
         if (alreadyEl2) alreadyEl2.style.display = '';
         if (alreadyEl2) alreadyEl2.textContent = 'KidsFlairr is already installed.';
-        // hide install UI
         var aDiv = document.getElementById('pwa-install-android');
         var iDiv = document.getElementById('pwa-install-ios');
         if (aDiv) aDiv.style.display = 'none';
         if (iDiv) iDiv.style.display = 'none';
-        var btn = document.getElementById('pwa-install-btn');
-        if (btn) btn.style.display = 'none';
         if (modal && !bootstrap.Modal.getInstance(modal)) {
             try { new bootstrap.Modal(modal).show(); } catch(e) {}
         }
     }
+
     function hideModal() {
         var modal = document.getElementById('pwa-install-modal');
         if (!modal) return;
@@ -386,78 +381,7 @@
         }, 300);
     }
 
-    // --- standalone is primary truth ---
-    if (isStandalone()) {
-        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
-        hideNav();
-        // do not show install prompt when already installed; if user somehow opens modal show already message
-        var _modalAlready = document.getElementById('pwa-install-modal');
-        if (_modalAlready) {
-            // intercept any manual show attempt
-            document.getElementById('nav-pwa-install-wrap')?.addEventListener('click', function(e){ e.preventDefault(); showAlready(); });
-        }
-        return;
-    }
-    // clear stale installed flag if not standalone (uninstalled)
-    try {
-        if (localStorage.getItem(INSTALLED_KEY) === '1' && !isStandalone()) {
-            localStorage.removeItem(INSTALLED_KEY);
-        }
-    } catch(e) {}
-
-    // snooze check
-    try {
-        var ts = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
-        if (ts) {
-            if (Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
-            else localStorage.removeItem(DISMISS_KEY);
-        }
-    } catch(e) {}
-
-    // mobile-only: never show CTA/popup on desktop
-    if (!isMobile || isDesktopWidth()) { hideNav(); }
-    else { showNav(); }
-
-    var deferredPrompt = null;
-    var installBtn = document.getElementById('pwa-install-btn');
-    var stateEl = document.getElementById('pwa-install-state');
-    var alreadyEl = document.getElementById('pwa-already-installed');
-    var installingEl = document.getElementById('pwa-installing');
-    var cancelledEl = document.getElementById('pwa-cancelled');
-
-    function setState(s) {
-        if (stateEl) stateEl.style.display = 'none';
-        var fallback = document.getElementById('pwa-android-fallback');
-        // visibility helpers - Install App is explicit and always visible on Android popup (mobile-only)
-        if (installBtn) {
-            if (s === 'installing' || s === 'waiting') {
-                installBtn.disabled = true;
-                installBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Installing...';
-                installBtn.style.display = isIOS ? 'none' : '';
-                if (fallback) fallback.style.display = 'none';
-            } else if (s === 'installable' || s === 'cancelled') {
-                installBtn.disabled = false;
-                installBtn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                installBtn.style.display = isIOS ? 'none' : '';
-                // only show fallback instructions when programmatic install not supported
-                if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
-            } else if (s === 'already') {
-                installBtn.style.display = 'none';
-                if (fallback) fallback.style.display = 'none';
-            } else {
-                if (!isIOS) installBtn.style.display = '';
-                if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
-            }
-        } else {
-            if (fallback) fallback.style.display = (!deferredPrompt && !isIOS) ? '' : 'none';
-        }
-        if (installingEl) installingEl.style.display = (s === 'installing' || s === 'waiting') ? '' : 'none';
-        if (cancelledEl) cancelledEl.style.display = (s === 'cancelled') ? '' : 'none';
-        if (alreadyEl) alreadyEl.style.display = (s === 'already') ? '' : 'none';
-    }
-
     function onInstalledConfirmed() {
-        // prevent duplicate success from multiple events/page loads
         try {
             if (sessionStorage.getItem(SUCCESS_SHOWN_SESS) === '1') return;
             sessionStorage.setItem(SUCCESS_SHOWN_SESS, '1');
@@ -488,43 +412,37 @@
         } catch(e) {}
     }
 
-    // Dismiss -> 7-day snooze, no success
-    var dismissBtn = document.getElementById('pwa-dismiss-btn');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', function() {
-            try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
-            setState('cancelled');
-            hideModal();
-            hideNav();
-        });
-    }
-
-    // Capture beforeinstallprompt - do not auto prompt, only via Install button
-    window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        deferredPrompt = e;
-        // only expose Install button on mobile when not standalone
-        if (isMobile && !isStandalone() && !isDesktopWidth()) {
-            setState('installable');
-            showNav();
-            var fb = document.getElementById('pwa-android-fallback');
-            if (fb) fb.style.display = 'none';
+    // --- standalone is primary truth ---
+    if (isStandalone()) {
+        try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
+        hideNav();
+        var _modalAlready = document.getElementById('pwa-install-modal');
+        if (_modalAlready) {
+            document.getElementById('nav-pwa-install-wrap')?.addEventListener('click', function(e){ e.preventDefault(); showAlready(); });
         }
-    });
-
-    // Confirmed install only via appinstalled + display-mode change
-    window.addEventListener('appinstalled', function() {
-        onInstalledConfirmed();
-    });
-    try {
-        window.matchMedia('(display-mode: standalone)').addEventListener('change', function(e) {
-            if (e.matches) onInstalledConfirmed();
-        });
-    } catch(e) {
-        try { window.matchMedia('(display-mode: standalone)').addListener(function(e){ if(e.matches) onInstalledConfirmed(); }); } catch(e2){}
+        return;
     }
+    // clear stale installed flag if not standalone (uninstalled)
+    try {
+        if (localStorage.getItem(INSTALLED_KEY) === '1' && !isStandalone()) {
+            localStorage.removeItem(INSTALLED_KEY);
+        }
+    } catch(e) {}
 
-    // Nav Get the App click - respect mobile+installable gate
+    // snooze check
+    try {
+        var ts = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
+        if (ts) {
+            if (Date.now() - ts < SNOOZE_MS) { hideNav(); return; }
+            else localStorage.removeItem(DISMISS_KEY);
+        }
+    } catch(e) {}
+
+    // mobile-only: never show CTA/popup on desktop
+    if (!isMobile || isDesktopWidth()) { hideNav(); }
+    else { showNav(); }
+
+    // Nav Get the App click
     var navWrap = document.getElementById('nav-pwa-install-wrap');
     if (navWrap) {
         navWrap.addEventListener('click', function(e) {
@@ -535,7 +453,7 @@
     // Show modal after 3s only on mobile, not installed, not snoozed
     if (isMobile && !isDesktopWidth() && !isStandalone()) {
         setTimeout(function() {
-            if (isStandalone()) { setState('already'); var m=document.getElementById('pwa-install-modal'); if(m) showAlready(); return; }
+            if (isStandalone()) { showAlready(); return; }
             try {
                 var ts2 = parseInt(localStorage.getItem(DISMISS_KEY)||'0',10);
                 if (ts2 && (Date.now()-ts2 < SNOOZE_MS)) return;
@@ -547,85 +465,58 @@
             if (isIOS) {
                 if (iosDiv) iosDiv.style.display = 'block';
                 if (androidDiv) androidDiv.style.display = 'none';
-                setState('installable');
             } else {
                 if (androidDiv) androidDiv.style.display = 'block';
                 if (iosDiv) iosDiv.style.display = 'none';
-                // Install button always visible on Android; fallback only if no programmatic support
-                setState('installable');
-                var fb2 = document.getElementById('pwa-android-fallback');
-                if (fb2) fb2.style.display = deferredPrompt ? 'none' : '';
             }
-            // already installed state
-            if (isStandalone()) { setState('already'); if(document.getElementById('pwa-already-installed')) document.getElementById('pwa-already-installed').style.display=''; hideNav(); return; }
+            if (isStandalone()) { showAlready(); hideNav(); return; }
             new bootstrap.Modal(modal).show();
         }, 3000);
     } else {
         hideNav();
     }
 
-    if (installBtn) {
-        // explicit Install App button - always visible on mobile popup
-        if (isIOS) installBtn.style.display = 'none';
-        else if (isMobile && !isStandalone() && !isDesktopWidth()) installBtn.style.display = '';
-        installBtn.addEventListener('click', function() {
-            if (!isMobile || isStandalone() || isDesktopWidth()) {
-                if (isStandalone()) { showAlready(); return; }
-                return;
-            }
-            if (!deferredPrompt) {
-                if ('onbeforeinstallprompt' in window) {
-                    setState('installing');
-                    setTimeout(function() {
-                        if (deferredPrompt) {
-                            installBtn.click();
-                        } else {
-                            setState('installable');
-                            var fb = document.getElementById('pwa-android-fallback');
-                            if (fb) fb.style.display = '';
-                        }
-                    }, 400);
-                    return;
-                }
-                var fb2 = document.getElementById('pwa-android-fallback');
-                if (fb2) fb2.style.display = '';
-                return;
-            }
+    // Dismiss -> 7-day snooze
+    var dismissBtn = document.getElementById('pwa-dismiss-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
             hideModal();
-            setState('installing');
-            setTimeout(function() {
-                try {
-                    deferredPrompt.prompt();
-                } catch(err) {
-                    setState('cancelled');
-                    var fb = document.getElementById('pwa-android-fallback');
-                    if (fb) fb.style.display = '';
-                    deferredPrompt = null;
-                    return;
-                }
-                deferredPrompt.userChoice.then(function(result) {
-                    if (result.outcome === 'accepted') {
-                        onInstalledConfirmed();
-                    } else {
-                        setState('cancelled');
-                        var fb = document.getElementById('pwa-android-fallback');
-                        if (fb) fb.style.display = '';
-                    }
-                    deferredPrompt = null;
-                }).catch(function() {
-                    setState('cancelled');
-                    var fb = document.getElementById('pwa-android-fallback');
-                    if (fb) fb.style.display = '';
-                    deferredPrompt = null;
-                });
-            }, 400);
+            hideNav();
         });
     }
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function() {});
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('[PWA] SW registered');
+        }).catch(function(err) {
+            console.error('[PWA] SW registration failed:', err);
+        });
     }
 })();
+
+// Global helper for inline onclick
+function showInstallModal() {
+    var modal = document.getElementById('pwa-install-modal');
+    if (!modal) return;
+    var androidDiv = document.getElementById('pwa-install-android');
+    var iosDiv = document.getElementById('pwa-install-ios');
+    var fallback = document.getElementById('pwa-android-fallback');
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        if (iosDiv) iosDiv.style.display = 'block';
+        if (androidDiv) androidDiv.style.display = 'none';
+    } else {
+        if (androidDiv) androidDiv.style.display = 'block';
+        if (iosDiv) iosDiv.style.display = 'none';
+    }
+    if (fallback) fallback.style.display = '';
+    if (bootstrap.Modal.getInstance(modal)) {
+        bootstrap.Modal.getInstance(modal).show();
+    } else {
+        try { new bootstrap.Modal(modal).show(); } catch(e) {}
+    }
+}
 </script>
 
 @if(!str_starts_with(request()->path(), 'admin'))
