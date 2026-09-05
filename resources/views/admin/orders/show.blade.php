@@ -473,34 +473,34 @@
                         </div>
                         <div class="d-flex gap-1">
                             @if($rr->status === 'refund_required')
-                                <form method="post" action="{{ route('refunds.approve-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.approve-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-success">Approve</button>
                                 </form>
-                                <form method="post" action="{{ route('refunds.retry-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.retry-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-primary">Retry</button>
                                 </form>
-                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.sync-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-info">Sync</button>
                                 </form>
                             @elseif($rr->status === 'refund_failed')
-                                <form method="post" action="{{ route('refunds.retry-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.retry-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-primary">Retry</button>
                                 </form>
-                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.sync-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-info">Sync</button>
                                 </form>
                             @elseif($rr->status === 'refund_processing')
-                                <form method="post" action="{{ route('refunds.sync-refund', $rr) }}" style="display:inline">
+                                <form method="post" action="{{ route('admin.refunds.sync-refund', $rr) }}" style="display:inline">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-info">Sync</button>
                                 </form>
                             @endif
-                            <a href="{{ route('refunds.show', $rr) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                            <a href="{{ route('admin.refunds.show', $rr) }}" class="btn btn-sm btn-outline-secondary">View</a>
                         </div>
                     </div>
                 @endforeach
