@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Notifications\NotificationRecipients;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusNotification;
+use App\Models\RefundRequest;
 use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
