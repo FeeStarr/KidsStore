@@ -229,7 +229,11 @@ class OrderService
             $prev = $order->status;
 
             if (! in_array($order->status, ['cancelled', 'expired'], true)) {
-                $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
+                try {
+                    $this->inventory->reverseMovementsFor(Order::class, $order->id, 'Order cancelled');
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Inventory reversal failed on cancel', ['error' => $e->getMessage(), 'order' => $order->reference]);
+                }
                 $this->releaseDealUsage($order);
                 $this->coupons->releaseForOrder($order);
             }
