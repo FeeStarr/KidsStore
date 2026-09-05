@@ -446,7 +446,9 @@
     @endif
 
     {{-- Cancellation refund status (auto-created by OrderService::cancel) --}}
-    @php($cancellationRefunds = $order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->latest()->get())
+    @php
+        $cancellationRefunds = $order->refundRequests()->whereIn('status', ['refund_required', 'refund_approved', 'refund_processing', 'refund_failed'])->latest()->get();
+    @endphp
     @if($cancellationRefunds->count())
         <div class="card mt-2 border-info">
             <div class="card-header bg-info bg-opacity-10">
