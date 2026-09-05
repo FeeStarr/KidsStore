@@ -151,12 +151,7 @@ class Order extends Model
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Stale order cleanup failed', ['error' => $e->getMessage()]);
             }
-
-            try {
-                \Illuminate\Support\Facades\Cache::put('order_expire_ran', true, 3600);
-            } catch (\Throwable $e) {}
         });
-    }
 
     private static bool $expireRan = false;
 
