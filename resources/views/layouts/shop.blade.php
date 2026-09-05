@@ -463,27 +463,47 @@
         });
     }
 
+    function triggerInstall() {
+        if (!deferredPrompt) return false;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choice) {
+            deferredPrompt = null;
+            if (choice.outcome === 'accepted') {
+                onInstalledConfirmed();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+            }
+        }).catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+        });
+        return true;
+    }
+
     if (btn) {
         btn.addEventListener('click', function() {
-            if (deferredPrompt) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(function(choice) {
-                    deferredPrompt = null;
-                    if (choice.outcome === 'accepted') {
-                        onInstalledConfirmed();
-                    } else {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                    }
-                }).catch(function() {
+            if (triggerInstall()) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparing install...';
+
+            var attempts = 0;
+            var waiter = setInterval(function() {
+                attempts++;
+                if (deferredPrompt) {
+                    clearInterval(waiter);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                });
-            } else {
-                showManualFallback();
-            }
+                    triggerInstall();
+                } else if (attempts >= 20) {
+                    clearInterval(waiter);
+                    btn.disabled = false;
+                    showManualFallback();
+                }
+            }, 500);
         });
     }
 
