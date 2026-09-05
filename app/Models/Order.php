@@ -152,6 +152,7 @@ class Order extends Model
                 \Illuminate\Support\Facades\Log::error('Stale order cleanup failed', ['error' => $e->getMessage()]);
             }
         });
+    }
 
     private static bool $expireRan = false;
 
