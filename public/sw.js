@@ -8,6 +8,12 @@ const STATIC_ASSETS = [
     '/images/logo.png',
 ];
 
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'skipWaiting') {
+        self.skipWaiting();
+    }
+});
+
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache =>
