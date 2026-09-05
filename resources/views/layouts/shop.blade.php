@@ -177,9 +177,11 @@
 
         footer { background: linear-gradient(135deg,#1f2d3d,#3a1f5d); color:#e2d5f5; padding:2.5rem 0; margin-top:3rem; }
         /* CSS fallback for when Bootstrap JS is unavailable on shared hosting */
+        #pwa-install-modal { display: none; opacity: 0; }
         #pwa-install-modal.modal-open { display: block !important; opacity: 1; }
         #pwa-install-modal.fallback-show { display: block; opacity: 1; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0,0,0,.5); }
         #pwa-install-modal.fallback-show .modal-dialog { position: fixed; top: 50%; transform: translateY(-50%); z-index: 1060; }
+        .pwa-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0,0,0,.5); }
     </style>
     @stack('styles')
 </head>
@@ -383,13 +385,12 @@
         try {
             var inst = bootstrap.Modal.getInstance(modal);
             if (inst) inst.hide();
-        } catch(e) {
-            modal.style.display = 'none';
-            modal.style.opacity = '';
-            document.body.classList.remove('modal-open');
-        }
+        } catch(e) {}
+        modal.style.display = 'none';
+        modal.style.opacity = '';
+        document.body.classList.remove('modal-open');
         setTimeout(function() {
-            var bd = document.querySelector('.modal-backdrop');
+            var bd = document.querySelector('.pwa-backdrop, .modal-backdrop');
             if (bd) bd.remove();
             document.body.classList.remove('modal-open');
             document.body.style.overflow = '';
@@ -486,15 +487,13 @@
                 if (iosDiv) iosDiv.style.display = 'none';
             }
             if (isStandalone()) { showAlready(); hideNav(); return; }
-            try {
-                if (bootstrap.Modal.getInstance(modal)) return;
-                new bootstrap.Modal(modal).show();
-            } catch(e) {
-                modal.style.display = 'block';
-                modal.style.opacity = '1';
-                document.body.classList.add('modal-open');
-            }
-        }, 3000);
+            // Always show via CSS — no dependency on Bootstrap JS
+            modal.style.display = 'block';
+            modal.style.opacity = '1';
+            document.body.classList.add('modal-open');
+            var bd = document.createElement('div');
+            bd.className = 'pwa-backdrop';
+            document.body.appendChild(bd);
         }, 3000);
     } else {
         hideNav();
@@ -548,7 +547,7 @@ function showInstallModal() {
         modal.style.opacity = '1';
         document.body.classList.add('modal-open');
         var bd = document.createElement('div');
-        bd.className = 'modal-backdrop fade show';
+        bd.className = 'pwa-backdrop';
         bd.style.zIndex = '1050';
         document.body.appendChild(bd);
     }
