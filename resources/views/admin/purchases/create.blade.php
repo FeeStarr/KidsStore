@@ -3,12 +3,12 @@
 <h3 class="mb-3">New Purchase</h3>
 
 @php
-// Build a JS-friendly product catalogue with resolved FK names.
 $productsJson = $products->map(fn($p) => [
-    'id'       => $p->id,
-    'name'     => $p->name,
-    'image'    => $p->images->first()?->url ?? '',
-    'variants' => $p->variants->map(fn($v) => [
+    'id'           => $p->id,
+    'name'         => $p->name,
+    'image'        => $p->images->first()?->url ?? '',
+    'total_stock'  => $p->variants->sum(fn($v) => $v->stock_quantity),
+    'variants'     => $p->variants->map(fn($v) => [
         'id'            => $v->id,
         'sku'           => $v->sku,
         'color'         => $v->colorRef?->name ?? '',
@@ -17,6 +17,7 @@ $productsJson = $products->map(fn($p) => [
         'selling_price' => (float) $v->selling_price,
         'label'         => $v->options_label,
         'image'         => $v->image?->url ?? $p->images->first()?->url ?? '',
+        'stock'         => $v->stock_quantity,
     ])->values(),
 ])->values();
 @endphp
@@ -126,6 +127,17 @@ $productsJson = $products->map(fn($p) => [
 </form>
 
 @push('scripts')
+<style>
+.gp-product-trigger{display:flex;align-items:center;gap:.5rem;cursor:pointer;}
+.gp-product-trigger img{width:32px;height:32px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;flex-shrink:0;}
+.gp-product-dropdown{display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;max-height:340px;overflow-y:auto;background:#fff;border:1px solid #dee2e6;border-radius:.375rem;box-shadow:0 4px 16px rgba(0,0,0,.15);margin-top:2px;}
+.gp-product-dropdown.show{display:block;}
+.gp-product-option{cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background .1s;}
+.gp-product-option:hover{background:#f8f9fa;}
+.gp-product-option.active{background:#e8f4ff;}
+.gp-product-option.gp-added{opacity:.5;}
+.gp-product-option img{width:40px;height:40px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;flex-shrink:0;}
+</style>
 <script>
 (function () {
     const PRODUCTS = @json($productsJson);
@@ -200,20 +212,56 @@ $productsJson = $products->map(fn($p) => [
 
     // ── Sync product dropdowns - disable already-selected products in other groups
     function syncProductDropdowns() {
-        const allGroups = document.querySelectorAll('.group-card');
-        const selectedIds = new Set();
-        allGroups.forEach(g => {
-            const val = g.querySelector('.gp-product')?.value;
-            if (val) selectedIds.add(val);
+        document.querySelectorAll('.group-card').forEach(g => {
+            const hidden = g.querySelector('.gp-product');
+            if (hidden) {
+                const optionsWrap = g.querySelector('.gp-product-options');
+                if (optionsWrap) renderProductOptionsForGroup(g);
+            }
         });
-        allGroups.forEach(g => {
-            const sel = g.querySelector('.gp-product');
-            if (!sel) return;
-            const currentVal = sel.value;
-            Array.from(sel.options).forEach(opt => {
-                if (!opt.value) return; // skip placeholder
-                // Disable if selected in ANOTHER group (not this one)
-                opt.disabled = selectedIds.has(opt.value) && opt.value !== currentVal;
+    }
+
+    function renderProductOptionsForGroup(card) {
+        const hidden = card.querySelector('.gp-product');
+        const optionsWrap = card.querySelector('.gp-product-options');
+        const searchInp = card.querySelector('.gp-product-search');
+        if (!hidden || !optionsWrap) return;
+
+        const q = (searchInp?.value || '').toLowerCase();
+        const selectedIds = Array.from(document.querySelectorAll('.gp-product')).map(i => i.value).filter(Boolean);
+        const currentVal = hidden.value;
+
+        optionsWrap.innerHTML = PRODUCTS.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => {
+            const isAdded = selectedIds.includes(String(p.id)) && String(p.id) !== currentVal;
+            const stockBadge = p.total_stock > 0
+                ? `<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">${p.total_stock} in stock</span>`
+                : `<span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">Out of stock</span>`;
+            const addedBadge = isAdded ? '<span class="badge bg-secondary ms-1" style="font-size:.6rem;">Added</span>' : '';
+            const imgHtml = p.image
+                ? `<img src="${p.image}" alt="">`
+                : `<div style="width:40px;height:40px;border-radius:.375rem;background:#e9ecef;display:flex;align-items:center;justify-content:center;color:#adb5bd;font-size:.75rem;">No img</div>`;
+            return `<div class="gp-product-option ${isAdded ? 'gp-added' : ''} ${String(p.id) === currentVal ? 'active' : ''}" data-id="${p.id}">
+                ${imgHtml}
+                <div class="flex-grow-1">
+                    <div class="small fw-semibold">${p.name}</div>
+                    <div>${stockBadge}${addedBadge}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        optionsWrap.querySelectorAll('.gp-product-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const pid = opt.dataset.id;
+                const product = PRODUCTS.find(p => p.id == pid);
+                hidden.value = pid;
+                const label = card.querySelector('.gp-product-label');
+                const triggerImg = card.querySelector('.gp-product-trigger img');
+                label.textContent = product.name;
+                label.classList.remove('text-muted');
+                if (product.image) { triggerImg.src = product.image; triggerImg.style.display = ''; }
+                else { triggerImg.style.display = 'none'; }
+                card.querySelector('.gp-product-dropdown').classList.remove('show');
+                hidden.dispatchEvent(new Event('change'));
             });
         });
     }
@@ -227,23 +275,25 @@ $productsJson = $products->map(fn($p) => [
         card.className = 'border rounded p-3 mb-2 group-card';
         card.dataset.gid = id;
 
-        // Build product options
-        const pOpts = PRODUCTS.map(p =>
-            `<option value="${p.id}">${p.name}</option>`
-        ).join('');
-
         card.innerHTML = `
             <div class="row g-2 align-items-end mb-2">
                 <div class="col-md-4 d-flex align-items-end gap-2">
                     <div class="gp-thumb flex-shrink-0 d-none" style="width:56px;height:56px;border-radius:.5rem;overflow:hidden;border:1px solid #dee2e6;background:#f8f9fa;">
                         <img src="" style="width:100%;height:100%;object-fit:cover" alt="">
                     </div>
-                    <div class="flex-grow-1">
+                    <div class="flex-grow-1 position-relative">
                         <label class="form-label form-label-sm fw-semibold">Product</label>
-                        <select class="form-select form-select-sm gp-product">
-                            <option value="">- Select Product -</option>
-                            ${pOpts}
-                        </select>
+                        <input type="hidden" class="gp-product" value="">
+                        <div class="form-select form-select-sm gp-product-trigger">
+                            <img src="" style="display:none" alt="">
+                            <span class="text-muted gp-product-label">- Select Product -</span>
+                        </div>
+                        <div class="gp-product-dropdown">
+                            <div class="p-2 border-bottom" style="position:sticky;top:0;background:#fff;">
+                                <input type="text" class="form-control form-control-sm gp-product-search" placeholder="Search products...">
+                            </div>
+                            <div class="gp-product-options"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -281,6 +331,7 @@ $productsJson = $products->map(fn($p) => [
                             <th style="width:44px"></th>
                             <th>Age Range</th>
                             <th>Size</th>
+                            <th>Stock</th>
                             <th style="width:80px">Qty</th>
                             <th style="width:110px">Unit Cost (₦)</th>
                             <th style="width:80px">Markup %</th>
@@ -306,6 +357,82 @@ $productsJson = $products->map(fn($p) => [
         const varWrap    = card.querySelector('.gp-variants-wrap');
         const tbody      = card.querySelector('.gp-tbody');
 
+        // ── Custom product dropdown ───────────────────────────────────────
+        const trigger    = card.querySelector('.gp-product-trigger');
+        const label      = card.querySelector('.gp-product-label');
+        const triggerImg = card.querySelector('.gp-product-trigger img');
+        const dropdown   = card.querySelector('.gp-product-dropdown');
+        const searchInp  = card.querySelector('.gp-product-search');
+        const optionsWrap = card.querySelector('.gp-product-options');
+
+        function getSelectedIds() {
+            return Array.from(document.querySelectorAll('.gp-product')).map(i => i.value).filter(Boolean);
+        }
+
+        function renderProductOptions(filter) {
+            const q = (filter || '').toLowerCase();
+            const selectedIds = getSelectedIds();
+            const currentVal = productSel.value;
+
+            const filtered = PRODUCTS.filter(p => {
+                if (q && !p.name.toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            optionsWrap.innerHTML = filtered.map(p => {
+                const isAdded = selectedIds.includes(String(p.id)) && String(p.id) !== currentVal;
+                const stockBadge = p.total_stock > 0
+                    ? `<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">${p.total_stock} in stock</span>`
+                    : `<span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">Out of stock</span>`;
+                const addedBadge = isAdded ? '<span class="badge bg-secondary ms-1" style="font-size:.6rem;">Added</span>' : '';
+                const imgHtml = p.image
+                    ? `<img src="${p.image}" alt="">`
+                    : `<div style="width:40px;height:40px;border-radius:.375rem;background:#e9ecef;display:flex;align-items:center;justify-content:center;color:#adb5bd;font-size:.75rem;">No img</div>`;
+                return `<div class="gp-product-option ${isAdded ? 'gp-added' : ''} ${String(p.id) === currentVal ? 'active' : ''}" data-id="${p.id}">
+                    ${imgHtml}
+                    <div class="flex-grow-1">
+                        <div class="small fw-semibold">${p.name}</div>
+                        <div>${stockBadge}${addedBadge}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            optionsWrap.querySelectorAll('.gp-product-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const pid = opt.dataset.id;
+                    const product = PRODUCTS.find(p => p.id == pid);
+                    productSel.value = pid;
+                    label.textContent = product.name;
+                    label.classList.remove('text-muted');
+                    if (product.image) { triggerImg.src = product.image; triggerImg.style.display = ''; }
+                    else { triggerImg.style.display = 'none'; }
+                    dropdown.classList.remove('show');
+                    productSel.dispatchEvent(new Event('change'));
+                });
+            });
+        }
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            document.querySelectorAll('.gp-product-dropdown.show').forEach(d => d.classList.remove('show'));
+            dropdown.classList.toggle('show');
+            if (dropdown.classList.contains('show')) {
+                searchInp.value = '';
+                renderProductOptions();
+                searchInp.focus();
+            }
+        });
+
+        searchInp.addEventListener('input', () => renderProductOptions(searchInp.value));
+        searchInp.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', e => {
+            if (!dropdown.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        renderProductOptions();
+
         // Product → populate colors + show thumbnail
         productSel.addEventListener('change', () => {
             const product = PRODUCTS.find(p => p.id == productSel.value);
@@ -314,7 +441,6 @@ $productsJson = $products->map(fn($p) => [
             varWrap.style.display = 'none';
             applyRow.style.setProperty('display', 'none', 'important');
 
-            // Show/hide product thumbnail
             const thumb = card.querySelector('.gp-thumb');
             if (thumb) {
                 if (product && product.image) {
@@ -325,7 +451,7 @@ $productsJson = $products->map(fn($p) => [
                 }
             }
 
-            syncProductDropdowns();
+            renderProductOptions(searchInp?.value || '');
 
             if (!product) { colorSel.disabled = true; return; }
 
@@ -338,7 +464,6 @@ $productsJson = $products->map(fn($p) => [
             });
             colorSel.disabled = false;
 
-            // Load all variants for the selected product. Selecting a color will filter.
             loadVariantRows(product, null, tbody, varWrap, applyRow, costInp, markupInp);
         });
 
@@ -392,10 +517,16 @@ $productsJson = $products->map(fn($p) => [
             tr.dataset.pack = 0;
             tr.dataset.othr = 0;
 
+            const stock = v.stock || 0;
+            const stockBadge = stock > 0
+                ? `<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">${stock}</span>`
+                : `<span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">0</span>`;
+
             tr.innerHTML = `
                 <td><img src="${v.image || ''}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;${v.image ? '' : 'display:none'}" class="vthumb" alt=""></td>
                 <td class="small">${v.age || '<span class="text-muted">-</span>'}</td>
                 <td class="small">${v.size || '<span class="text-muted">-</span>'}</td>
+                <td class="text-center">${stockBadge}</td>
                 <td><input type="number" min="0" value="" placeholder="-" class="form-control form-control-sm vqty"></td>
                 <td><input type="number" step="0.01" min="0" value="" placeholder="-" class="form-control form-control-sm vcost"></td>
                 <td><input type="number" step="0.01" min="0" value="${flt(markupInp.value)}" class="form-control form-control-sm vmarkup"></td>
