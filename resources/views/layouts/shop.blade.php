@@ -21,14 +21,26 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script>
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                console.log('[PWA] SW registered (head), scope:', reg.scope);
-                if (reg.waiting) reg.waiting.postMessage({ type: 'skipWaiting' });
-            }).catch(function(err) {
-                console.error('[PWA] SW registration failed:', err);
-            });
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('[PWA] SW registered, scope:', reg.scope, 'state:', reg.installing ? 'installing' : reg.waiting ? 'waiting' : reg.active ? 'active' : 'unknown');
+            console.log('[PWA] SW controller:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
+            if (reg.installing) {
+                reg.installing.addEventListener('statechange', function(e) {
+                    console.log('[PWA] SW installing state:', e.target.state);
+                });
+            }
+            if (reg.waiting) {
+                console.log('[PWA] SW waiting, posting skipWaiting');
+                reg.waiting.postMessage({ type: 'skipWaiting' });
+            }
+            if (reg.active) {
+                console.log('[PWA] SW active:', reg.active.scriptURL);
+            }
+        }).catch(function(err) {
+            console.error('[PWA] SW registration FAILED:', err);
         });
+    } else {
+        console.warn('[PWA] Service workers not supported');
     }
     </script>
     <style>
@@ -341,6 +353,17 @@
             || window.navigator.standalone === true;
     }
 
+    console.log('[PWA] Init:', {
+        isIOS: isIOS,
+        isAndroid: isAndroid,
+        isMobile: isMobile,
+        isStandalone: isStandalone(),
+        displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : window.matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' : 'browser',
+        navigatorStandalone: window.navigator.standalone,
+        swController: navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none',
+        url: window.location.href
+    });
+
     function hideNav() {
         var el = document.getElementById('nav-pwa-install-wrap');
         if (el) { var li = el.closest('.nav-item'); if (li) li.style.display = 'none'; else el.style.display = 'none'; }
@@ -392,19 +415,33 @@
     function updateInstallUI() {
         var done = document.getElementById('pwa-already-installed');
         if (done) done.style.display = 'none';
+        if (manualDiv) manualDiv.style.display = 'none';
+
+        if (isStandalone()) {
+            if (btn) { btn.style.display = 'none'; }
+            if (done) { done.textContent = 'KidsFlairr is already installed.'; done.style.display = 'block'; }
+            return;
+        }
 
         if (isIOS) {
             if (btn) btn.style.display = 'none';
-            if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>iOS does not support automatic install.</strong>';
-            if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
-        } else if (deferredPrompt) {
-            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
-            if (manualDiv) manualDiv.style.display = 'none';
-        } else {
-            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
-            if (manualDiv) manualDiv.style.display = 'none';
+            showIOSFallback();
+            return;
         }
+
+        if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
+    }
+
+    function showIOSFallback() {
+        if (manualDiv) manualDiv.style.display = 'block';
+        if (manualTitle) manualTitle.innerHTML = '<strong>Install on iOS:</strong>';
+        if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
+    }
+
+    function showNotCurrentlyAvailable() {
+        if (manualDiv) manualDiv.style.display = 'block';
+        if (manualTitle) manualTitle.innerHTML = '<strong>Install is not currently available.</strong>';
+        if (manualSteps) manualSteps.innerHTML = 'Try the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> above and look for <strong>"Install app"</strong>.<br><small class="text-muted">If the option is not there, try visiting this page again later.</small>';
     }
 
     function onInstalledConfirmed() {
@@ -430,27 +467,15 @@
         } catch(e) {}
     }
 
-    function showManualFallback() {
-        if (!manualDiv) return;
-        manualDiv.style.display = 'block';
-        if (isAndroid) {
-            if (manualTitle) manualTitle.innerHTML = '<strong>Your browser does not support one-tap install.</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Use your browser menu instead:<br>1. Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i><br>2. Tap <strong>"Install app"</strong><br>3. Tap <strong>Install</strong> to confirm';
-        } else {
-            if (manualTitle) manualTitle.innerHTML = '<strong>Install not available in this browser.</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> for one-tap install.';
-        }
-    }
-
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        console.log('[PWA] beforeinstallprompt captured');
+        console.log('[PWA] beforeinstallprompt FIRED, deferredPrompt stored');
         updateInstallUI();
     });
 
     window.addEventListener('appinstalled', function() {
-        console.log('[PWA] appinstalled event fired');
+        console.log('[PWA] appinstalled event FIRED');
         deferredPrompt = null;
         onInstalledConfirmed();
     });
@@ -458,6 +483,7 @@
     if (isStandalone()) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
+        console.log('[PWA] Running in standalone mode — app likely installed');
         return;
     }
 
@@ -489,15 +515,15 @@
         try {
             deferredPrompt.prompt();
         } catch(e) {
-            console.error('[PWA] prompt() failed:', e);
+            console.error('[PWA] prompt() threw:', e);
             deferredPrompt = null;
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-            showManualFallback();
+            showNotCurrentlyAvailable();
             return true;
         }
         deferredPrompt.userChoice.then(function(choice) {
-            console.log('[PWA] userChoice:', choice.outcome);
+            console.log('[PWA] userChoice outcome:', choice.outcome);
             deferredPrompt = null;
             if (choice.outcome === 'accepted') {
                 onInstalledConfirmed();
@@ -510,27 +536,30 @@
             deferredPrompt = null;
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-            showManualFallback();
+            showNotCurrentlyAvailable();
         });
         return true;
     }
 
     if (btn) {
         btn.addEventListener('click', function() {
-            console.log('[PWA] Install clicked, deferredPrompt:', !!deferredPrompt, 'isStandalone:', isStandalone());
+            console.log('[PWA] Install clicked. deferredPrompt:', !!deferredPrompt, 'swController:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
             if (isStandalone()) {
-                onInstalledConfirmed();
+                console.log('[PWA] Already standalone — telling user');
+                if (btn) btn.style.display = 'none';
+                var done = document.getElementById('pwa-already-installed');
+                if (done) { done.textContent = 'KidsFlairr is already installed.'; done.style.display = 'block'; }
                 return;
             }
             if (triggerInstall()) return;
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparing install...';
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Waiting for browser...';
 
             var attempts = 0;
             var waiter = setInterval(function() {
                 attempts++;
-                console.log('[PWA] Poll attempt', attempts, 'deferredPrompt:', !!deferredPrompt);
+                console.log('[PWA] Poll #' + attempts + ', deferredPrompt:', !!deferredPrompt, 'swController:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
                 if (deferredPrompt) {
                     clearInterval(waiter);
                     btn.disabled = false;
@@ -540,7 +569,7 @@
                     clearInterval(waiter);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                    showManualFallback();
+                    showNotCurrentlyAvailable();
                 }
             }, 500);
         });
