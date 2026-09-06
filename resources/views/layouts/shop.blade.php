@@ -322,12 +322,6 @@
             <button id="pwa-install-btn" class="btn btn-primary w-100" style="border-radius:50px; display:none;">
                 <i class="bi bi-download me-1"></i> Install App
             </button>
-            <div id="pwa-install-manual" class="text-start mt-3" style="display:none;">
-                <div class="bg-light rounded-3 p-3">
-                    <small class="text-muted d-block mb-1" id="pwa-manual-title"></small>
-                    <small class="text-muted" id="pwa-manual-steps"></small>
-                </div>
-            </div>
             <button id="pwa-dismiss-btn" class="btn btn-link text-muted small mt-2">Not now</button>
         </div>
     </div>
@@ -440,16 +434,12 @@
     }
 
     var btn = document.getElementById('pwa-install-btn');
-    var manualDiv = document.getElementById('pwa-install-manual');
-    var manualTitle = document.getElementById('pwa-manual-title');
-    var manualSteps = document.getElementById('pwa-manual-steps');
     var alreadyInstalledEl = document.getElementById('pwa-already-installed');
     var modalTitle = document.getElementById('pwa-modal-title');
     var modalSubtitle = document.getElementById('pwa-modal-subtitle');
 
     function updateInstallUI() {
         if (alreadyInstalledEl) alreadyInstalledEl.style.display = 'none';
-        if (manualDiv) manualDiv.style.display = 'none';
         if (btn) btn.style.display = 'none';
 
         if (isStandalone()) {
@@ -459,39 +449,15 @@
             return;
         }
 
-        if (isIOS) {
-            if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
-            if (modalSubtitle) modalSubtitle.textContent = 'Add it to your home screen for quick access.';
-            if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Add to Home Screen:</strong>';
-            if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
-            return;
-        }
-
         if (deferredPrompt) {
             if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
-            if (modalSubtitle) modalSubtitle.textContent = 'Install the app or add it to your home screen.';
+            if (modalSubtitle) modalSubtitle.textContent = '';
             if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
-            if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Or add to home screen:</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> then <strong>"Add to Home screen"</strong>.';
-            return;
-        }
-
-        if (isAndroid) {
-            if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
-            if (modalSubtitle) modalSubtitle.textContent = 'Add it to your home screen for quick access.';
-            if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Add to Home Screen:</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> then <strong>"Add to Home screen"</strong>.';
             return;
         }
 
         if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
-        if (modalSubtitle) modalSubtitle.textContent = '';
-        if (manualDiv) manualDiv.style.display = 'block';
-        if (manualTitle) manualTitle.innerHTML = '<strong>Not available in this browser.</strong>';
-        if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> on a mobile device.';
+        if (modalSubtitle) modalSubtitle.textContent = 'Installation is not available right now. Try again later.';
     }
 
     function onInstalledConfirmed() {
