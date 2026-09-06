@@ -433,7 +433,14 @@
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
+        console.log('[PWA] beforeinstallprompt captured');
         updateInstallUI();
+    });
+
+    window.addEventListener('appinstalled', function() {
+        console.log('[PWA] appinstalled event fired');
+        deferredPrompt = null;
+        onInstalledConfirmed();
     });
 
     if (isStandalone()) {
@@ -467,8 +474,18 @@
         if (!deferredPrompt) return false;
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
-        deferredPrompt.prompt();
+        try {
+            deferredPrompt.prompt();
+        } catch(e) {
+            console.error('[PWA] prompt() failed:', e);
+            deferredPrompt = null;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+            showManualFallback();
+            return true;
+        }
         deferredPrompt.userChoice.then(function(choice) {
+            console.log('[PWA] userChoice:', choice.outcome);
             deferredPrompt = null;
             if (choice.outcome === 'accepted') {
                 onInstalledConfirmed();
@@ -476,15 +493,23 @@
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
             }
-        }).catch(function() {
+        }).catch(function(e) {
+            console.error('[PWA] userChoice error:', e);
+            deferredPrompt = null;
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+            showManualFallback();
         });
         return true;
     }
 
     if (btn) {
         btn.addEventListener('click', function() {
+            console.log('[PWA] Install clicked, deferredPrompt:', !!deferredPrompt, 'isStandalone:', isStandalone());
+            if (isStandalone()) {
+                onInstalledConfirmed();
+                return;
+            }
             if (triggerInstall()) return;
 
             btn.disabled = true;
@@ -493,6 +518,7 @@
             var attempts = 0;
             var waiter = setInterval(function() {
                 attempts++;
+                console.log('[PWA] Poll attempt', attempts, 'deferredPrompt:', !!deferredPrompt);
                 if (deferredPrompt) {
                     clearInterval(waiter);
                     btn.disabled = false;
@@ -501,6 +527,7 @@
                 } else if (attempts >= 20) {
                     clearInterval(waiter);
                     btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
                     showManualFallback();
                 }
             }, 500);
