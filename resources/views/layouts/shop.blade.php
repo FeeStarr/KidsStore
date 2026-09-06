@@ -435,9 +435,9 @@
     function updateInstallUI() {
         if (alreadyInstalledEl) alreadyInstalledEl.style.display = 'none';
         if (manualDiv) manualDiv.style.display = 'none';
+        if (btn) btn.style.display = 'none';
 
         if (isStandalone()) {
-            if (btn) btn.style.display = 'none';
             if (alreadyInstalledEl) { alreadyInstalledEl.textContent = 'KidsFlairr is already installed.'; alreadyInstalledEl.style.display = 'block'; }
             return;
         }
@@ -447,24 +447,22 @@
             return;
         }
 
-        if (btn) { btn.style.display = 'none'; }
-
         if (isIOS) {
             if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Install on iOS:</strong>';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Add to Home Screen:</strong>';
             if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
             return;
         }
 
         if (isAndroid) {
             if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Install is not currently available.</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Try the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> and look for <strong>"Install app"</strong>.<br><small class="text-muted">If the option is not there, try visiting this page again later.</small>';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Installation is not available right now.</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Chrome has not offered to install this app on this visit. Try again later.';
             return;
         }
 
         if (manualDiv) manualDiv.style.display = 'block';
-        if (manualTitle) manualTitle.innerHTML = '<strong>Install not available in this browser.</strong>';
+        if (manualTitle) manualTitle.innerHTML = '<strong>Installation is not available right now.</strong>';
         if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> on a mobile device.';
     }
 
