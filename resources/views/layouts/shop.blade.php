@@ -316,10 +316,10 @@
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content text-center p-4" style="border-radius:1.25rem;">
             <div class="mb-3"><img src="{{ asset('images/logo.png') }}" alt="KidsFlairr" style="max-height:60px;" onerror="this.outerHTML='<div style=\'font-size:3rem\'>🎈</div>'"></div>
-            <h5 class="fw-bold mb-2">Install KidsFlairr</h5>
-            <p class="text-muted small mb-3">Get the full app experience - faster, works offline!</p>
+            <h5 class="fw-bold mb-2" id="pwa-modal-title">Get KidsFlairr</h5>
+            <p class="text-muted small mb-3" id="pwa-modal-subtitle"></p>
             <div id="pwa-already-installed" class="alert alert-success py-2 small mb-2" style="display:none;"></div>
-            <button id="pwa-install-btn" class="btn btn-primary w-100" style="border-radius:50px;">
+            <button id="pwa-install-btn" class="btn btn-primary w-100" style="border-radius:50px; display:none;">
                 <i class="bi bi-download me-1"></i> Install App
             </button>
             <div id="pwa-install-manual" class="text-start mt-3" style="display:none;">
@@ -444,6 +444,8 @@
     var manualTitle = document.getElementById('pwa-manual-title');
     var manualSteps = document.getElementById('pwa-manual-steps');
     var alreadyInstalledEl = document.getElementById('pwa-already-installed');
+    var modalTitle = document.getElementById('pwa-modal-title');
+    var modalSubtitle = document.getElementById('pwa-modal-subtitle');
 
     function updateInstallUI() {
         if (alreadyInstalledEl) alreadyInstalledEl.style.display = 'none';
@@ -451,31 +453,44 @@
         if (btn) btn.style.display = 'none';
 
         if (isStandalone()) {
+            if (modalTitle) modalTitle.textContent = 'KidsFlairr';
+            if (modalSubtitle) modalSubtitle.textContent = '';
             if (alreadyInstalledEl) { alreadyInstalledEl.textContent = 'KidsFlairr is already installed.'; alreadyInstalledEl.style.display = 'block'; }
             return;
         }
 
-        if (deferredPrompt) {
-            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
-            return;
-        }
-
         if (isIOS) {
+            if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
+            if (modalSubtitle) modalSubtitle.textContent = 'Add it to your home screen for quick access.';
             if (manualDiv) manualDiv.style.display = 'block';
             if (manualTitle) manualTitle.innerHTML = '<strong>Add to Home Screen:</strong>';
             if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
             return;
         }
 
-        if (isAndroid) {
+        if (deferredPrompt) {
+            if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
+            if (modalSubtitle) modalSubtitle.textContent = 'Install the app or add it to your home screen.';
+            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
             if (manualDiv) manualDiv.style.display = 'block';
-            if (manualTitle) manualTitle.innerHTML = '<strong>Installation is not available right now.</strong>';
-            if (manualSteps) manualSteps.innerHTML = 'Chrome has not offered to install this app on this visit. Try again later.';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Or add to home screen:</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> then <strong>"Add to Home screen"</strong>.';
             return;
         }
 
+        if (isAndroid) {
+            if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
+            if (modalSubtitle) modalSubtitle.textContent = 'Add it to your home screen for quick access.';
+            if (manualDiv) manualDiv.style.display = 'block';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Add to Home Screen:</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Tap the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> then <strong>"Add to Home screen"</strong>.';
+            return;
+        }
+
+        if (modalTitle) modalTitle.textContent = 'Get KidsFlairr';
+        if (modalSubtitle) modalSubtitle.textContent = '';
         if (manualDiv) manualDiv.style.display = 'block';
-        if (manualTitle) manualTitle.innerHTML = '<strong>Installation is not available right now.</strong>';
+        if (manualTitle) manualTitle.innerHTML = '<strong>Not available in this browser.</strong>';
         if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> on a mobile device.';
     }
 
