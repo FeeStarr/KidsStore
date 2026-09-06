@@ -383,6 +383,19 @@
 
     logDiagnostics('page load');
 
+    setTimeout(function() {
+        logDiagnostics('5 seconds after page load');
+        if (!promptFired) {
+            console.warn('[PWA] beforeinstallprompt has not fired after 5s. Checking Chrome installability...');
+            console.warn('[PWA] SW controller:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
+            console.warn('[PWA] This means Chrome has not determined this page is installable. Possible causes:');
+            console.warn('[PWA]   - Service worker not yet active/controlling');
+            console.warn('[PWA]   - Manifest not detected by Chrome');
+            console.warn('[PWA]   - Chrome heuristics (engagement, visit count, etc.)');
+            console.warn('[PWA]   - App already installed (would not show prompt again)');
+        }
+    }, 5000);
+
     function hideNav() {
         var el = document.getElementById('nav-pwa-install-wrap');
         if (el) { var li = el.closest('.nav-item'); if (li) li.style.display = 'none'; else el.style.display = 'none'; }
