@@ -3,12 +3,12 @@
 <h3 class="mb-3">Edit Purchase {{ $purchase->display_number }}</h3>
 
 @php
-// Build JS-friendly product catalogue (same as create view).
 $productsJson = $products->map(fn($p) => [
-    'id'       => $p->id,
-    'name'     => $p->name,
-    'image'    => $p->images->first()?->url ?? '',
-    'variants' => $p->variants->map(fn($v) => [
+    'id'           => $p->id,
+    'name'         => $p->name,
+    'image'        => $p->images->first()?->url ?? '',
+    'total_stock'  => $p->variants->sum(fn($v) => $v->stock_quantity),
+    'variants'     => $p->variants->map(fn($v) => [
         'id'            => $v->id,
         'sku'           => $v->sku,
         'color'         => $v->colorRef?->name ?? '',
@@ -17,6 +17,7 @@ $productsJson = $products->map(fn($p) => [
         'selling_price' => (float) $v->selling_price,
         'label'         => $v->options_label,
         'image'         => $v->image?->url ?? $p->images->first()?->url ?? '',
+        'stock'         => $v->stock_quantity,
     ])->values(),
 ])->values();
 
@@ -159,6 +160,17 @@ $allocOther     = (float) $purchase->total_other_costs;
 </form>
 
 @push('scripts')
+<style>
+.gp-product-trigger{display:flex;align-items:center;gap:.5rem;cursor:pointer;}
+.gp-product-trigger img{width:32px;height:32px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;flex-shrink:0;}
+.gp-product-dropdown{display:none;position:absolute;top:100%;left:0;right:0;z-index:1050;max-height:340px;overflow-y:auto;background:#fff;border:1px solid #dee2e6;border-radius:.375rem;box-shadow:0 4px 16px rgba(0,0,0,.15);margin-top:2px;}
+.gp-product-dropdown.show{display:block;}
+.gp-product-option{cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background .1s;}
+.gp-product-option:hover{background:#f8f9fa;}
+.gp-product-option.active{background:#e8f4ff;}
+.gp-product-option.gp-added{opacity:.5;}
+.gp-product-option img{width:40px;height:40px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;flex-shrink:0;}
+</style>
 <script>
 (function () {
     const PRODUCTS       = @json($productsJson);
@@ -239,18 +251,26 @@ $allocOther     = (float) $purchase->total_other_costs;
         const card = document.createElement('div');
         card.className = 'border rounded p-3 mb-2 group-card';
 
-        const pOpts = PRODUCTS.map(p =>
-            `<option value="${p.id}" ${preProduct == p.id ? 'selected' : ''}>${p.name}</option>`
-        ).join('');
-
         card.innerHTML = `
             <div class="row g-2 align-items-end mb-2">
-                <div class="col-md-5">
-                    <label class="form-label form-label-sm fw-semibold">Product</label>
-                    <select class="form-select form-select-sm gp-product">
-                        <option value="">- Select Product -</option>
-                        ${pOpts}
-                    </select>
+                <div class="col-md-5 d-flex align-items-end gap-2">
+                    <div class="gp-thumb flex-shrink-0 d-none" style="width:56px;height:56px;border-radius:.5rem;overflow:hidden;border:1px solid #dee2e6;background:#f8f9fa;">
+                        <img src="" style="width:100%;height:100%;object-fit:cover" alt="">
+                    </div>
+                    <div class="flex-grow-1 position-relative">
+                        <label class="form-label form-label-sm fw-semibold">Product</label>
+                        <input type="hidden" class="gp-product" value="${preProduct || ''}">
+                        <div class="form-select form-select-sm gp-product-trigger">
+                            <img src="" style="display:none" alt="">
+                            <span class="text-muted gp-product-label">${preProduct ? '' : '- Select Product -'}</span>
+                        </div>
+                        <div class="gp-product-dropdown">
+                            <div class="p-2 border-bottom" style="position:sticky;top:0;background:#fff;">
+                                <input type="text" class="form-control form-control-sm gp-product-search" placeholder="Search products...">
+                            </div>
+                            <div class="gp-product-options"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label form-label-sm fw-semibold">Color / Style</label>
@@ -288,6 +308,7 @@ $allocOther     = (float) $purchase->total_other_costs;
                         <tr>
                             <th style="width:44px"></th>
                             <th>Age Range</th><th>Size</th>
+                            <th>Stock</th>
                             <th style="width:80px">Qty</th>
                             <th style="width:110px">Unit Cost (₦)</th>
                             <th style="width:80px">Markup %</th>
@@ -311,6 +332,85 @@ $allocOther     = (float) $purchase->total_other_costs;
         const varWrap    = card.querySelector('.gp-variants-wrap');
         const tbody      = card.querySelector('.gp-tbody');
 
+        // ── Custom product dropdown ───────────────────────────────────────
+        const trigger     = card.querySelector('.gp-product-trigger');
+        const label       = card.querySelector('.gp-product-label');
+        const triggerImg  = card.querySelector('.gp-product-trigger img');
+        const dropdown    = card.querySelector('.gp-product-dropdown');
+        const searchInp   = card.querySelector('.gp-product-search');
+        const optionsWrap = card.querySelector('.gp-product-options');
+
+        function getSelectedIds() {
+            return Array.from(document.querySelectorAll('.gp-product')).map(i => i.value).filter(Boolean);
+        }
+
+        function renderProductOptions(filter) {
+            const q = (filter || '').toLowerCase();
+            const selectedIds = getSelectedIds();
+            const currentVal = productSel.value;
+
+            optionsWrap.innerHTML = PRODUCTS.filter(p => !q || p.name.toLowerCase().includes(q)).map(p => {
+                const isAdded = selectedIds.includes(String(p.id)) && String(p.id) !== currentVal;
+                const stockBadge = p.total_stock > 0
+                    ? `<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">${p.total_stock} in stock</span>`
+                    : `<span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">Out of stock</span>`;
+                const addedBadge = isAdded ? '<span class="badge bg-secondary ms-1" style="font-size:.6rem;">Added</span>' : '';
+                const imgHtml = p.image
+                    ? `<img src="${p.image}" alt="">`
+                    : `<div style="width:40px;height:40px;border-radius:.375rem;background:#e9ecef;display:flex;align-items:center;justify-content:center;color:#adb5bd;font-size:.75rem;">No img</div>`;
+                return `<div class="gp-product-option ${isAdded ? 'gp-added' : ''} ${String(p.id) === currentVal ? 'active' : ''}" data-id="${p.id}">
+                    ${imgHtml}
+                    <div class="flex-grow-1">
+                        <div class="small fw-semibold">${p.name}</div>
+                        <div>${stockBadge}${addedBadge}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            optionsWrap.querySelectorAll('.gp-product-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const pid = opt.dataset.id;
+                    const product = PRODUCTS.find(p => p.id == pid);
+                    productSel.value = pid;
+                    label.textContent = product.name;
+                    label.classList.remove('text-muted');
+                    if (product.image) { triggerImg.src = product.image; triggerImg.style.display = ''; }
+                    else { triggerImg.style.display = 'none'; }
+                    dropdown.classList.remove('show');
+                    productSel.dispatchEvent(new Event('change'));
+                });
+            });
+        }
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            document.querySelectorAll('.gp-product-dropdown.show').forEach(d => d.classList.remove('show'));
+            dropdown.classList.toggle('show');
+            if (dropdown.classList.contains('show')) {
+                searchInp.value = '';
+                renderProductOptions();
+                searchInp.focus();
+            }
+        });
+
+        searchInp.addEventListener('input', () => renderProductOptions(searchInp.value));
+        searchInp.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', e => {
+            if (!dropdown.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // If pre-selected, set the label
+        if (preProduct) {
+            const pp = PRODUCTS.find(p => p.id == preProduct);
+            if (pp) {
+                label.textContent = pp.name;
+                label.classList.remove('text-muted');
+                if (pp.image) { triggerImg.src = pp.image; triggerImg.style.display = ''; }
+            }
+        }
+        renderProductOptions();
 
         function populateColors(product, selectColor) {
             colorSel.innerHTML = '<option value="">- Select Color -</option>';
@@ -329,7 +429,6 @@ $allocOther     = (float) $purchase->total_other_costs;
             });
             colorSel.disabled = false;
 
-            // If a color was specifically provided, load only that color; otherwise load all variants for the product
             if (selectColor) {
                 loadVariantRows(product, selectColor, preItems);
             } else {
@@ -396,10 +495,16 @@ $allocOther     = (float) $purchase->total_other_costs;
                     ? (((sell / cost) - 1) * 100).toFixed(1)
                     : flt(markupInp.value);
 
+                const stock = v.stock || 0;
+                const stockBadge = stock > 0
+                    ? `<span class="badge bg-success-subtle text-success" style="font-size:.65rem;">${stock}</span>`
+                    : `<span class="badge bg-danger-subtle text-danger" style="font-size:.65rem;">0</span>`;
+
                 tr.innerHTML = `
                     <td><img src="${v.image || ''}" style="width:36px;height:36px;object-fit:cover;border-radius:.375rem;border:1px solid #dee2e6;${v.image ? '' : 'display:none'}" class="vthumb" alt=""></td>
                     <td class="small">${v.age || '<span class="text-muted">-</span>'}</td>
                     <td class="small">${v.size || '<span class="text-muted">-</span>'}</td>
+                    <td class="text-center">${stockBadge}</td>
                     <td><input type="number" min="0" value="${qty}" class="form-control form-control-sm vqty"></td>
                     <td><input type="number" step="0.01" min="0" value="${cost.toFixed(2)}" class="form-control form-control-sm vcost"></td>
                     <td><input type="number" step="0.01" min="0" value="${derivedMarkup}" class="form-control form-control-sm vmarkup"></td>
