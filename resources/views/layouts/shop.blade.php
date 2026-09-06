@@ -338,7 +338,9 @@
     if (window.__kidsflairrPwaInit) return;
     window.__kidsflairrPwaInit = true;
 
+    var pageLoadTime = Date.now();
     var deferredPrompt = null;
+    var promptFired = false;
     var DISMISS_KEY = 'kidsflairr_pwa_dismissed_at';
     var INSTALLED_KEY = 'kidsflairr_pwa_installed';
     var SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -346,6 +348,7 @@
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     var isAndroid = /Android/.test(navigator.userAgent);
     var isMobile = isIOS || isAndroid || (window.innerWidth < 768);
+    var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     function isStandalone() {
         return window.matchMedia('(display-mode: standalone)').matches
@@ -353,16 +356,32 @@
             || window.navigator.standalone === true;
     }
 
-    console.log('[PWA] Init:', {
-        isIOS: isIOS,
-        isAndroid: isAndroid,
-        isMobile: isMobile,
-        isStandalone: isStandalone(),
-        displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : window.matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' : 'browser',
-        navigatorStandalone: window.navigator.standalone,
-        swController: navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none',
-        url: window.location.href
-    });
+    function logDiagnostics(context) {
+        var elapsed = Date.now() - pageLoadTime;
+        var hadInteraction = document.hasFocus();
+        var manifestLink = document.querySelector('link[rel="manifest"]');
+        var swController = navigator.serviceWorker.controller;
+        console.group('[PWA] Diagnostics — ' + context);
+        console.log('elapsed since page load:', elapsed + 'ms');
+        console.log('url:', window.location.href);
+        console.log('isIOS:', isIOS);
+        console.log('isAndroid:', isAndroid);
+        console.log('isMobile:', isMobile);
+        console.log('isTouchDevice:', isTouchDevice);
+        console.log('isStandalone:', isStandalone());
+        console.log('display-mode:', window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : window.matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' : 'browser');
+        console.log('navigator.standalone:', window.navigator.standalone);
+        console.log('swController:', swController ? swController.scriptURL : 'none');
+        console.log('swRegistration:', navigator.serviceWorker ? 'API available' : 'NOT available');
+        console.log('manifestLink:', manifestLink ? manifestLink.href : 'NOT found');
+        console.log('deferredPrompt:', !!deferredPrompt);
+        console.log('promptFired:', promptFired);
+        console.log('pageHasFocus:', hadInteraction);
+        console.log('document.hidden:', document.hidden);
+        console.groupEnd();
+    }
+
+    logDiagnostics('page load');
 
     function hideNav() {
         var el = document.getElementById('nav-pwa-install-wrap');
@@ -411,37 +430,42 @@
     var manualDiv = document.getElementById('pwa-install-manual');
     var manualTitle = document.getElementById('pwa-manual-title');
     var manualSteps = document.getElementById('pwa-manual-steps');
+    var alreadyInstalledEl = document.getElementById('pwa-already-installed');
 
     function updateInstallUI() {
-        var done = document.getElementById('pwa-already-installed');
-        if (done) done.style.display = 'none';
+        if (alreadyInstalledEl) alreadyInstalledEl.style.display = 'none';
         if (manualDiv) manualDiv.style.display = 'none';
 
         if (isStandalone()) {
-            if (btn) { btn.style.display = 'none'; }
-            if (done) { done.textContent = 'KidsFlairr is already installed.'; done.style.display = 'block'; }
+            if (btn) btn.style.display = 'none';
+            if (alreadyInstalledEl) { alreadyInstalledEl.textContent = 'KidsFlairr is already installed.'; alreadyInstalledEl.style.display = 'block'; }
             return;
         }
+
+        if (deferredPrompt) {
+            if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
+            return;
+        }
+
+        if (btn) { btn.style.display = 'none'; }
 
         if (isIOS) {
-            if (btn) btn.style.display = 'none';
-            showIOSFallback();
+            if (manualDiv) manualDiv.style.display = 'block';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Install on iOS:</strong>';
+            if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
             return;
         }
 
-        if (btn) { btn.style.display = 'block'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App'; }
-    }
+        if (isAndroid) {
+            if (manualDiv) manualDiv.style.display = 'block';
+            if (manualTitle) manualTitle.innerHTML = '<strong>Install is not currently available.</strong>';
+            if (manualSteps) manualSteps.innerHTML = 'Try the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> and look for <strong>"Install app"</strong>.<br><small class="text-muted">If the option is not there, try visiting this page again later.</small>';
+            return;
+        }
 
-    function showIOSFallback() {
         if (manualDiv) manualDiv.style.display = 'block';
-        if (manualTitle) manualTitle.innerHTML = '<strong>Install on iOS:</strong>';
-        if (manualSteps) manualSteps.innerHTML = '1. Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i><br>2. Scroll down and tap <strong>Add to Home Screen</strong><br>3. Tap <strong>Add</strong>';
-    }
-
-    function showNotCurrentlyAvailable() {
-        if (manualDiv) manualDiv.style.display = 'block';
-        if (manualTitle) manualTitle.innerHTML = '<strong>Install is not currently available.</strong>';
-        if (manualSteps) manualSteps.innerHTML = 'Try the <strong>3-dot menu</strong> <i class="bi bi-three-dots-vertical"></i> above and look for <strong>"Install app"</strong>.<br><small class="text-muted">If the option is not there, try visiting this page again later.</small>';
+        if (manualTitle) manualTitle.innerHTML = '<strong>Install not available in this browser.</strong>';
+        if (manualSteps) manualSteps.innerHTML = 'Try opening this page in <strong>Chrome</strong> or <strong>Edge</strong> on a mobile device.';
     }
 
     function onInstalledConfirmed() {
@@ -470,12 +494,13 @@
     window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        console.log('[PWA] beforeinstallprompt FIRED, deferredPrompt stored');
+        promptFired = true;
+        console.log('[PWA] beforeinstallprompt captured', { elapsed: Date.now() - pageLoadTime + 'ms' });
         updateInstallUI();
     });
 
     window.addEventListener('appinstalled', function() {
-        console.log('[PWA] appinstalled event FIRED');
+        console.log('[PWA] appinstalled event fired');
         deferredPrompt = null;
         onInstalledConfirmed();
     });
@@ -483,7 +508,6 @@
     if (isStandalone()) {
         try { localStorage.setItem(INSTALLED_KEY, '1'); } catch(e) {}
         hideNav();
-        console.log('[PWA] Running in standalone mode — app likely installed');
         return;
     }
 
@@ -508,70 +532,39 @@
         });
     }
 
-    function triggerInstall() {
-        if (!deferredPrompt) return false;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
-        try {
-            deferredPrompt.prompt();
-        } catch(e) {
-            console.error('[PWA] prompt() threw:', e);
-            deferredPrompt = null;
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-            showNotCurrentlyAvailable();
-            return true;
-        }
-        deferredPrompt.userChoice.then(function(choice) {
-            console.log('[PWA] userChoice outcome:', choice.outcome);
-            deferredPrompt = null;
-            if (choice.outcome === 'accepted') {
-                onInstalledConfirmed();
-            } else {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-            }
-        }).catch(function(e) {
-            console.error('[PWA] userChoice error:', e);
-            deferredPrompt = null;
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-            showNotCurrentlyAvailable();
-        });
-        return true;
-    }
-
     if (btn) {
         btn.addEventListener('click', function() {
-            console.log('[PWA] Install clicked. deferredPrompt:', !!deferredPrompt, 'swController:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
+            console.log('[PWA] Install clicked', { deferredPrompt: !!deferredPrompt, swController: navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none' });
+
             if (isStandalone()) {
-                console.log('[PWA] Already standalone — telling user');
-                if (btn) btn.style.display = 'none';
-                var done = document.getElementById('pwa-already-installed');
-                if (done) { done.textContent = 'KidsFlairr is already installed.'; done.style.display = 'block'; }
+                updateInstallUI();
                 return;
             }
-            if (triggerInstall()) return;
+
+            if (!deferredPrompt) {
+                updateInstallUI();
+                return;
+            }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Waiting for browser...';
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Installing...';
 
-            var attempts = 0;
-            var waiter = setInterval(function() {
-                attempts++;
-                console.log('[PWA] Poll #' + attempts + ', deferredPrompt:', !!deferredPrompt, 'swController:', navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'none');
-                if (deferredPrompt) {
-                    clearInterval(waiter);
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function(choice) {
+                console.log('[PWA] userChoice:', choice.outcome);
+                deferredPrompt = null;
+                if (choice.outcome === 'accepted') {
+                    onInstalledConfirmed();
+                } else {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                    triggerInstall();
-                } else if (attempts >= 20) {
-                    clearInterval(waiter);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
-                    showNotCurrentlyAvailable();
                 }
-            }, 500);
+            }).catch(function(e) {
+                console.error('[PWA] userChoice error:', e);
+                deferredPrompt = null;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-download me-1"></i> Install App';
+            });
         });
     }
 
