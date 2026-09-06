@@ -48,6 +48,25 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
+| PWA Static Files (bypass nginx)
+|--------------------------------------------------------------------------
+*/
+Route::get('/manifest.json', function () {
+    return response()->file(public_path('manifest.json'), [
+        'Content-Type' => 'application/manifest+json',
+        'Cache-Control' => 'public, max-age=0',
+    ]);
+});
+
+Route::get('/sw.js', function () {
+    return response()->file(public_path('sw.js'), [
+        'Content-Type' => 'application/javascript',
+        'Cache-Control' => 'no-cache',
+    ]);
+});
+
+/*
+|--------------------------------------------------------------------------
 | Public Storefront
 |--------------------------------------------------------------------------
 */
