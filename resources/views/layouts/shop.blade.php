@@ -19,6 +19,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                console.log('[PWA] SW registered (head), scope:', reg.scope);
+                if (reg.waiting) reg.waiting.postMessage({ type: 'skipWaiting' });
+            }).catch(function(err) {
+                console.error('[PWA] SW registration failed:', err);
+            });
+        });
+    }
+    </script>
     <style>
         :root {
             --kid-pink:   #ff6fa3;
@@ -540,15 +552,6 @@
             try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {}
             hideModal();
             hideNav();
-        });
-    }
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').then(function(reg) {
-            console.log('[PWA] SW registered');
-            if (reg.waiting) reg.waiting.postMessage({ type: 'skipWaiting' });
-        }).catch(function(err) {
-            console.error('[PWA] SW registration failed:', err);
         });
     }
 })();
