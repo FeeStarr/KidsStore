@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryCharge;
 use App\Models\Order;
 use App\Models\PickupStation;
 use App\Models\Setting;
@@ -152,18 +153,30 @@ class CheckoutController extends Controller
     private function showCheckout()
     {
         $pickupStations = PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get();
+        $deliveryLocations = \App\Models\DeliveryLocation::where('is_active', true)->orderBy('name')->get();
+        $activeCharges = DeliveryCharge::where('is_active', true)
+            ->whereHas('agent', fn ($q) => $q->where('is_active', true))
+            ->get()
+            ->map(fn ($c) => [
+                'location_id' => $c->delivery_location_id,
+                'amount' => (float) $c->amount,
+                'agent_name' => $c->agent->name,
+            ])
+            ->values();
         $coupon = $this->cart->coupon();
         $customer = Auth::user();
         $guestEmail = session('guest_checkout_email');
 
         return view('shop.checkout.show', [
-            'items'           => $this->cart->items(),
-            'subtotal'        => $this->cart->subtotal(),
-            'coupon'          => $coupon,
-            'coupon_discount' => $coupon ? $this->cart->couponDiscount() : 0.0,
-            'customer'        => $customer,
-            'guestEmail'      => $guestEmail,
-            'pickupStations'  => $pickupStations,
+            'items'             => $this->cart->items(),
+            'subtotal'          => $this->cart->subtotal(),
+            'coupon'            => $coupon,
+            'coupon_discount'   => $coupon ? $this->cart->couponDiscount() : 0.0,
+            'customer'          => $customer,
+            'guestEmail'        => $guestEmail,
+            'pickupStations'    => $pickupStations,
+            'deliveryLocations' => $deliveryLocations,
+            'deliveryCharges'   => $activeCharges,
         ]);
     }
 
@@ -185,6 +198,7 @@ class CheckoutController extends Controller
             'delivery_method'    => ['required', 'in:delivery,pickup'],
             'phone'              => ['required', 'string', 'max:30'],
             'address'            => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
+            'delivery_location_id' => ['required_if:delivery_method,delivery', 'nullable', 'exists:delivery_locations,id'],
             'pickup_station_id'  => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
             'note'               => ['nullable', 'string', 'max:500'],
             'payment_method'     => ['required', 'in:pay_now,pay_on_delivery'],
@@ -231,11 +245,29 @@ class CheckoutController extends Controller
         ])->all();
 
         $shippingFee = 0;
-        $shippingFeeSetting = Setting::get('shipping_fee', null);
-        if ($shippingFeeSetting !== null && $shippingFeeSetting !== '') {
-            $shippingFee = (float) $shippingFeeSetting;
-        } else {
-            $shippingFee = (float) ($data['shipping_fee'] ?? 0);
+        $deliveryChargeAmount = null;
+        $deliveryAgentId = null;
+        $deliveryLocationId = null;
+
+        if ($data['delivery_method'] === 'delivery' && ! empty($data['delivery_location_id'])) {
+            $deliveryLocationId = (int) $data['delivery_location_id'];
+            $charge = DeliveryCharge::where('delivery_location_id', $deliveryLocationId)
+                ->where('is_active', true)
+                ->with('agent')
+                ->first();
+
+            if ($charge && $charge->agent && $charge->agent->is_active) {
+                $shippingFee = (float) $charge->amount;
+                $deliveryChargeAmount = $shippingFee;
+                $deliveryAgentId = $charge->delivery_agent_id;
+            }
+        }
+
+        if ($shippingFee === 0) {
+            $shippingFeeSetting = Setting::get('shipping_fee', null);
+            if ($shippingFeeSetting !== null && $shippingFeeSetting !== '') {
+                $shippingFee = (float) $shippingFeeSetting;
+            }
         }
 
         // Pay Now → pending payment. Pay on Delivery → pending confirmation.
@@ -245,21 +277,24 @@ class CheckoutController extends Controller
 
         try {
             $order = $this->orders->create([
-                'customer_id'       => $customerId,
-                'guest_name'        => $guestName,
-                'guest_email'       => $guestEmail,
-                'guest_phone'       => $data['phone'],
-                'lookup_token'      => Str::random(64),
-                'order_date'        => now()->toDateString(),
-                'status'            => $orderStatus,
-                'delivery_method'   => $data['delivery_method'],
-                'payment_method'    => $data['payment_method'],
-                'pickup_station_id' => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
-                'delivery_address'  => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
-                'shipping_fee'      => $shippingFee,
-                'note'              => trim($data['note'] ?? '') ?: null,
-                'coupon_id'         => $this->cart->couponId(),
-                'items'             => $items,
+                'customer_id'           => $customerId,
+                'guest_name'            => $guestName,
+                'guest_email'           => $guestEmail,
+                'guest_phone'           => $data['phone'],
+                'lookup_token'          => Str::random(64),
+                'order_date'            => now()->toDateString(),
+                'status'                => $orderStatus,
+                'delivery_method'       => $data['delivery_method'],
+                'payment_method'        => $data['payment_method'],
+                'pickup_station_id'     => $data['delivery_method'] === 'pickup' ? ($data['pickup_station_id'] ?? null) : null,
+                'delivery_address'      => $data['delivery_method'] === 'delivery' ? ($data['address'] ?? null) : null,
+                'delivery_agent_id'     => $deliveryAgentId,
+                'delivery_location_id'  => $deliveryLocationId,
+                'delivery_charge_amount' => $deliveryChargeAmount,
+                'shipping_fee'          => $shippingFee,
+                'note'                  => trim($data['note'] ?? '') ?: null,
+                'coupon_id'             => $this->cart->couponId(),
+                'items'                 => $items,
             ]);
 
             $this->cart->clear();

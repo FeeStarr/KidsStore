@@ -105,6 +105,15 @@
                     <small class="text-muted d-block">{{ $order->pickupStation->name }} - {{ $order->pickupStation->full_address }}</small>
                 @elseif($order->isForDelivery() && $order->delivery_address)
                     <small class="text-muted d-block">{{ $order->delivery_address }}</small>
+                    @if($order->deliveryAgent)
+                        <small class="d-block mt-1"><i class="bi bi-truck me-1 text-primary"></i>Agent: <strong>{{ $order->deliveryAgent->name }}</strong></small>
+                    @endif
+                    @if($order->deliveryLocation)
+                        <small class="text-muted d-block">Location: {{ $order->deliveryLocation->name }}{{ $order->deliveryLocation->state ? ', ' . $order->deliveryLocation->state : '' }}</small>
+                    @endif
+                    @if($order->delivery_charge_amount !== null && $order->delivery_charge_amount > 0)
+                        <small class="text-muted d-block">Charge: &#8358;{{ number_format($order->delivery_charge_amount, 2) }}</small>
+                    @endif
                 @endif
                 @if($order->courier_name)
                     <small class="d-block mt-1"><i class="bi bi-truck me-1 text-primary"></i><strong>{{ $order->courier_name }}</strong></small>

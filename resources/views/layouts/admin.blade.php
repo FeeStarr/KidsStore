@@ -75,7 +75,7 @@
     <a href="{{ route('admin.suppliers.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.suppliers') ? 'active':'' }}"><i class="bi bi-building"></i> Suppliers</a>
 </div>
 
-@php($ordersActive = str_starts_with($r ?? '', 'admin.orders') || str_starts_with($r ?? '', 'admin.refunds') || str_starts_with($r ?? '', 'admin.pickup-stations') || str_starts_with($r ?? '', 'admin.pickup-payouts'))
+@php($ordersActive = str_starts_with($r ?? '', 'admin.orders') || str_starts_with($r ?? '', 'admin.refunds') || str_starts_with($r ?? '', 'admin.pickup-stations') || str_starts_with($r ?? '', 'admin.pickup-payouts') || str_starts_with($r ?? '', 'admin.delivery-'))
 <a href="#menu-orders" data-bs-toggle="collapse" role="button" aria-expanded="{{ $ordersActive ? 'true' : 'false' }}" class="{{ $ordersActive ? 'active' : '' }}">
     <i class="bi bi-bag-check"></i> Orders &amp; Fulfillment <i class="bi bi-chevron-down chevron"></i>
 </a>
@@ -90,6 +90,11 @@
     </a>
     <a href="{{ route('admin.pickup-stations.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-stations') ? 'active':'' }}"><i class="bi bi-geo-alt"></i> Pickup Stations</a>
     <a href="{{ route('admin.pickup-payouts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
+    @if(auth()->user()->hasPermission('manage_settings'))
+        <a href="{{ route('admin.delivery-agents.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-agents') ? 'active':'' }}"><i class="bi bi-truck"></i> Delivery Agents</a>
+        <a href="{{ route('admin.delivery-locations.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-locations') ? 'active':'' }}"><i class="bi bi-geo-alt-fill"></i> Delivery Locations</a>
+        <a href="{{ route('admin.delivery-charges.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-charges') ? 'active':'' }}"><i class="bi bi-currency-dollar"></i> Delivery Charges</a>
+    @endif
 </div>
 
 @php($customActive = str_starts_with($r ?? '', 'admin.custom-orders'))
