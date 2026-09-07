@@ -72,11 +72,32 @@
 
             {{-- Home delivery address --}}
             <div id="section-delivery" style="display:none">
-                <label class="form-label">Delivery Address *</label>
-                <textarea name="address" rows="3"
-                          class="form-control @error('address') is-invalid @enderror"
-                          placeholder="Full delivery address">{{ old('address', $customer?->address) }}</textarea>
-                @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="mb-3">
+                    <label class="form-label">Delivery Location *</label>
+                    <select name="delivery_location_id" id="delivery-location-select" class="form-select @error('delivery_location_id') is-invalid @enderror">
+                        <option value="">-- Select your location --</option>
+                        @foreach($deliveryLocations as $loc)
+                            <option value="{{ $loc->id }}" data-name="{{ $loc->name }}"
+                                    {{ old('delivery_location_id') == $loc->id ? 'selected' : '' }}>
+                                {{ $loc->name }}{{ $loc->state ? ', ' . $loc->state : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('delivery_location_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Delivery Address *</label>
+                    <textarea name="address" rows="3"
+                              class="form-control @error('address') is-invalid @enderror"
+                              placeholder="Full delivery address (street, landmark, etc.)">{{ old('address', $customer?->address) }}</textarea>
+                    @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div id="delivery-charge-display" class="alert alert-info py-2 mb-3" style="display:none">
+                    <i class="bi bi-truck me-1"></i> Delivery charge: <strong id="charge-amount"></strong>
+                </div>
+                <div id="delivery-unavailable" class="alert alert-warning py-2 mb-3" style="display:none">
+                    <i class="bi bi-exclamation-triangle me-1"></i> No delivery agent available for this location.
+                </div>
             </div>
 
             {{-- Pickup station selection --}}
@@ -169,14 +190,16 @@
                 @endphp
                 <dt class="col-6">Shipping</dt>
                 <dd class="col-6 text-end">
-                    <span class="text-muted small d-block">&#8358;{{ number_format($shippingFee, 2) }} per order</span>
-                    <strong>&#8358;{{ number_format($totalShipping, 2) }}</strong>
+                    <span id="shipping-fee-label" class="text-muted small d-block">
+                        @if($shippingFee > 0)&#8358;{{ number_format($shippingFee, 2) }} per order@else Calculated at checkout @endif
+                    </span>
+                    <strong id="shipping-fee-amount">&#8358;{{ number_format($totalShipping, 2) }}</strong>
                     @if($shippingDiscountPct > 0)
                         <small class="text-success d-block">-{{ number_format($shippingDiscountPct, 0) }}% discount: -&#8358;{{ number_format($shippingDiscountAmount, 2) }}</small>
                     @endif
                 </dd>
                 <dt class="col-6 fw-bold">Total Amount</dt>
-                <dd class="col-6 text-end fw-bold">&#8358;{{ number_format($totalAmount, 2) }}</dd>
+                <dd class="col-6 text-end fw-bold" id="total-amount">&#8358;{{ number_format($totalAmount, 2) }}</dd>
             </dl>
             <div class="mb-3">
                 <label class="form-label">How would you like to pay?</label>
@@ -221,6 +244,12 @@
     const optDelivery = document.getElementById('opt-delivery');
     const optPickup = document.getElementById('opt-pickup');
 
+    const chargesData = @json($deliveryCharges);
+    const locationSelect = document.getElementById('delivery-location-select');
+    const chargeDisplay = document.getElementById('delivery-charge-display');
+    const chargeAmount = document.getElementById('charge-amount');
+    const deliveryUnavailable = document.getElementById('delivery-unavailable');
+
     function toggleSections() {
         if (dmDelivery.checked) {
             secDelivery.style.display = '';
@@ -238,6 +267,39 @@
     dmDelivery.addEventListener('change', toggleSections);
     dmPickup.addEventListener('change', toggleSections);
     toggleSections();
+
+    function updateChargeDisplay() {
+        const locId = parseInt(locationSelect.value);
+        const charge = chargesData.find(c => c.location_id === locId);
+        const shippingFeeLabel = document.getElementById('shipping-fee-label');
+        const shippingFeeAmount = document.getElementById('shipping-fee-amount');
+        const totalAmount = document.getElementById('total-amount');
+        const subtotal = {{ $subtotal }};
+
+        if (charge) {
+            chargeAmount.textContent = '\u20A6' + charge.amount.toLocaleString(undefined, {minimumFractionDigits: 2});
+            chargeDisplay.style.display = '';
+            deliveryUnavailable.style.display = 'none';
+            window.__deliveryCharge = charge.amount;
+
+            if (shippingFeeLabel) shippingFeeLabel.textContent = 'Delivery to ' + (locationSelect.selectedOptions[0]?.text || 'selected location');
+            if (shippingFeeAmount) shippingFeeAmount.textContent = '\u20A6' + charge.amount.toLocaleString(undefined, {minimumFractionDigits: 2});
+            if (totalAmount) totalAmount.textContent = '\u20A6' + (subtotal - {{ $coupon_discount ?? 0 }} + charge.amount).toLocaleString(undefined, {minimumFractionDigits: 2});
+        } else if (locId) {
+            chargeDisplay.style.display = 'none';
+            deliveryUnavailable.style.display = '';
+            window.__deliveryCharge = 0;
+        } else {
+            chargeDisplay.style.display = 'none';
+            deliveryUnavailable.style.display = 'none';
+            window.__deliveryCharge = 0;
+        }
+    }
+
+    if (locationSelect) {
+        locationSelect.addEventListener('change', updateChargeDisplay);
+        updateChargeDisplay();
+    }
 
     // Highlight station cards on select
     document.querySelectorAll('[name="pickup_station_id"]').forEach(radio => {

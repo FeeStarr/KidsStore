@@ -33,6 +33,7 @@ class Order extends Model
         'reference', 'customer_id', 'lookup_token', 'custom_order_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
         'guest_name', 'guest_email', 'guest_phone',
         'pickup_station_id', 'delivery_address',
+        'delivery_agent_id', 'delivery_location_id', 'delivery_charge_amount',
         'courier_name', 'tracking_number', 'tracking_url',
         'total_amount',
         'subtotal', 'discount', 'shipping_fee', 'grand_total', 'amount_paid',
@@ -159,6 +160,16 @@ class Order extends Model
     public function pickupStation(): BelongsTo
     {
         return $this->belongsTo(PickupStation::class);
+    }
+
+    public function deliveryAgent(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryAgent::class);
+    }
+
+    public function deliveryLocation(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryLocation::class);
     }
 
     public function items(): HasMany

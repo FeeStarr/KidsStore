@@ -35,9 +35,17 @@ class OrderService
      *   customer_id?: int|null,
      *   order_date: string,
      *   status?: string,
+     *   delivery_method?: string,
+     *   payment_method?: string,
+     *   pickup_station_id?: int|null,
+     *   delivery_address?: string|null,
+     *   delivery_agent_id?: int|null,
+     *   delivery_location_id?: int|null,
+     *   delivery_charge_amount?: float|null,
      *   discount?: float,
      *   shipping_fee?: float,
      *   note?: string|null,
+     *   coupon_id?: int|null,
      *   items: array<int, array{product_id:int,quantity:int,unit_price?:float,discount?:float}>
      * } $data
      */
@@ -57,6 +65,9 @@ class OrderService
                 'payment_method'         => $data['payment_method'] ?? null,
                 'pickup_station_id'      => $data['pickup_station_id'] ?? null,
                 'delivery_address'       => $data['delivery_address'] ?? null,
+                'delivery_agent_id'      => $data['delivery_agent_id'] ?? null,
+                'delivery_location_id'   => $data['delivery_location_id'] ?? null,
+                'delivery_charge_amount' => $data['delivery_charge_amount'] ?? null,
                 'discount'               => (float) ($data['discount'] ?? 0),
                 'shipping_fee'           => (float) ($data['shipping_fee'] ?? 0),
                 'note'                   => $data['note'] ?? null,

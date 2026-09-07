@@ -8,6 +8,9 @@ use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
+use App\Http\Controllers\Admin\DeliveryAgentController;
+use App\Http\Controllers\Admin\DeliveryChargeController;
+use App\Http\Controllers\Admin\DeliveryLocationController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PasswordResetController as AdminPasswordResetController;
@@ -379,6 +382,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('pickup-stations.items.data')->middleware('permission:manage_settings');
         Route::post('orders/{order}/reassign-station', [PickupStationController::class, 'reassignOrder'])
             ->name('orders.reassign-station')->middleware('permission:manage_settings');
+
+        // Delivery management
+        Route::resource('delivery-agents', DeliveryAgentController::class)->except(['show'])->middleware('permission:manage_settings');
+        Route::resource('delivery-locations', DeliveryLocationController::class)->except(['show'])->middleware('permission:manage_settings');
+        Route::resource('delivery-charges', DeliveryChargeController::class)->except(['show'])->middleware('permission:manage_settings');
 
         Route::get('refunds', [AdminRefundController::class, 'index'])->name('refunds.index')->middleware('permission:manage_orders');
         Route::get('refunds/{refundRequest}', [AdminRefundController::class, 'show'])->name('refunds.show')->middleware('permission:manage_orders');
