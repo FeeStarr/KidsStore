@@ -15,6 +15,7 @@ use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
