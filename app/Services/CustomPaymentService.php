@@ -18,7 +18,7 @@ class CustomPaymentService
                 'reference' => Order::generateReference(),
                 'customer_id' => $order->user_id,
                 'custom_order_id' => $order->id,
-                'order_date' => now()->toDateString(),
+                'order_date' => now()->toDateTimeString(),
                 'status' => 'pending payment',
                 'delivery_method' => $order->delivery_method,
                 'payment_method' => 'paystack',
