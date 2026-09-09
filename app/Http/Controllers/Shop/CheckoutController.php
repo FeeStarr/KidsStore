@@ -282,7 +282,7 @@ class CheckoutController extends Controller
                 'guest_email'           => $guestEmail,
                 'guest_phone'           => $data['phone'],
                 'lookup_token'          => Str::random(64),
-                'order_date'            => now()->toDateString(),
+                'order_date'            => now()->toDateTimeString(),
                 'status'                => $orderStatus,
                 'delivery_method'       => $data['delivery_method'],
                 'payment_method'        => $data['payment_method'],
