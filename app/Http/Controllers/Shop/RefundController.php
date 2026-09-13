@@ -23,16 +23,29 @@ class RefundController extends Controller
     {
         abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
 
-        $data = $request->validate([
+        // First pass to get the reason
+        $prelim = $request->validate([
+            'reason' => ['required', 'string', Rule::in(array_keys(RefundRequest::REASONS))],
+        ]);
+
+        // Build evidence rules based on selected reason
+        $evidenceRules = RefundRequest::EVIDENCE_RULES[$prelim['reason']] ?? [];
+        $rules = [
             'scope'              => ['required', 'in:full,item'],
             'order_item_id'      => ['required_if:scope,item', 'nullable', 'exists:order_items,id'],
             'quantity'           => ['required_if:scope,item', 'nullable', 'integer', 'min:1'],
             'reason'             => ['required', 'string', Rule::in(array_keys(RefundRequest::REASONS))],
-            'details'            => ['nullable', 'string', 'max:1000'],
-            'evidence'           => ['nullable', 'file', 'image', 'max:5120'],
+            'details'            => (($evidenceRules['comments'] ?? 'optional') === 'required')
+                ? ['required', 'string', 'max:1000']
+                : ['nullable', 'string', 'max:1000'],
+            'evidence'           => (($evidenceRules['photos'] ?? 'optional') === 'required')
+                ? ['required', 'file', 'image', 'max:5120']
+                : ['nullable', 'file', 'image', 'max:5120'],
             'request_type'       => ['required', 'in:refund,exchange'],
             'exchange_variant_id'=> ['required_if:request_type,exchange', 'nullable', 'exists:product_variants,id'],
-        ]);
+        ];
+
+        $data = $request->validate($rules);
 
         $item     = null;
         $quantity = 1;
@@ -77,6 +90,10 @@ class RefundController extends Controller
             'evidence_video'=> ['nullable', 'file', 'mimes:mp4,mov,avi,webm', 'max:20480'],
             'details'       => ['nullable', 'string', 'max:1000'],
         ]);
+
+        if (! $request->hasFile('evidence') && ! $request->hasFile('evidence_video') && empty(trim($data['details'] ?? ''))) {
+            return back()->with('error', 'Please attach a photo, video, or enter details.');
+        }
 
         try {
             $this->refunds->uploadEvidence(
