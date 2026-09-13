@@ -25,7 +25,7 @@
         'refund_approved'      => 'bg-primary',
         'refund_processing'    => 'bg-warning text-dark',
         'refunded'             => 'bg-success',
-        'refund_failed'        => 'bg-dark',
+        'refund_failed'        => 'bg-danger',
         'replacement_approved' => 'bg-primary',
         'replacement_shipped'  => 'bg-info',
         'replacement_delivered'=> 'bg-success',
@@ -97,6 +97,26 @@
                 @if($refundRequest->opay_refund_no)
                     <dt class="col-5">Paystack Refund Ref.</dt>
                     <dd class="col-7 font-monospace small">{{ $refundRequest->opay_refund_no }}</dd>
+                @endif
+
+                @if($refundRequest->provider_refund_reference && $refundRequest->provider_refund_reference !== $refundRequest->opay_refund_no)
+                    <dt class="col-5">Provider Ref.</dt>
+                    <dd class="col-7 font-monospace small">{{ $refundRequest->provider_refund_reference }}</dd>
+                @endif
+
+                @if($refundRequest->retry_count > 0)
+                    <dt class="col-5">Retry Attempts</dt>
+                    <dd class="col-7">{{ $refundRequest->retry_count }}</dd>
+                @endif
+
+                @if($refundRequest->failure_reason)
+                    <dt class="col-5">Failure Reason</dt>
+                    <dd class="col-7 text-danger">{{ $refundRequest->failure_reason }}</dd>
+                @endif
+
+                @if($refundRequest->processed_at)
+                    <dt class="col-5">Processed At</dt>
+                    <dd class="col-7">{{ $refundRequest->processed_at->format('M d, Y h:ia') }}</dd>
                 @endif
             </dl>
 
@@ -310,7 +330,63 @@
         </form>
     </div></div>
 
-@elseif(in_array($s, ['refunded', 'refund_failed', 'replacement_delivered', 'completed', 'cancelled', 'rejected']))
+@elseif($s === 'refund_processing')
+    <div class="card border-warning border-2"><div class="card-body">
+        <h6 class="text-warning mb-3"><i class="bi bi-hourglass-split me-1"></i>Refund Processing</h6>
+        <p class="small mb-2">
+            &#8358;{{ number_format($refundRequest->amount, 2) }} refund has been submitted to Paystack.
+            @if($refundRequest->retry_count > 0)
+                <span class="badge bg-secondary ms-1">Retry #{{ $refundRequest->retry_count }}</span>
+            @endif
+        </p>
+        @if($refundRequest->refund_processing_at)
+            <p class="small text-muted mb-3">Submitted: {{ $refundRequest->refund_processing_at->format('M d, Y h:ia') }}</p>
+        @endif
+        <div class="d-flex gap-2">
+            <form method="post" action="{{ route('admin.refunds.sync-refund', $refundRequest) }}">
+                @csrf
+                <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Check Paystack Status</button>
+            </form>
+        </div>
+    </div></div>
+
+@elseif($s === 'refund_failed')
+    <div class="card border-danger border-2"><div class="card-body">
+        <h6 class="text-danger mb-3"><i class="bi bi-x-circle me-1"></i>Refund Failed</h6>
+        <p class="small mb-2">&#8358;{{ number_format($refundRequest->amount, 2) }} refund could not be processed.</p>
+        @if($refundRequest->failure_reason)
+            <div class="alert alert-danger py-2 small mb-3">
+                <strong>Reason:</strong> {{ $refundRequest->failure_reason }}
+            </div>
+        @endif
+        @if($refundRequest->retry_count > 0)
+            <p class="small text-muted mb-3">Previous attempts: {{ $refundRequest->retry_count }}</p>
+        @endif
+        <div class="d-flex gap-2">
+            <form method="post" action="{{ route('admin.refunds.retry-refund', $refundRequest) }}">
+                @csrf
+                <button class="btn btn-danger" onclick="return confirm('Retry this refund? A new Paystack refund will be initiated.')">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Retry Refund
+                </button>
+            </form>
+            <form method="post" action="{{ route('admin.refunds.sync-refund', $refundRequest) }}">
+                @csrf
+                <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Check Paystack Status</button>
+            </form>
+        </div>
+    </div></div>
+
+@elseif($s === 'refunded')
+    <div class="card border-success border-2"><div class="card-body">
+        <h6 class="text-success mb-3"><i class="bi bi-check-circle me-1"></i>Refunded</h6>
+        <p class="small mb-2">&#8358;{{ number_format($refundRequest->amount, 2) }} refund has been processed by Paystack.</p>
+        @if($refundRequest->processed_at)
+            <p class="small text-muted mb-3">Processed: {{ $refundRequest->processed_at->format('M d, Y h:ia') }}</p>
+        @endif
+        <p class="small text-muted mb-0">The refund has been sent to the customer's account. Bank processing may take 5-10 business days.</p>
+    </div></div>
+
+@elseif(in_array($s, ['replacement_delivered', 'completed', 'cancelled', 'rejected']))
     <div class="alert alert-secondary">
         <i class="bi bi-check-circle me-1"></i>
         This return request is <strong>{{ ucfirst(str_replace('_', ' ', $refundRequest->status)) }}</strong>.

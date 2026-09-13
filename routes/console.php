@@ -13,6 +13,7 @@ Schedule::command('payments:expire-pending')->hourly();
 Schedule::command('pickups:check-expired')->daily();
 Schedule::command('check-custom-quote-expiry')->daily();
 Schedule::command('sync-deal-statuses')->hourly();
+Schedule::command('refunds:check-status')->hourly();
 
 // Backfill pickup fees from order_items into orders.pickup_station_fee_total
 Artisan::command('backfill:pickup-fees {--batch=500} {--dry-run}', function () {

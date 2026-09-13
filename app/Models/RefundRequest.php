@@ -127,6 +127,7 @@ class RefundRequest extends Model
         'admin_note', 'reviewed_by', 'reviewed_at',
         'review_deadline', 'review_sla_breached',
         'opay_refund_no', 'opay_payload', 'payment_provider', 'provider_refund_reference',
+        'retry_count', 'failure_reason', 'last_retry_at', 'processed_at',
         'refund_processing_at', 'last_refund_check_at',
         'inspection_notes', 'inspected_by', 'inspected_at',
         'inspection_deadline', 'inspection_sla_breached',
@@ -148,6 +149,9 @@ class RefundRequest extends Model
         'dropoff_sla_breached' => 'boolean',
         'refund_processing_at' => 'datetime',
         'last_refund_check_at' => 'datetime',
+        'processed_at'         => 'datetime',
+        'last_retry_at'        => 'datetime',
+        'retry_count'          => 'integer',
         'opay_payload'         => 'array',
     ];
 
