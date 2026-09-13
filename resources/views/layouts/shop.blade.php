@@ -99,6 +99,9 @@
         .floaty { animation: float 4s ease-in-out infinite; display:inline-block; }
         @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
+        .nav-pwa-pulse { animation: navPulse 2s ease-in-out 3; }
+        @keyframes navPulse { 0%,100% { color: inherit; } 50% { color: var(--kid-pink) !important; } }
+
         .kid-tile {
             border: 0; border-radius: 1.25rem; padding: 1.5rem 1rem; text-align:center;
             color:#fff; transition: transform .25s ease, box-shadow .25s ease;
@@ -228,7 +231,7 @@
                 </ul>
             </li>
             <li class="nav-item d-lg-none">
-                <a class="nav-link" href="#" id="nav-pwa-install-wrap"><i class="bi bi-phone me-1"></i>Get the App</a>
+                <a class="nav-link nav-pwa-pulse" href="#" id="nav-pwa-install-wrap"><i class="bi bi-phone me-1"></i>Get the App</a>
             </li>
         </ul>
         <form class="d-flex me-3" action="{{ route('shop.products.index') }}">
@@ -568,6 +571,22 @@
             hideNav();
         });
     }
+
+    var AUTO_SHOW_DELAY = 45000;
+    var AUTO_SHOW_KEY = 'kidsflairr_pwa_auto_shown';
+    setTimeout(function() {
+        if (promptFired && !isStandalone()) {
+            try {
+                var alreadyShown = localStorage.getItem(AUTO_SHOW_KEY);
+                if (!alreadyShown) {
+                    localStorage.setItem(AUTO_SHOW_KEY, '1');
+                    updateInstallUI();
+                    showModal();
+                    console.log('[PWA] Auto-showing install modal after ' + AUTO_SHOW_DELAY + 'ms');
+                }
+            } catch(e) {}
+        }
+    }, AUTO_SHOW_DELAY);
 })();
 </script>
 
