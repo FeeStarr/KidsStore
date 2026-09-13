@@ -226,15 +226,14 @@
     $canRefund       = $order->status === 'delivered'
                        && $order->updated_at->diffInHours(now()) <= $maxReturnHours;
     $existingRequests = $order->refundRequests ?? collect();
-    // Check per-item: which items already have an active return request
-    $activeReturnItemIds = $existingRequests
-        ->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])
+    // Items that already have any return request (active or completed - prevents duplicate requests)
+    $requestedReturnItemIds = $existingRequests
+        ->whereNotIn('status', ['cancelled'])
         ->pluck('order_item_id')
         ->filter()
         ->toArray();
-    $hasAnyActiveReturn = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->isNotEmpty();
-    // Full order return is active if there's a pending request with null order_item_id
-    $fullOrderReturnActive = $existingRequests->whereIn('status', ['requested', 'pending_review', 'awaiting_evidence', 'approved', 'awaiting_shipment'])->contains('order_item_id', null);
+    // Full order return exists if there's any non-cancelled request with null order_item_id
+    $fullOrderReturnActive = $existingRequests->whereNotIn('status', ['cancelled'])->contains('order_item_id', null);
 
     // Build variant data for exchange (variants of the same product, in stock)
     $itemVariants = [];
@@ -254,13 +253,20 @@
             ->values();
         $itemVariants[$it->id] = $variants;
     }
+    // Check if all returnable items already have return requests
+    $returnableItemIds = collect($order->items)
+        ->filter(fn ($i) => $i->product && $i->product->is_returnable)
+        ->pluck('id')
+        ->toArray();
+    $allItemsRequested = count($returnableItemIds) > 0
+        && count(array_diff($returnableItemIds, $requestedReturnItemIds)) === 0;
 @endphp
 
 @if($canRefund)
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
-        @if(! $fullOrderReturnActive)
+        @if(! $fullOrderReturnActive && ! $allItemsRequested)
             <button class="btn btn-sm btn-outline-warning" type="button"
                     data-bs-toggle="collapse" data-bs-target="#refund-form">
                 Request a Refund
@@ -338,7 +344,7 @@
     </div>
     @endif
 
-    @if(! $fullOrderReturnActive)
+    @if(! $fullOrderReturnActive && ! $allItemsRequested)
     <div class="collapse" id="refund-form">
         <div class="card-body">
             <form method="post" action="{{ route('shop.refund.store', $order) }}"
@@ -372,7 +378,7 @@
                     @foreach($order->items as $it)
                         @php
                             $isReturnable = $it->product && $it->product->is_returnable;
-                            $hasActiveReturn = in_array($it->id, $activeReturnItemIds);
+                            $hasActiveReturn = in_array($it->id, $requestedReturnItemIds);
                         @endphp
                         <div class="form-check">
                             <input class="form-check-input scope-item-radio" type="radio" name="scope"
@@ -426,11 +432,12 @@
                             <i class="bi bi-cash me-1"></i>Refund to original payment method
                         </label>
                     </div>
-                    <div class="form-check">
+                    <div class="form-check" style="opacity:0.5">
                         <input class="form-check-input" type="radio" name="request_type"
-                               id="request_type_exchange" value="exchange">
+                               id="request_type_exchange" value="exchange" disabled>
                         <label class="form-check-label" for="request_type_exchange">
                             <i class="bi bi-arrow-left-right me-1"></i>Exchange for a different size/color
+                            <small class="text-muted">(Currently unavailable)</small>
                         </label>
                     </div>
                 </div>
