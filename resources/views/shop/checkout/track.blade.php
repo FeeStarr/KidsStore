@@ -20,7 +20,7 @@
             <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
-        @if($order->payment_status !== 'paid' && in_array($order->status, ['pending payment', 'confirmed']) && !in_array($order->status, ['cancelled', 'expired']))
+        @if($order->payment_status !== 'paid' && $order->payment_status !== 'refunded' && in_array($order->status, ['pending payment', 'confirmed']) && !in_array($order->status, ['cancelled', 'expired']))
         <div class="card border-primary mb-4" id="pay-now-panel">
             <div class="card-body text-center py-4">
                 @if($order->payment_status === 'under_review')
