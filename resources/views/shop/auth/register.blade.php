@@ -6,18 +6,18 @@
             <h4 class="mb-3">Create your account</h4>
             <form method="post" action="{{ route('shop.register') }}">
                 @csrf
-                <div class="mb-3"><label class="form-label">Full name</label>
+                <div class="mb-3"><label class="form-label">Full name <span class="text-danger">*</span></label>
                     <input type="text" name="name" value="{{ old('name') }}" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Email</label>
+                <div class="mb-3"><label class="form-label">Email <span class="text-danger">*</span></label>
                     <input type="email" name="email" value="{{ old('email') }}" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Phone</label>
                     <input type="text" name="phone" value="{{ old('phone') }}" class="form-control"></div>
                 <div class="mb-3"><label class="form-label">Address</label>
                     <textarea name="address" rows="2" class="form-control">{{ old('address') }}</textarea></div>
                 <div class="row">
-                    <div class="col-md-6 mb-3"><label class="form-label">Password</label>
+                    <div class="col-md-6 mb-3"><label class="form-label">Password <span class="text-danger">*</span></label>
                         <input type="password" name="password" class="form-control" required></div>
-                    <div class="col-md-6 mb-3"><label class="form-label">Confirm password</label>
+                    <div class="col-md-6 mb-3"><label class="form-label">Confirm password <span class="text-danger">*</span></label>
                         <input type="password" name="password_confirmation" class="form-control" required></div>
                 </div>
                 <button class="btn btn-primary w-100">Create account</button>
