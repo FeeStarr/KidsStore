@@ -9,6 +9,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class RefundController extends Controller
 {
@@ -198,7 +199,7 @@ class RefundController extends Controller
     {
         abort_unless($refundRequest->evidence_path, 404);
 
-        $fullPath = storage_path('app/' . $refundRequest->evidence_path);
+        $fullPath = Storage::disk('local')->path($refundRequest->evidence_path);
 
         if (!file_exists($fullPath)) {
             abort(404);
@@ -214,7 +215,7 @@ class RefundController extends Controller
     {
         abort_unless($refundRequest->evidence_video_path, 404);
 
-        $fullPath = storage_path('app/' . $refundRequest->evidence_video_path);
+        $fullPath = Storage::disk('local')->path($refundRequest->evidence_video_path);
 
         if (!file_exists($fullPath)) {
             abort(404);
