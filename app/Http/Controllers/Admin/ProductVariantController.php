@@ -205,7 +205,15 @@ class ProductVariantController extends Controller
         $imageIds = array_filter(array_map('intval', $imageIds));
         $product  = $variant->product;
 
-        // Clear ownership on images previously owned by this variant.
+        // Clear these images from ALL OTHER variants first (images are shared, not exclusive).
+        if ($imageIds) {
+            $product->images()
+                ->whereIn('id', $imageIds)
+                ->where('product_variant_id', '!=', $variant->id)
+                ->update(['product_variant_id' => null]);
+        }
+
+        // Clear ownership on images previously owned by this variant that are no longer selected.
         $product->images()
             ->where('product_variant_id', $variant->id)
             ->whereNotIn('id', $imageIds ?: [0])
