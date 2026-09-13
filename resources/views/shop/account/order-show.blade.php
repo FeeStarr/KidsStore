@@ -24,7 +24,7 @@
 </div>
 @endif
 
-@if(($order->payment_status !== 'paid' || session('show_pay_now')) && ! in_array($order->status, ['cancelled', 'expired']))
+@if(($order->payment_status !== 'paid' || session('show_pay_now')) && ! in_array($order->status, ['cancelled', 'expired', 'delivered']) && $order->payment_status !== 'refunded')
 <div class="card border-primary mb-3" id="pay-now-panel">
     <div class="card-body text-center py-4">
         @if($order->payment_status === 'under_review')

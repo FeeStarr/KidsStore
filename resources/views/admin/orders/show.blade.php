@@ -445,7 +445,7 @@
                 </div>
             </div>
         </div>
-    @elseif($order->payment_status !== 'paid' && ! in_array($order->status, ['cancelled', 'expired']))
+    @elseif($order->payment_status !== 'paid' && $order->payment_status !== 'refunded' && ! in_array($order->status, ['cancelled', 'expired']))
         <div class="mt-2">
             <form method="post" action="{{ route('admin.orders.mark-paid', $order) }}">
                 @csrf
