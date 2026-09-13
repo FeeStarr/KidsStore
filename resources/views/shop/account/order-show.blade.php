@@ -303,23 +303,23 @@
             @if($rr->status === 'awaiting_evidence')
                 <div class="mt-2 p-3 bg-light rounded">
                     <div class="small fw-semibold mb-2"><i class="bi bi-camera me-1"></i>Additional evidence needed</div>
-                    <form method="post" action="{{ route('shop.refund.evidence', [$order, $rr]) }}" enctype="multipart/form-data">
+                    <form method="post" action="{{ route('shop.refund.evidence', [$order, $rr]) }}" enctype="multipart/form-data" class="evidence-upload-form">
                         @csrf
                         <div class="mb-2">
                             <label class="form-label form-label-sm">Photo</label>
-                            <input type="file" name="evidence" class="form-control form-control-sm" accept="image/*">
+                            <input type="file" name="evidence" class="form-control form-control-sm evidence-file-input" accept="image/*">
                             <div class="form-text">Upload a clear photo of the item (max 5MB).</div>
                         </div>
                         <div class="mb-2">
                             <label class="form-label form-label-sm">Video <small class="text-muted">(if requested by admin)</small></label>
-                            <input type="file" name="evidence_video" class="form-control form-control-sm" accept="video/mp4,video/mov,video/avi,video/webm">
+                            <input type="file" name="evidence_video" class="form-control form-control-sm evidence-file-input" accept="video/mp4,video/mov,video/avi,video/webm">
                             <div class="form-text">Upload a short video (max 20MB). MP4, MOV, or WebM.</div>
                         </div>
                         <div class="mb-2">
-                            <textarea name="details" rows="2" class="form-control form-control-sm"
+                            <textarea name="details" rows="2" class="form-control form-control-sm evidence-details-input"
                                       placeholder="Additional details (required for some reasons)"></textarea>
                         </div>
-                        <button class="btn btn-sm btn-primary"><i class="bi bi-upload me-1"></i>Upload Evidence</button>
+                        <button class="btn btn-sm btn-primary evidence-submit-btn" disabled><i class="bi bi-upload me-1"></i>Upload Evidence</button>
                     </form>
                 </div>
             @endif
@@ -445,14 +445,16 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Additional details</label>
+                    <label class="form-label">Additional details <span id="details-required" class="text-danger" style="display:none">*</span></label>
                     <textarea name="details" rows="3" class="form-control"
+                              id="refund-details"
                               placeholder="Please describe the issue…"></textarea>
+                    <div id="details-help" class="form-text" style="display:none">Required for this reason.</div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Evidence photo <small class="text-muted">(optional - for damaged/wrong item)</small></label>
-                    <input type="file" name="evidence" class="form-control" accept="image/*">
+                    <label class="form-label">Evidence photo <small class="text-muted" id="evidence-label-text">(optional - for damaged/wrong item)</small><span id="evidence-required" class="text-danger" style="display:none"> *</span></label>
+                    <input type="file" name="evidence" class="form-control" accept="image/*" id="refund-evidence">
                     <div class="form-text">Max 5 MB. JPG/PNG/WEBP.</div>
                 </div>
 
@@ -613,6 +615,21 @@
     const itemVariants = @json($itemVariants);
     let selectedItemId = null;
 
+    // ── Upload evidence button enable/disable ────────────────────────────────
+    document.querySelectorAll('.evidence-upload-form').forEach(form => {
+        const btn = form.querySelector('.evidence-submit-btn');
+        if (!btn) return;
+        function checkEvidenceInputs() {
+            const hasFile = Array.from(form.querySelectorAll('.evidence-file-input')).some(i => i.files.length > 0);
+            const hasDetails = (form.querySelector('.evidence-details-input')?.value || '').trim().length > 0;
+            btn.disabled = !hasFile && !hasDetails;
+        }
+        form.querySelectorAll('.evidence-file-input, .evidence-details-input').forEach(el => {
+            el.addEventListener('input', checkEvidenceInputs);
+            el.addEventListener('change', checkEvidenceInputs);
+        });
+    });
+
     document.querySelectorAll('input[type="radio"][name="scope"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const itemFields  = document.getElementById('item-fields');
@@ -662,6 +679,68 @@
             opt.value = v.id;
             opt.textContent = v.label + ' (' + v.stock + ' in stock)';
             select.appendChild(opt);
+        });
+    }
+
+    // ── Evidence requirements based on reason ────────────────────────────────
+    const evidenceRules = @json(\App\Models\RefundRequest::EVIDENCE_RULES);
+    const reasonSelect = document.querySelector('select[name="reason"]');
+    const detailsRequired = document.getElementById('details-required');
+    const detailsHelp = document.getElementById('details-help');
+    const evidenceRequired = document.getElementById('evidence-required');
+    const evidenceLabelText = document.getElementById('evidence-label-text');
+    const refundForm = document.querySelector('#refund-form form');
+
+    function updateEvidenceRequirements() {
+        const reason = reasonSelect?.value;
+        const rules = evidenceRules[reason] || {};
+        const photosReq = rules.photos === 'required';
+        const commentsReq = rules.comments === 'required';
+
+        if (detailsRequired) detailsRequired.style.display = commentsReq ? '' : 'none';
+        if (detailsHelp) detailsHelp.style.display = commentsReq ? '' : 'none';
+        if (evidenceRequired) evidenceRequired.style.display = photosReq ? '' : 'none';
+        if (evidenceLabelText) {
+            evidenceLabelText.textContent = photosReq ? '' : '(optional - for damaged/wrong item)';
+        }
+    }
+
+    if (reasonSelect) {
+        reasonSelect.addEventListener('change', updateEvidenceRequirements);
+        updateEvidenceRequirements();
+    }
+
+    if (refundForm) {
+        refundForm.addEventListener('submit', function(e) {
+            const reason = reasonSelect?.value;
+            if (!reason) return;
+            const rules = evidenceRules[reason] || {};
+
+            if (rules.photos === 'required') {
+                const fileInput = document.getElementById('refund-evidence');
+                if (!fileInput || !fileInput.files.length) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('Evidence required', 'Please attach a photo for this reason.', 'warning');
+                    } else {
+                        alert('Please attach a photo for this reason.');
+                    }
+                    return;
+                }
+            }
+
+            if (rules.comments === 'required') {
+                const detailsInput = document.getElementById('refund-details');
+                if (!detailsInput || !detailsInput.value.trim()) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('Details required', 'Please describe the issue for this reason.', 'warning');
+                    } else {
+                        alert('Please describe the issue for this reason.');
+                    }
+                    return;
+                }
+            }
         });
     }
 })();

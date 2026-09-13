@@ -289,6 +289,22 @@
                 </form>
             </div></div>
         </div>
+        <div class="col-md-6">
+            <div class="card border-warning border-2"><div class="card-body">
+                <h6 class="text-warning mb-3"><i class="bi bi-camera me-1"></i>Request More Evidence</h6>
+                <p class="small text-muted mb-3">Evidence is insufficient. Request more from the customer.</p>
+                <form method="post" action="{{ route('admin.refunds.request-evidence', $refundRequest) }}">
+                    @csrf
+                    <div class="mb-3">
+                        <textarea name="admin_note" rows="2" class="form-control form-control-sm"
+                                  placeholder="e.g. Please upload clearer photos of the damage"></textarea>
+                    </div>
+                    <button class="btn btn-warning" onclick="return confirm('Request more evidence from the customer?')">
+                        <i class="bi bi-camera me-1"></i>Request More Evidence
+                    </button>
+                </form>
+            </div></div>
+        </div>
     </div>
 
 @elseif($s === 'refund_approved')

@@ -173,8 +173,12 @@ class RefundService
         ?UploadedFile $video = null,
         ?string       $details = null
     ): RefundRequest {
-        if ($refundRequest->status !== RefundRequest::STATUS_AWAITING_EVIDENCE) {
-            throw new \RuntimeException('This request is not awaiting evidence.');
+        $allowedStatuses = [
+            RefundRequest::STATUS_AWAITING_EVIDENCE,
+            RefundRequest::STATUS_REQUESTED,
+        ];
+        if (! in_array($refundRequest->status, $allowedStatuses, true)) {
+            throw new \RuntimeException('This request cannot accept evidence uploads in its current status.');
         }
 
         $updates = ['status' => RefundRequest::STATUS_REQUESTED];
@@ -207,8 +211,14 @@ class RefundService
      */
     public function requestEvidence(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
     {
-        if (! $refundRequest->isPending()) {
-            throw new \RuntimeException('Only pending requests can have evidence requested.');
+        $allowed = [
+            RefundRequest::STATUS_REQUESTED,
+            RefundRequest::STATUS_PENDING_REVIEW,
+            RefundRequest::STATUS_RECEIVED,
+            RefundRequest::STATUS_INSPECTION,
+        ];
+        if (! in_array($refundRequest->status, $allowed, true)) {
+            throw new \RuntimeException('This request cannot have evidence requested in its current status.');
         }
 
         $refundRequest->update([
