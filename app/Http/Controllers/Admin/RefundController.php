@@ -180,6 +180,16 @@ class RefundController extends Controller
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Refund status synced - now: ' . $refundRequest->fresh()->statusLabel);
     }
 
+    public function forceRefunded(RefundRequest $refundRequest): RedirectResponse
+    {
+        try {
+            $this->refunds->applyRefundSuccess($refundRequest);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Refund manually marked as completed.');
+    }
+
     public function markReplacementShipped(Request $request, RefundRequest $refundRequest): RedirectResponse
     {
         $data = $request->validate([

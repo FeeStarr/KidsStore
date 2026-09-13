@@ -539,50 +539,80 @@ class RefundService
             return $refundRequest;
         }
 
-        $ref = $refundRequest->provider_refund_reference ?: $refundRequest->opay_refund_no;
-        if (! $ref) {
-            return $refundRequest;
-        }
-
         $refundRequest->update(['last_refund_check_at' => now()]);
 
         // 1. Try direct fetch by stored reference (numeric Paystack ID for new refunds)
+        $ref = $refundRequest->provider_refund_reference ?: $refundRequest->opay_refund_no;
+        if ($ref) {
+            try {
+                $result = $this->paystack->fetchRefund($ref);
+
+                if ($result['status'] ?? false) {
+                    $data = $result['data'] ?? [];
+                    $status = strtolower($data['status'] ?? '');
+
+                    if ($data && $status) {
+                        $this->storeSyncPayload($refundRequest, $result);
+
+                        if (in_array($status, ['processed', 'success', 'refunded'], true)) {
+                            return $this->applyRefundSuccess($refundRequest);
+                        }
+                        if (in_array($status, ['failed', 'rejected'], true)) {
+                            $failureReason = $data['message'] ?? 'Sync detected failed';
+                            $refundRequest->update([
+                                'status' => RefundRequest::STATUS_REFUND_FAILED,
+                                'failure_reason' => $failureReason,
+                            ]);
+                            $this->logAudit($refundRequest, 'refund_failed', null, $failureReason);
+                            return $refundRequest->refresh();
+                        }
+                        return $refundRequest->refresh();
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Refund direct fetch failed', ['id' => $refundRequest->id, 'ref' => $ref, 'error' => $e->getMessage()]);
+            }
+        }
+
+        // 2. Recovery: extract Paystack refund ID from stored opay_payload (original POST /refund response)
         try {
-            $result = $this->paystack->fetchRefund($ref);
-
-            if ($result['status'] ?? false) {
-                $data = $result['data'] ?? [];
-                $status = strtolower($data['status'] ?? '');
-
-                // If reference was wrong (404/no match), data may be null
-                if ($data && $status) {
+            $payload = $refundRequest->opay_payload ?? [];
+            $paystackId = $payload['data']['id'] ?? null;
+            if ($paystackId && $paystackId != $ref) {
+                $result = $this->paystack->fetchRefund((string) $paystackId);
+                if (($result['status'] ?? false) && ! empty($result['data']['status'])) {
+                    $refundRequest->update([
+                        'provider_refund_reference' => $paystackId,
+                        'opay_refund_no' => $paystackId,
+                    ]);
                     $this->storeSyncPayload($refundRequest, $result);
-
+                    $status = strtolower($result['data']['status'] ?? '');
                     if (in_array($status, ['processed', 'success', 'refunded'], true)) {
                         return $this->applyRefundSuccess($refundRequest);
                     }
                     if (in_array($status, ['failed', 'rejected'], true)) {
-                        $failureReason = $data['message'] ?? 'Sync detected failed';
                         $refundRequest->update([
                             'status' => RefundRequest::STATUS_REFUND_FAILED,
-                            'failure_reason' => $failureReason,
+                            'failure_reason' => $result['data']['message'] ?? 'Sync detected failed',
                         ]);
-                        $this->logAudit($refundRequest, 'refund_failed', null, $failureReason);
                         return $refundRequest->refresh();
                     }
-                    // Still processing/pending - nothing more to do
                     return $refundRequest->refresh();
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('Refund direct fetch failed', ['id' => $refundRequest->id, 'ref' => $ref, 'error' => $e->getMessage()]);
+            Log::warning('Refund payload recovery failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
         }
 
-        // 2. Recovery fallback: list refunds by transaction reference and match by amount
+        // 3. Recovery: search Paystack refunds by transaction reference + match by amount
         try {
-            $txnRef = $refundRequest->order->reference ?? null;
-            if ($txnRef) {
-                $listResult = $this->paystack->listRefunds($txnRef);
+            $paystackTxnRef = $refundRequest->order->paymentTransactions()
+                ->where('status', 'success')
+                ->latest()
+                ->value('reference');
+
+            if ($paystackTxnRef) {
+                $listResult = $this->paystack->listRefunds($paystackTxnRef);
                 if ($listResult['status'] ?? false) {
                     $refunds = $listResult['data'] ?? [];
                     $targetAmount = (int) round($refundRequest->amount * 100);
@@ -604,7 +634,7 @@ class RefundService
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('Refund recovery search failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
+            Log::warning('Refund transaction search recovery failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
         }
 
         return $refundRequest->refresh();
