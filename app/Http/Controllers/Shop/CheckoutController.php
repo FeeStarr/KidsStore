@@ -282,7 +282,10 @@ class CheckoutController extends Controller
                 'items'                 => $items,
             ]);
 
-            $this->cart->clear();
+            // Pay on Delivery: clear cart immediately. Pay Now: cart cleared after payment confirms.
+            if ($data['payment_method'] !== 'pay_now') {
+                $this->cart->clear();
+            }
         } catch (\Throwable $e) {
             return redirect()
                 ->back()
