@@ -125,6 +125,7 @@ Route::name('shop.')->group(function () {
     Route::get('/order-lookup', [CheckoutController::class, 'orderLookupForm'])->name('order.lookup');
     Route::post('/order-lookup', [CheckoutController::class, 'orderLookup'])->name('order.lookup.submit')->middleware('throttle:5,1');
     Route::get('/order-track/{token}', [CheckoutController::class, 'orderTrack'])->name('order.track');
+    Route::get('/order-confirmation/{token}', [CheckoutController::class, 'confirmation'])->name('order.confirmation');
     Route::get('/order-track/{token}/verify', [CheckoutController::class, 'showTrackOtp'])->name('order.track.verify');
     Route::post('/order-track/{token}/verify', [CheckoutController::class, 'verifyTrackOtp'])->name('order.track.verify.post');
     Route::post('/order-track/{token}/verify/resend', [CheckoutController::class, 'resendTrackOtp'])->name('order.track.verify.resend')->middleware('throttle:3,1');

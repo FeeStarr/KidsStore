@@ -24,8 +24,8 @@ class CheckoutController extends Controller
     ) {}
 
     /**
-     * Step 1 for guests: verify email via OTP.
-     * Logged-in users skip straight to checkout.
+     * Show checkout form. Logged-in users skip straight to checkout.
+     * Guests go directly to the checkout form (email verified post-order).
      */
     public function show()
     {
@@ -42,14 +42,8 @@ class CheckoutController extends Controller
             return $this->showCheckout();
         }
 
-        // Check if guest email is already verified via OTP
-        $guestEmail = session('guest_checkout_email');
-        if ($guestEmail && $this->otpService->isVerified($guestEmail)) {
-            return $this->showCheckout();
-        }
-
-        // Show OTP verification step
-        return view('shop.checkout.verify-email');
+        // Guests go straight to checkout (email verification happens after order placement)
+        return $this->showCheckout();
     }
 
     /**
@@ -211,15 +205,6 @@ class CheckoutController extends Controller
 
         $data = $request->validate($rules);
 
-        // Guest OTP verification check
-        if ($isGuest) {
-            $email = strtolower(trim($data['email']));
-            if (! $this->otpService->isVerified($email)) {
-                return back()->with('error', 'Please verify your email before placing an order.')
-                    ->withInput();
-            }
-        }
-
         $customer = Auth::user();
         $customerId = null;
         $guestName = null;
@@ -308,7 +293,7 @@ class CheckoutController extends Controller
         // Pay Now → redirect to order page with Paystack popup
         if ($data['payment_method'] === 'pay_now') {
             if ($isGuest) {
-                return redirect()->route('shop.order.track', ['token' => $order->lookup_token])
+                return redirect()->route('shop.order.confirmation', ['token' => $order->lookup_token])
                     ->with('success', 'Order placed! Order Number: ' . $order->reference)
                     ->with('show_pay_now', true);
             }
@@ -320,7 +305,7 @@ class CheckoutController extends Controller
 
         // Pay on Delivery → order pending confirmation, no payment needed now
         if ($isGuest) {
-            return redirect()->route('shop.order.track', ['token' => $order->lookup_token])
+            return redirect()->route('shop.order.confirmation', ['token' => $order->lookup_token])
                 ->with('success', 'Order placed! Order Number: ' . $order->reference . '. Your order is pending confirmation.')
                 ->with('info', 'We\'ll review your order and confirm it shortly. You\'ll receive an email once confirmed.');
         }
@@ -328,6 +313,26 @@ class CheckoutController extends Controller
         return redirect()->route('shop.account.orders.show', $order)
             ->with('success', 'Order placed! Order Number: ' . $order->reference)
             ->with('info', 'Your order is pending confirmation. We\'ll notify you once it\'s approved.');
+    }
+
+    /**
+     * Guest order confirmation page (full summary, no OTP required).
+     */
+    public function confirmation(string $token)
+    {
+        $order = Order::where('lookup_token', $token)->firstOrFail();
+
+        // Logged-in owners go to their account page instead
+        if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
+            return redirect()->route('shop.account.orders.show', $order);
+        }
+
+        $showPayNow = session('show_pay_now') ?? false;
+
+        return view('shop.checkout.confirmation', [
+            'order'       => $order,
+            'showPayNow'  => $showPayNow,
+        ]);
     }
 
     public function orderLookupForm()
