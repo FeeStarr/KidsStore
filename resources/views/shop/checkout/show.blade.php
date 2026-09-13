@@ -27,13 +27,10 @@
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <div class="input-group">
-                        <input type="email" class="form-control" value="{{ $guestEmail ?? '' }}" disabled>
-                        <span class="input-group-text bg-success text-white"><i class="bi bi-check-lg"></i></span>
-                    </div>
-                    <input type="hidden" name="email" value="{{ $guestEmail ?? '' }}">
-                    <small class="text-success"><i class="bi bi-shield-check me-1"></i>Verified</small>
+                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                           value="{{ old('email', $guestEmail ?? '') }}" required>
+                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             @endif
             <div class="mb-3">
