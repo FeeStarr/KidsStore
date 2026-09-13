@@ -787,6 +787,15 @@ class PaystackService
                     Log::error('Auto-confirm failed after payment', ['order' => $order->reference, 'error' => $e->getMessage()]);
                 }
             }
+
+            // Clear cart after payment confirmed (logged-in users only; guests cleared in callback)
+            if ($order->customer_id) {
+                try {
+                    app(CartService::class)->clear();
+                } catch (\Throwable $e) {
+                    // Best effort - don't block payment flow
+                }
+            }
         });
     }
 

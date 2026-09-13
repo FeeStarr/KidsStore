@@ -87,6 +87,7 @@ class PaystackController extends Controller
                 $order->refresh();
 
                 if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+                    app(\App\Services\CartService::class)->clear();
                     return redirect()->route('shop.account.orders.show', $order)
                         ->with('success', 'Payment confirmed. Thank you!');
                 }
@@ -101,6 +102,7 @@ class PaystackController extends Controller
         // Check once more - webhook may have arrived while we were redirecting
         $order->refresh();
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            app(\App\Services\CartService::class)->clear();
             return redirect()->route('shop.account.orders.show', $order)
                 ->with('success', 'Payment confirmed. Thank you!');
         }
@@ -246,6 +248,7 @@ class PaystackController extends Controller
                 $order->refresh();
 
                 if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+                    app(\App\Services\CartService::class)->clear();
                     return redirect()->route('shop.order.track', $token)
                         ->with('success', 'Payment confirmed. Thank you!');
                 }
@@ -259,6 +262,7 @@ class PaystackController extends Controller
 
         $order->refresh();
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
+            app(\App\Services\CartService::class)->clear();
             return redirect()->route('shop.order.track', $token)
                 ->with('success', 'Payment confirmed. Thank you!');
         }
