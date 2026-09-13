@@ -358,10 +358,16 @@
         @if($refundRequest->refund_processing_at)
             <p class="small text-muted mb-3">Submitted: {{ $refundRequest->refund_processing_at->format('M d, Y h:ia') }}</p>
         @endif
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <form method="post" action="{{ route('admin.refunds.sync-refund', $refundRequest) }}">
                 @csrf
                 <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Check Paystack Status</button>
+            </form>
+            <form method="post" action="{{ route('admin.refunds.force-refunded', $refundRequest) }}">
+                @csrf
+                <button class="btn btn-outline-warning btn-sm" onclick="return confirm('Are you sure the refund was completed on Paystack? This marks it as refunded manually.')">
+                    <i class="bi bi-check2-all me-1"></i>Mark Refunded (Manual)
+                </button>
             </form>
         </div>
     </div></div>
