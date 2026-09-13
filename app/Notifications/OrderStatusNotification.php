@@ -46,14 +46,25 @@ class OrderStatusNotification extends Notification
             default                  => "Update on your order {$order->reference}",
         };
 
-        // For delivered status, use the rich HTML template with item thumbnails
-        if ($order->status === 'delivered') {
+        // For delivered and out-for-delivery statuses, use rich HTML templates with item thumbnails
+        if (in_array($order->status, ['delivered', 'out for delivery'])) {
             $order->loadMissing('items.product', 'items.variant.image', 'items.variant.images', 'pickupStation');
+
+            $template = $order->status === 'delivered'
+                ? 'emails.order-delivered'
+                : 'emails.order-out-for-delivery';
+
+            $contactPhone = \App\Models\Setting::get('contact_phone', '');
+            $contactEmail = \App\Models\Setting::get('contact_email', '');
 
             $message = (new MailMessage)
                 ->subject($subject)
                 ->replyTo(config('emails.support'), 'KidsFlairr Support')
-                ->view('emails.order-delivered', ['order' => $order]);
+                ->view($template, [
+                    'order'        => $order,
+                    'contactPhone' => $contactPhone,
+                    'contactEmail' => $contactEmail,
+                ]);
 
             $notifiableId = $notifiable->id ?? null;
 
