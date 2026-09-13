@@ -151,22 +151,9 @@ class RefundController extends Controller
 
     public function approveRefund(Request $request, RefundRequest $refundRequest): RedirectResponse
     {
-        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_REQUIRED) {
-            return back()->with('error', 'Only refund-required requests can be approved.');
-        }
         try {
-            $refundRequest->update([
-                'status' => RefundRequest::STATUS_REFUND_APPROVED,
-                'reviewed_by' => Auth::id(),
-                'reviewed_at' => now(),
-            ]);
-            app(\App\Models\ReturnAuditLog::class)::create([
-                'refund_request_id' => $refundRequest->id,
-                'action' => 'approved',
-                'user_id' => Auth::id(),
-                'details' => $request->input('admin_note'),
-            ]);
-        } catch (\Throwable $e) {
+            $this->refunds->approveRefund($refundRequest, Auth::user(), $request->input('admin_note'));
+        } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
         return redirect()->route('admin.refunds.show', $refundRequest)->with('success', 'Cancellation refund approved - ready to process.');

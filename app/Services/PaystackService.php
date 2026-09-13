@@ -592,6 +592,7 @@ class PaystackService
         $eventLower = strtolower($event);
         $isSuccess = str_contains($eventLower, 'processed') || str_contains($eventLower, 'success');
         $isFailed  = str_contains($eventLower, 'failed');
+        $isProcessing = str_contains($eventLower, 'processing') || str_contains($eventLower, 'pending');
 
         $refundRef = $data['refund_reference'] ?? $data['reference'] ?? $data['merchant_note'] ?? null;
         $status    = strtolower($data['status'] ?? ($isSuccess ? 'processed' : ($isFailed ? 'failed' : 'pending')));
@@ -629,6 +630,7 @@ class PaystackService
             \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored) {
                 $refund->update([
                     'status'       => \App\Models\RefundRequest::STATUS_REFUNDED,
+                    'processed_at' => now(),
                     'opay_payload' => $payloadStored,
                 ]);
                 if (! $refund->order_item_id) {
@@ -643,20 +645,30 @@ class PaystackService
             });
             try { $refund->order?->customer?->notify(new \App\Notifications\RefundStatusNotification($refund->fresh())); } catch (\Throwable $e) { Log::error('Refund webhook notify failed', ['id' => $refund->id]); }
         } elseif ($status === 'failed' || $isFailed) {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored, $data) {
+            $failureReason = $data['message'] ?? 'Refund failed via webhook';
+            \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored, $failureReason) {
                 $refund->update([
-                    'status'       => \App\Models\RefundRequest::STATUS_REFUND_FAILED,
-                    'opay_payload' => $payloadStored,
+                    'status'         => \App\Models\RefundRequest::STATUS_REFUND_FAILED,
+                    'failure_reason' => $failureReason,
+                    'opay_payload'   => $payloadStored,
                 ]);
                 \App\Models\ReturnAuditLog::create([
                     'refund_request_id' => $refund->id,
                     'action'            => 'refund_failed',
-                    'details'           => $data['message'] ?? 'Refund failed via webhook',
+                    'details'           => $failureReason,
                 ]);
             });
         } else {
-            // pending - just record check time
-            $refund->update(['last_refund_check_at' => now(), 'opay_payload' => $payloadStored]);
+            // pending/processing - update status to refund_processing and record check time
+            if ($refund->status === \App\Models\RefundRequest::STATUS_REFUND_PROCESSING) {
+                $refund->update(['last_refund_check_at' => now(), 'opay_payload' => $payloadStored]);
+            } else {
+                $refund->update([
+                    'status' => \App\Models\RefundRequest::STATUS_REFUND_PROCESSING,
+                    'last_refund_check_at' => now(),
+                    'opay_payload' => $payloadStored,
+                ]);
+            }
         }
 
         return true;

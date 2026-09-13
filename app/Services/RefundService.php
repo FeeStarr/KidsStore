@@ -414,6 +414,28 @@ class RefundService
         return $refundRequest->refresh();
     }
 
+    // ── Admin: approve refund for cancellation ────────────────────────────────
+
+    /**
+     * Approve a refund_required request (cancellation refund) for processing.
+     */
+    public function approveRefund(RefundRequest $refundRequest, User $admin, ?string $note = null): RefundRequest
+    {
+        if ($refundRequest->status !== RefundRequest::STATUS_REFUND_REQUIRED) {
+            throw new \RuntimeException('Only refund-required requests can be approved.');
+        }
+
+        $refundRequest->update([
+            'status'      => RefundRequest::STATUS_REFUND_APPROVED,
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+            'admin_note'  => $note,
+        ]);
+        $this->logAudit($refundRequest, 'refund_approved', $admin->id, $note);
+
+        return $refundRequest->refresh();
+    }
+
     // ── Admin: process refund ─────────────────────────────────────────────────
 
     /**
@@ -463,15 +485,20 @@ class RefundService
                         $this->logAudit($refundRequest, 'refund_processing_accepted', $admin->id, "Paystack accepted refund {$refundRef}");
                         // Stay in refund_processing until webhook confirms
                     } else {
+                        $failureReason = $opResult['message'] ?? 'Paystack rejected refund';
                         $refundRequest->update([
                             'status'         => RefundRequest::STATUS_REFUND_FAILED,
+                            'failure_reason' => $failureReason,
                             'opay_payload'   => $opResult,
                         ]);
-                        $this->logAudit($refundRequest, 'refund_failed', $admin->id, $opResult['message'] ?? 'Paystack rejected refund');
+                        $this->logAudit($refundRequest, 'refund_failed', $admin->id, $failureReason);
                     }
                 } catch (\Throwable $e) {
                     Log::error('Paystack refund failed', ['error' => $e->getMessage(), 'request' => $refundRequest->id]);
-                    $refundRequest->update(['status' => RefundRequest::STATUS_REFUND_FAILED]);
+                    $refundRequest->update([
+                        'status' => RefundRequest::STATUS_REFUND_FAILED,
+                        'failure_reason' => $e->getMessage(),
+                    ]);
                     $this->logAudit($refundRequest, 'refund_failed', $admin->id, $e->getMessage());
                 }
             } else {
@@ -517,8 +544,12 @@ class RefundService
                 return $this->applyRefundSuccess($refundRequest);
             }
             if (in_array($status, ['failed', 'rejected'], true)) {
-                $refundRequest->update(['status' => RefundRequest::STATUS_REFUND_FAILED]);
-                $this->logAudit($refundRequest, 'refund_failed', null, 'Sync detected failed');
+                $failureReason = $data['message'] ?? 'Sync detected failed';
+                $refundRequest->update([
+                    'status' => RefundRequest::STATUS_REFUND_FAILED,
+                    'failure_reason' => $failureReason,
+                ]);
+                $this->logAudit($refundRequest, 'refund_failed', null, $failureReason);
             }
         } catch (\Throwable $e) {
             Log::warning('Refund sync failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
@@ -532,7 +563,7 @@ class RefundService
         if ($refundRequest->status === RefundRequest::STATUS_REFUNDED) {
             return $refundRequest;
         }
-        $refundRequest->update(['status' => RefundRequest::STATUS_REFUNDED]);
+        $refundRequest->update(['status' => RefundRequest::STATUS_REFUNDED, 'processed_at' => now()]);
         if (! $refundRequest->order_item_id) {
             $refundRequest->order->update(['payment_status' => 'refunded']);
         }
@@ -556,8 +587,11 @@ class RefundService
             try {
                 $check = $this->paystack->fetchRefund($ref);
                 $pStatus = strtolower($check['data']['status'] ?? '');
-                if (in_array($pStatus, ['pending', 'processing', 'processed'], true)) {
+                if (in_array($pStatus, ['pending', 'processing'], true)) {
                     throw new \RuntimeException('A refund for this request is already ' . $pStatus . ' on Paystack. Use Sync instead.');
+                }
+                if (in_array($pStatus, ['processed', 'success', 'refunded'], true)) {
+                    return $this->applyRefundSuccess($refundRequest);
                 }
             } catch (\RuntimeException $e) {
                 throw $e;
@@ -566,11 +600,15 @@ class RefundService
             }
         }
 
+        $retryCount = ($refundRequest->retry_count ?? 0) + 1;
         $refundRequest->update([
-            'status' => RefundRequest::STATUS_REFUND_REQUIRED,
-            'admin_note' => null,
+            'status' => RefundRequest::STATUS_REFUND_PROCESSING,
+            'failure_reason' => null,
+            'retry_count' => $retryCount,
+            'last_retry_at' => now(),
+            'refund_processing_at' => now(),
         ]);
-        $this->logAudit($refundRequest, 'retry_queued', $admin->id, 'Retry requested');
+        $this->logAudit($refundRequest, 'retry_initiated', $admin->id, "Retry #{$retryCount}");
 
         return $this->processRefund($refundRequest->fresh(), $admin);
     }
