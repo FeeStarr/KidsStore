@@ -139,6 +139,7 @@ class AuthController extends Controller
         $user = User::create($data);
 
         $user->notify(new \App\Notifications\VerifyEmailNotification($user->id));
+        $user->notify(new \App\Notifications\WelcomeNotification);
 
         Auth::login($user);
         $request->session()->regenerate();
