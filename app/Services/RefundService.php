@@ -484,15 +484,15 @@ class RefundService
                     $paystackStatus = $opResult['status'] ?? false;
 
                     if ($paystackStatus === true) {
-                        $refundRef = $opResult['data']['refund_reference'] ?? $opResult['data']['reference'] ?? $ref;
+                        $paystackRefundId = $opResult['data']['id'] ?? $opResult['data']['refund_reference'] ?? $opResult['data']['reference'] ?? $ref;
                         $refundRequest->update([
-                            'opay_refund_no' => $refundRef,
-                            'provider_refund_reference' => $refundRef,
+                            'opay_refund_no' => $paystackRefundId,
+                            'provider_refund_reference' => $paystackRefundId,
                             'payment_provider' => 'paystack',
                             'opay_payload'   => $opResult,
                             'last_refund_check_at' => now(),
                         ]);
-                        $this->logAudit($refundRequest, 'refund_processing_accepted', $admin->id, "Paystack accepted refund {$refundRef}");
+                        $this->logAudit($refundRequest, 'refund_processing_accepted', $admin->id, "Paystack accepted refund (id: {$paystackRefundId})");
                         // Stay in refund_processing until webhook confirms
                     } else {
                         $failureReason = $opResult['message'] ?? 'Paystack rejected refund';
@@ -544,28 +544,77 @@ class RefundService
             return $refundRequest;
         }
 
+        $refundRequest->update(['last_refund_check_at' => now()]);
+
+        // 1. Try direct fetch by stored reference (numeric Paystack ID for new refunds)
         try {
             $result = $this->paystack->fetchRefund($ref);
-            $refundRequest->update(['last_refund_check_at' => now(), 'opay_payload' => array_merge($refundRequest->opay_payload ?? [], ['last_sync' => $result])]);
 
-            $data = $result['data'] ?? [];
-            $status = strtolower($data['status'] ?? '');
-            if (in_array($status, ['processed', 'success', 'refunded'], true)) {
-                return $this->applyRefundSuccess($refundRequest);
-            }
-            if (in_array($status, ['failed', 'rejected'], true)) {
-                $failureReason = $data['message'] ?? 'Sync detected failed';
-                $refundRequest->update([
-                    'status' => RefundRequest::STATUS_REFUND_FAILED,
-                    'failure_reason' => $failureReason,
-                ]);
-                $this->logAudit($refundRequest, 'refund_failed', null, $failureReason);
+            if ($result['status'] ?? false) {
+                $data = $result['data'] ?? [];
+                $status = strtolower($data['status'] ?? '');
+
+                // If reference was wrong (404/no match), data may be null
+                if ($data && $status) {
+                    $this->storeSyncPayload($refundRequest, $result);
+
+                    if (in_array($status, ['processed', 'success', 'refunded'], true)) {
+                        return $this->applyRefundSuccess($refundRequest);
+                    }
+                    if (in_array($status, ['failed', 'rejected'], true)) {
+                        $failureReason = $data['message'] ?? 'Sync detected failed';
+                        $refundRequest->update([
+                            'status' => RefundRequest::STATUS_REFUND_FAILED,
+                            'failure_reason' => $failureReason,
+                        ]);
+                        $this->logAudit($refundRequest, 'refund_failed', null, $failureReason);
+                        return $refundRequest->refresh();
+                    }
+                    // Still processing/pending - nothing more to do
+                    return $refundRequest->refresh();
+                }
             }
         } catch (\Throwable $e) {
-            Log::warning('Refund sync failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
+            Log::warning('Refund direct fetch failed', ['id' => $refundRequest->id, 'ref' => $ref, 'error' => $e->getMessage()]);
+        }
+
+        // 2. Recovery fallback: list refunds by transaction reference and match by amount
+        try {
+            $txnRef = $refundRequest->order->reference ?? null;
+            if ($txnRef) {
+                $listResult = $this->paystack->listRefunds($txnRef);
+                if ($listResult['status'] ?? false) {
+                    $refunds = $listResult['data'] ?? [];
+                    $targetAmount = (int) round($refundRequest->amount * 100);
+                    foreach ($refunds as $pf) {
+                        $pfStatus = strtolower($pf['status'] ?? '');
+                        $pfAmount = (int) ($pf['amount'] ?? 0);
+                        if ($pfAmount === $targetAmount && in_array($pfStatus, ['processed', 'success', 'refunded'], true)) {
+                            $paystackId = $pf['id'] ?? null;
+                            if ($paystackId) {
+                                $refundRequest->update([
+                                    'provider_refund_reference' => $paystackId,
+                                    'opay_refund_no' => $paystackId,
+                                ]);
+                            }
+                            $this->storeSyncPayload($refundRequest, ['recovery_match' => $pf]);
+                            return $this->applyRefundSuccess($refundRequest);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Refund recovery search failed', ['id' => $refundRequest->id, 'error' => $e->getMessage()]);
         }
 
         return $refundRequest->refresh();
+    }
+
+    private function storeSyncPayload(RefundRequest $refundRequest, array $payload): void
+    {
+        $refundRequest->update([
+            'opay_payload' => array_merge($refundRequest->opay_payload ?? [], ['last_sync' => $payload]),
+        ]);
     }
 
     public function applyRefundSuccess(RefundRequest $refundRequest): RefundRequest

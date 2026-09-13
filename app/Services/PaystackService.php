@@ -585,6 +585,19 @@ class PaystackService
     }
 
     /**
+     * List refunds from Paystack, optionally filtered by transaction.
+     */
+    public function listRefunds(?string $transactionRef = null, int $perPage = 50): array
+    {
+        $endpoint = '/refund?perPage=' . $perPage;
+        if ($transactionRef) {
+            $endpoint .= '&transaction=' . urlencode($transactionRef);
+        }
+
+        return $this->get($endpoint);
+    }
+
+    /**
      * Handle refund webhook - idempotent, never moves terminal state backwards.
      */
     private function handleRefundWebhook(string $event, array $data, array $payload): bool
@@ -595,11 +608,17 @@ class PaystackService
         $isProcessing = str_contains($eventLower, 'processing') || str_contains($eventLower, 'pending');
 
         $refundRef = $data['refund_reference'] ?? $data['reference'] ?? $data['merchant_note'] ?? null;
+        $paystackId = $data['id'] ?? null;
         $status    = strtolower($data['status'] ?? ($isSuccess ? 'processed' : ($isFailed ? 'failed' : 'pending')));
 
         // Find local refund request by provider reference (support legacy opay_refund_no).
         $refund = null;
-        if ($refundRef) {
+        if ($paystackId) {
+            $refund = \App\Models\RefundRequest::where('provider_refund_reference', $paystackId)
+                ->orWhere('opay_refund_no', $paystackId)
+                ->first();
+        }
+        if (! $refund && $refundRef) {
             $refund = \App\Models\RefundRequest::where('provider_refund_reference', $refundRef)
                 ->orWhere('opay_refund_no', $refundRef)
                 ->first();
