@@ -91,7 +91,7 @@
             @endforelse
         </div>
 
-        <div class="mt-4">{{ $products->links() }}</div>
+        <div class="mt-4">{{ $products->links('shop.partials.pagination') }}</div>
     </div>
 </div>
 
