@@ -8,7 +8,8 @@
                 <div class="mb-3">
                     <i class="bi bi-shield-lock text-primary" style="font-size:3rem"></i>
                 </div>
-                <h4 class="mb-2">Enter Verification Code</h4>
+                <h4 class="mb-2">Verify Your Email</h4>
+                <p class="text-muted small mb-1">We need to verify your email before placing your order.</p>
                 <p class="text-muted small mb-1">We've sent a 6-digit verification code to</p>
                 <p class="fw-bold mb-3">{{ $email ?? session('guest_checkout_email', '') }}</p>
 

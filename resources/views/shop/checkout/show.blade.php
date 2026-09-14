@@ -23,7 +23,7 @@
                 <div class="mb-3">
                     <label class="form-label">Name *</label>
                     <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
-                           value="{{ old('name') }}" required>
+                           value="{{ old('name', $pendingData['name'] ?? '') }}" required>
                     @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-3">
@@ -36,7 +36,7 @@
             <div class="mb-3">
                 <label class="form-label">Phone *</label>
                 <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"
-                       value="{{ old('phone', $customer?->phone) }}" required>
+                       value="{{ old('phone', $pendingData['phone'] ?? $customer?->phone) }}" required>
                 @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
@@ -44,10 +44,10 @@
             <h5 class="mb-3">Delivery Method</h5>
 
             <div class="d-flex gap-3 mb-3">
-                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', 'delivery') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
+                <div class="form-check delivery-option flex-grow-1 border rounded p-3 {{ old('delivery_method', $pendingData['delivery_method'] ?? 'delivery') === 'delivery' ? 'border-primary bg-primary-subtle' : '' }}"
                      id="opt-delivery">
                     <input class="form-check-input" type="radio" name="delivery_method" value="delivery"
-                           id="dm_delivery" {{ old('delivery_method', 'delivery') === 'delivery' ? 'checked' : '' }}>
+                           id="dm_delivery" {{ old('delivery_method', $pendingData['delivery_method'] ?? 'delivery') === 'delivery' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="dm_delivery">
                         <i class="bi bi-truck me-1"></i> Home Delivery
                         <small class="text-muted d-block fw-normal">Delivered to your address</small>
@@ -75,7 +75,7 @@
                         <option value="">-- Select your location --</option>
                         @foreach($deliveryLocations as $loc)
                             <option value="{{ $loc->id }}" data-name="{{ $loc->name }}"
-                                    {{ old('delivery_location_id') == $loc->id ? 'selected' : '' }}>
+                                    {{ old('delivery_location_id', $pendingData['delivery_location_id'] ?? '') == $loc->id ? 'selected' : '' }}>
                                 {{ $loc->name }}{{ $loc->state ? ', ' . $loc->state : '' }}
                             </option>
                         @endforeach
@@ -86,7 +86,7 @@
                     <label class="form-label">Delivery Address *</label>
                     <textarea name="address" rows="3"
                               class="form-control @error('address') is-invalid @enderror"
-                              placeholder="Full delivery address (street, landmark, etc.)">{{ old('address', $customer?->address) }}</textarea>
+                              placeholder="Full delivery address (street, landmark, etc.)">{{ old('address', $pendingData['address'] ?? $customer?->address) }}</textarea>
                     @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div id="delivery-charge-display" class="alert alert-info py-2 mb-3" style="display:none">
@@ -106,13 +106,13 @@
                     <div class="row g-2">
                         @foreach($pickupStations as $station)
                             <div class="col-12">
-                                <label class="d-block border rounded p-3 station-card {{ old('pickup_station_id') == $station->id ? 'border-primary bg-primary-subtle' : '' }}"
+                                <label class="d-block border rounded p-3 station-card {{ old('pickup_station_id', $pendingData['pickup_station_id'] ?? '') == $station->id ? 'border-primary bg-primary-subtle' : '' }}"
                                        style="cursor:pointer">
                                      <div class="d-flex align-items-start gap-2">
                                              <input type="radio" name="pickup_station_id"
                                                  value="{{ $station->id }}"
                                                  class="form-check-input mt-1 flex-shrink-0"
-                                                 {{ old('pickup_station_id') == $station->id ? 'checked' : '' }}>
+                                                 {{ old('pickup_station_id', $pendingData['pickup_station_id'] ?? '') == $station->id ? 'checked' : '' }}>
                                         <div>
                                             <div class="fw-semibold">{{ $station->name }}</div>
                                             <div class="text-muted small">{{ $station->full_address }}</div>
@@ -137,7 +137,7 @@
             <div class="mt-3">
                 <label class="form-label">Order Note <small class="text-muted">(optional)</small></label>
                 <textarea name="note" rows="2" class="form-control"
-                          placeholder="Any special instructions?">{{ old('note') }}</textarea>
+                          placeholder="Any special instructions?">{{ old('note', $pendingData['note'] ?? '') }}</textarea>
             </div>
         </div></div>
     </div>
@@ -200,17 +200,17 @@
             </dl>
             <div class="mb-3">
                 <label class="form-label">How would you like to pay?</label>
-                <div class="form-check border rounded p-3 mb-2 {{ old('payment_method', 'pay_now') === 'pay_now' ? 'border-primary bg-primary-subtle' : '' }}">
+                <div class="form-check border rounded p-3 mb-2 {{ old('payment_method', $pendingData['payment_method'] ?? 'pay_now') === 'pay_now' ? 'border-primary bg-primary-subtle' : '' }}">
                     <input class="form-check-input" type="radio" name="payment_method" value="pay_now"
-                           id="pm_pay_now" {{ old('payment_method', 'pay_now') === 'pay_now' ? 'checked' : '' }}>
+                           id="pm_pay_now" {{ old('payment_method', $pendingData['payment_method'] ?? 'pay_now') === 'pay_now' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="pm_pay_now">
                         <i class="bi bi-credit-card me-1"></i> Pay Now
                         <div class="small text-muted fw-normal mt-1">Pay securely via Paystack now. Your order is confirmed immediately.</div>
                     </label>
                 </div>
-                <div class="form-check border rounded p-3 {{ old('payment_method') === 'pay_on_delivery' ? 'border-primary bg-primary-subtle' : '' }}">
+                <div class="form-check border rounded p-3 {{ old('payment_method', $pendingData['payment_method'] ?? '') === 'pay_on_delivery' ? 'border-primary bg-primary-subtle' : '' }}">
                     <input class="form-check-input" type="radio" name="payment_method" value="pay_on_delivery"
-                           id="pm_pay_on_delivery" {{ old('payment_method') === 'pay_on_delivery' ? 'checked' : '' }}>
+                           id="pm_pay_on_delivery" {{ old('payment_method', $pendingData['payment_method'] ?? '') === 'pay_on_delivery' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="pm_pay_on_delivery">
                         <i class="bi bi-cash-stack me-1"></i> Pay on Delivery
                         <div class="small text-muted fw-normal mt-1">Pay via Paystack when your order arrives. Your order will be reviewed before confirmation.</div>

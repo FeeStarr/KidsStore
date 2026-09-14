@@ -61,6 +61,13 @@ class CheckoutController extends Controller
 
         $email = strtolower(trim($data['email']));
 
+        // If email changed from pending checkout, update pending data
+        $pending = session('guest_checkout_pending');
+        if ($pending && strtolower($pending['email']) !== $email) {
+            $pending['email'] = $email;
+            session(['guest_checkout_pending' => $pending]);
+        }
+
         $sent = $this->otpService->sendOtp($email);
 
         if (! $sent) {
@@ -90,6 +97,7 @@ class CheckoutController extends Controller
 
     /**
      * Guest: verify the OTP code.
+     * If there's a pending checkout, automatically create the order after verification.
      */
     public function verifyOtp(Request $request): RedirectResponse
     {
@@ -113,6 +121,13 @@ class CheckoutController extends Controller
 
         session(['guest_checkout_email' => $email]);
 
+        // If there's a pending checkout, complete the order
+        $pending = session('guest_checkout_pending');
+        if ($pending && strtolower($pending['email']) === $email) {
+            return $this->createOrder($pending, null, $pending['name'], $email, true);
+        }
+
+        // Fallback: redirect to checkout form
         return redirect()->route('shop.checkout.show')
             ->with('success', 'Email verified! Please complete your order.');
     }
@@ -159,7 +174,8 @@ class CheckoutController extends Controller
             ->values();
         $coupon = $this->cart->coupon();
         $customer = Auth::user();
-        $guestEmail = session('guest_checkout_email');
+        $pending = session('guest_checkout_pending');
+        $guestEmail = session('guest_checkout_email') ?? $pending['email'] ?? null;
 
         return view('shop.checkout.show', [
             'items'             => $this->cart->items(),
@@ -168,6 +184,7 @@ class CheckoutController extends Controller
             'coupon_discount'   => $coupon ? $this->cart->couponDiscount() : 0.0,
             'customer'          => $customer,
             'guestEmail'        => $guestEmail,
+            'pendingData'       => $pending,
             'pickupStations'    => $pickupStations,
             'deliveryLocations' => $deliveryLocations,
             'deliveryCharges'   => $activeCharges,
@@ -205,19 +222,58 @@ class CheckoutController extends Controller
 
         $data = $request->validate($rules);
 
-        $customer = Auth::user();
-        $customerId = null;
-        $guestName = null;
-        $guestEmail = null;
+        // Guest: verify email before creating order
+        if ($isGuest) {
+            $email = strtolower(trim($data['email']));
 
-        if ($customer) {
+            if (! $this->otpService->isVerified($email)) {
+                // Store validated form data in session (no sensitive payment data)
+                session(['guest_checkout_pending' => [
+                    'name'                  => $data['name'],
+                    'email'                 => $email,
+                    'phone'                 => $data['phone'],
+                    'delivery_method'       => $data['delivery_method'],
+                    'address'               => $data['address'] ?? null,
+                    'delivery_location_id'  => $data['delivery_location_id'] ?? null,
+                    'pickup_station_id'     => $data['pickup_station_id'] ?? null,
+                    'note'                  => $data['note'] ?? null,
+                    'payment_method'        => $data['payment_method'],
+                ]]);
+                session(['guest_checkout_email' => $email]);
+
+                $sent = $this->otpService->sendOtp($email);
+                if (! $sent) {
+                    return redirect()->route('shop.checkout.verify-otp')
+                        ->with('email', $email)
+                        ->with('error', 'Please wait a moment before requesting another code.');
+                }
+
+                return redirect()->route('shop.checkout.verify-otp')
+                    ->with('email', $email)
+                    ->with('info', 'We need to verify your email before placing your order. A 6-digit code has been sent to ' . $email);
+            }
+
+            $guestEmail = $email;
+            $guestName = $data['name'];
+            $customer = null;
+            $customerId = null;
+        } else {
+            $customer = Auth::user();
             $customer->fill(['phone' => $data['phone']])->save();
             $customerId = $customer->id;
-        } else {
-            $guestName = $data['name'];
-            $guestEmail = $data['email'];
+            $guestName = null;
+            $guestEmail = null;
         }
 
+        return $this->createOrder($data, $customerId, $guestName, $guestEmail, $isGuest);
+    }
+
+    /**
+     * Create the order from validated data.
+     * Called from place() (when email verified) and verifyOtp() (after OTP success).
+     */
+    private function createOrder(array $data, ?int $customerId, ?string $guestName, ?string $guestEmail, bool $isGuest): RedirectResponse
+    {
         $items = $this->cart->items()->map(fn ($l) => [
             'product_id'           => $l->product->id,
             'product_variant_id'   => $l->variant->id,
@@ -255,7 +311,6 @@ class CheckoutController extends Controller
             }
         }
 
-        // Pay Now → pending payment. Pay on Delivery → pending confirmation.
         $orderStatus = $data['payment_method'] === 'pay_now'
             ? 'pending payment'
             : 'pending confirmation';
@@ -282,6 +337,8 @@ class CheckoutController extends Controller
                 'items'                 => $items,
             ]);
 
+            // Clear pending checkout data and cart after successful order creation
+            session()->forget('guest_checkout_pending');
             $this->cart->clear();
         } catch (\Throwable $e) {
             return redirect()
@@ -294,13 +351,11 @@ class CheckoutController extends Controller
         if ($data['payment_method'] === 'pay_now') {
             if ($isGuest) {
                 return redirect()->route('shop.order.confirmation', ['token' => $order->lookup_token])
-                    ->with('success', 'Order placed! Order Number: ' . $order->reference)
-                    ->with('show_pay_now', true);
+                    ->with('success', 'Order placed! Order Number: ' . $order->reference);
             }
 
             return redirect()->route('shop.account.orders.show', $order)
-                ->with('success', 'Order placed! Order Number: ' . $order->reference)
-                ->with('show_pay_now', true);
+                ->with('success', 'Order placed! Order Number: ' . $order->reference);
         }
 
         // Pay on Delivery → order pending confirmation, no payment needed now
