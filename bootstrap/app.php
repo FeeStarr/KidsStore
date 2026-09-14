@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('returns:check-sla')->dailyAt('08:00');
         $schedule->command('deals:sync-status')->everyFiveMinutes();
         $schedule->command('custom-quotes:check-expiry')->daily();
+        $schedule->command('refunds:check-status')->hourly();
         $schedule->command('app:backup --db-only')->dailyAt('03:30')->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {

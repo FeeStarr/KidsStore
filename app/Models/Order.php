@@ -5,9 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Services\Contracts\InventoryServiceInterface;
-use App\Services\DealService;
-use App\Services\CouponService;
+
 class Order extends Model
 {
     // Order Status Constants
@@ -110,52 +108,7 @@ class Order extends Model
                 $order->{$column} = now();
             }
         });
-
-        // Self-healing: cancel/expire stale pending-payment orders once per hour.
-        // On shared hosting without a system cron, the Laravel scheduler never
-        // runs. This ensures unpaid Pay Now orders past their 24h window are
-        // cleaned up on the next page visit. Pending-payment = cancelled to
-        // match business rule "pay now not paid → cancelled after 24h".
-        static::retrieved(function (Order $order) {
-            if (static::$expireRan) {
-                return;
-            }
-            static::$expireRan = true;
-
-            try {
-                $cutoff = now()->subHours(24);
-                $stale = static::where('status', self::STATUS_PENDING_PAYMENT)
-                    ->where('created_at', '<=', $cutoff)
-                    ->where('payment_status', '!=', 'paid')
-                    ->get();
-
-                foreach ($stale as $o) {
-                    $o->update(['status' => self::STATUS_CANCELLED]);
-                    try {
-                        app(InventoryServiceInterface::class)->reverseMovementsFor(static::class, $o->id, 'Order cancelled - unpaid 24h window');
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::error('Stale order inventory reversal failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
-                    }
-                    try {
-                        foreach ($o->items()->whereNotNull('deal_id')->pluck('deal_id')->unique() as $dealId) {
-                            app(DealService::class)->releaseUsage((int) $dealId);
-                        }
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::error('Stale order deal release failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
-                    }
-                    try {
-                        app(CouponService::class)->releaseForOrder($o);
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::error('Stale order coupon release failed', ['error' => $e->getMessage(), 'order_id' => $o->id]);
-                    }
-                }
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Stale order cleanup failed', ['error' => $e->getMessage()]);
-            }
-        });
     }
-
-    private static bool $expireRan = false;
 
     public function pickupStation(): BelongsTo
     {

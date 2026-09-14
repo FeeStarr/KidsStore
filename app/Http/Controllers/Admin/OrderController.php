@@ -157,6 +157,12 @@ class OrderController extends Controller
     {
         $this->orders->recordPayment($order, (float) $order->grand_total);
 
+        // Confirm the order if it was pending payment
+        $order->refresh();
+        if ($order->status === 'pending payment') {
+            app(\App\Services\OrderService::class)->confirm($order);
+        }
+
         return back()->with('success', 'Order marked as paid.');
     }
 
@@ -217,9 +223,8 @@ class OrderController extends Controller
             $txn->update(['status' => 'success']);
         }
 
-        $paid = (float) $order->amount_paid + (float) $order->grand_total;
+        // amount_paid was already set by the webhook/payment flow; just mark as paid
         $order->update([
-            'amount_paid'    => $paid,
             'payment_status' => 'paid',
         ]);
 

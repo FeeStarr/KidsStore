@@ -327,11 +327,25 @@ class CheckoutController extends Controller
             return redirect()->route('shop.account.orders.show', $order);
         }
 
-        $showPayNow = session('show_pay_now') ?? false;
+        // Compute display state without mutating DB
+        $isPendingPayment = $order->status === Order::STATUS_PENDING_PAYMENT;
+        $isWithinPaymentWindow = $isPendingPayment && $order->created_at->diffInHours(now()) < 24;
+        $isExpired = $isPendingPayment && $order->created_at->diffInHours(now()) >= 24;
+        $isPaidOrConfirmed = in_array($order->payment_status, ['paid', 'refunded'])
+            || in_array($order->status, ['confirmed', 'processing', 'shipped', 'delivered']);
+
+        // Show Pay Now only if: session flag set AND within payment window AND not already paid
+        $showPayNow = (session('show_pay_now') ?? false)
+            && $isWithinPaymentWindow
+            && $order->payment_status !== 'paid'
+            && $order->payment_status !== 'refunded';
 
         return view('shop.checkout.confirmation', [
-            'order'       => $order,
-            'showPayNow'  => $showPayNow,
+            'order'              => $order,
+            'showPayNow'         => $showPayNow,
+            'isExpired'          => $isExpired,
+            'isWithinPaymentWindow' => $isWithinPaymentWindow,
+            'isPaidOrConfirmed'  => $isPaidOrConfirmed,
         ]);
     }
 
