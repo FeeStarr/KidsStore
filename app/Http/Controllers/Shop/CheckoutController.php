@@ -384,22 +384,17 @@ class CheckoutController extends Controller
 
         // Compute display state without mutating DB
         $isPendingPayment = $order->status === Order::STATUS_PENDING_PAYMENT;
-        $isWithinPaymentWindow = $isPendingPayment && $order->created_at->diffInHours(now()) < 24;
         $isExpired = $isPendingPayment && $order->created_at->diffInHours(now()) >= 24;
         $isPaidOrConfirmed = in_array($order->payment_status, ['paid', 'refunded'])
             || in_array($order->status, ['confirmed', 'processing', 'shipped', 'delivered']);
 
-        // Show Pay Now only if: session flag set AND within payment window AND not already paid
-        $showPayNow = (session('show_pay_now') ?? false)
-            && $isWithinPaymentWindow
-            && $order->payment_status !== 'paid'
-            && $order->payment_status !== 'refunded';
+        // Show Pay Now only if order is eligible (same rule as server-side endpoints)
+        $showPayNow = $order->isPayNowEligible();
 
         return view('shop.checkout.confirmation', [
             'order'              => $order,
             'showPayNow'         => $showPayNow,
             'isExpired'          => $isExpired,
-            'isWithinPaymentWindow' => $isWithinPaymentWindow,
             'isPaidOrConfirmed'  => $isPaidOrConfirmed,
         ]);
     }
@@ -546,7 +541,7 @@ class CheckoutController extends Controller
 
         // Authenticated owner bypass
         if (Auth::check() && (int) $order->customer_id === (int) Auth::id()) {
-            return view('shop.checkout.track', ['order' => $order->load(['items.product', 'items.variant', 'pickupStation'])]);
+            return view('shop.checkout.track', ['order' => $order->load(['items.product.primaryImage', 'items.variant', 'pickupStation'])]);
         }
 
         if (! $this->isTrackVerified($token)) {
@@ -559,7 +554,7 @@ class CheckoutController extends Controller
                 ->with('error', 'Please verify your email to view this order.');
         }
 
-        return view('shop.checkout.track', ['order' => $order->load(['items.product', 'items.variant', 'pickupStation'])]);
+        return view('shop.checkout.track', ['order' => $order->load(['items.product.primaryImage', 'items.variant', 'pickupStation'])]);
     }
 
     private function isTrackVerified(string $token): bool

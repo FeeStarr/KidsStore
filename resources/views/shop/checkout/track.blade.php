@@ -20,7 +20,7 @@
             <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
-        @if($order->payment_status !== 'paid' && $order->payment_status !== 'refunded' && in_array($order->status, ['pending payment', 'confirmed']) && !in_array($order->status, ['cancelled', 'expired']))
+        @if($order->isPayNowEligible() || $order->payment_status === 'under_review' || session('verifying_payment'))
         <div class="card border-primary mb-4" id="pay-now-panel">
             <div class="card-body text-center py-4">
                 @if($order->payment_status === 'under_review')
@@ -118,10 +118,15 @@
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white"><strong>Order Items</strong></div>
             <div class="card-body p-0">
-                <table class="table mb-0">
+                <table class="table mb-0 align-middle">
                     <tbody>
                         @foreach($order->items as $item)
                             <tr>
+                                <td style="width:60px">
+                                    @if($item->product?->primaryImage)
+                                        <img src="{{ $item->product->primaryImage->url }}" style="width:50px;height:50px;object-fit:cover;border-radius:.35rem" loading="lazy" decoding="async" alt="{{ $item->product->name }}">
+                                    @endif
+                                </td>
                                 <td>
                                     {{ $item->product->name }}
                                     @if($item->variant)
@@ -134,14 +139,14 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr><td colspan="2" class="text-end fw-bold">Subtotal</td><td class="text-end">&#8358;{{ number_format($order->subtotal, 2) }}</td></tr>
+                        <tr><td colspan="3" class="text-end fw-bold">Subtotal</td><td class="text-end">&#8358;{{ number_format($order->subtotal, 2) }}</td></tr>
                         @if($order->discount > 0)
-                            <tr><td colspan="2" class="text-end text-success">Discount</td><td class="text-end text-success">-&#8358;{{ number_format($order->discount, 2) }}</td></tr>
+                            <tr><td colspan="3" class="text-end text-success">Discount</td><td class="text-end text-success">-&#8358;{{ number_format($order->discount, 2) }}</td></tr>
                         @endif
                         @if($order->shipping_fee > 0)
-                            <tr><td colspan="2" class="text-end">Shipping</td><td class="text-end">&#8358;{{ number_format($order->shipping_fee, 2) }}</td></tr>
+                            <tr><td colspan="3" class="text-end">Shipping</td><td class="text-end">&#8358;{{ number_format($order->shipping_fee, 2) }}</td></tr>
                         @endif
-                        <tr><td colspan="2" class="text-end fw-bold">Total</td><td class="text-end fw-bold">&#8358;{{ number_format($order->grand_total, 2) }}</td></tr>
+                        <tr><td colspan="3" class="text-end fw-bold">Total</td><td class="text-end fw-bold">&#8358;{{ number_format($order->grand_total, 2) }}</td></tr>
                     </tfoot>
                 </table>
             </div>

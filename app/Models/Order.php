@@ -171,6 +171,37 @@ class Order extends Model
         return $this->payment_status === 'verification_pending';
     }
 
+    /**
+     * Whether this order can accept a Pay Now (Paystack) payment.
+     *
+     * Central business rule used by:
+     *  - PaystackController::initiate() and guestInitiate()
+     *  - CheckoutController::confirmation()
+     *  - Blade views (order-show, track, confirmation)
+     *
+     * Rules:
+     *  1. payment_method must be 'pay_now'
+     *  2. payment_status must be 'unpaid' or 'partial' (not already paid/refunded/under_review/etc.)
+     *  3. order status must be 'pending payment' (not cancelled, expired, confirmed, etc.)
+     *  4. Must be within 24 hours of order creation
+     */
+    public function isPayNowEligible(): bool
+    {
+        if ($this->payment_method !== 'pay_now') {
+            return false;
+        }
+
+        if (! in_array($this->payment_status, ['unpaid', 'partial'], true)) {
+            return false;
+        }
+
+        if ($this->status !== self::STATUS_PENDING_PAYMENT) {
+            return false;
+        }
+
+        return $this->created_at->diffInHours(now()) < 24;
+    }
+
     public function getBalanceAttribute(): float
     {
         return (float) $this->total_amount - (float) $this->amount_paid;
