@@ -59,8 +59,17 @@ class PaymentVerificationService
                 'reviewed_at' => now(),
             ]);
 
-            $order->update(['payment_status' => 'paid']);
+            $order->update([
+                'amount_paid'    => $order->grand_total,
+                'payment_status' => 'paid',
+            ]);
         });
+
+        // Confirm the order if it was pending payment
+        $order->refresh();
+        if ($order->status === 'pending payment') {
+            app(\App\Services\OrderService::class)->confirm($order);
+        }
     }
 
     /**
