@@ -209,7 +209,11 @@
         @if(!Auth::check())
             <div class="card border-0 shadow-sm bg-light">
                 <div class="card-body text-center">
-                    <p class="mb-2 fw-semibold">Want to track all your orders in one place?</p>
+                    <p class="mb-1 fw-semibold"><i class="bi bi-geo-alt me-1"></i>Track Your Order Anytime</p>
+                    <p class="text-muted small mb-2">
+                        Go to <strong>kidsflairr.com.ng/order-lookup</strong> with your order number
+                        <strong class="text-dark">{{ $order->reference }}</strong> and email.
+                    </p>
                     <a href="{{ route('shop.register') }}" class="btn btn-primary btn-sm" style="border-radius:50px;">Create an Account</a>
                     <span class="text-muted mx-2">or</span>
                     <a href="{{ route('shop.login') }}" class="btn btn-outline-secondary btn-sm" style="border-radius:50px;">Log In</a>

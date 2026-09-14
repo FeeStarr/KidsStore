@@ -316,7 +316,10 @@ class Order extends Model
         $latest = $estimates['latest'];
 
         if ($earliest->format('M Y') === $latest->format('M Y')) {
-            return $earliest->format('M d, Y g:i A') . '–' . $latest->format('d, Y g:i A');
+            if ($earliest->format('d') === $latest->format('d')) {
+                return $earliest->format('M d, Y g:i A');
+            }
+            return $earliest->format('M d') . '–' . $latest->format('d, Y g:i A');
         }
         return $earliest->format('M d, Y g:i A') . ' – ' . $latest->format('M d, Y g:i A');
     }
