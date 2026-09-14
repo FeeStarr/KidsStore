@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -243,6 +244,8 @@ class PaystackController extends Controller
                 $transaction = $this->paystack->queryStatus($transaction);
                 $order->refresh();
 
+                $this->markTrackVerified($token);
+
                 if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
                     return redirect()->route('shop.order.track', $token)
                         ->with('success', 'Payment confirmed. Thank you!');
@@ -256,6 +259,9 @@ class PaystackController extends Controller
         }
 
         $order->refresh();
+
+        $this->markTrackVerified($token);
+
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
             return redirect()->route('shop.order.track', $token)
                 ->with('success', 'Payment confirmed. Thank you!');
@@ -357,5 +363,15 @@ class PaystackController extends Controller
 
         // Always return 200 - Paystack will retry on non-2xx
         return response('OK', 200);
+    }
+
+    /**
+     * Mark a guest track session as verified so the track page renders
+     * without requiring OTP re-verification.
+     */
+    private function markTrackVerified(string $token): void
+    {
+        session(['track_verified_' . $token => true]);
+        Cache::put('track_verified_' . $token, true, 900);
     }
 }
