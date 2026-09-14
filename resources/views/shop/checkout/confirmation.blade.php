@@ -112,16 +112,24 @@
                 </a>
             </div>
 
-        {{-- PENDING PAYMENT - WITHIN 24H WINDOW --}}
+        {{-- PENDING STATE --}}
         @else
             <div class="text-center mb-4">
                 <div class="mb-3">
-                    <i class="bi bi-hourglass-split text-warning" style="font-size:3rem;"></i>
+                    @if($order->payment_method === 'pay_now')
+                        <i class="bi bi-hourglass-split text-warning" style="font-size:3rem;"></i>
+                    @else
+                        <i class="bi bi-check-circle text-info" style="font-size:3rem;"></i>
+                    @endif
                 </div>
                 <h3 class="mb-2">Order Placed!</h3>
                 <p class="text-muted">
                     Your order number is <strong class="text-dark">{{ $order->reference }}</strong>.
-                    Complete your payment within 24 hours to confirm your order.
+                    @if($order->payment_method === 'pay_now')
+                        Click Pay Now below to confirm your order.
+                    @else
+                        We'll review and confirm your order shortly. You'll pay when your order is delivered.
+                    @endif
                 </p>
             </div>
 

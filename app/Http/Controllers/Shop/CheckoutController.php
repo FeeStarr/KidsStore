@@ -176,6 +176,7 @@ class CheckoutController extends Controller
         $customer = Auth::user();
         $pending = session('guest_checkout_pending');
         $guestEmail = session('guest_checkout_email') ?? $pending['email'] ?? null;
+        $isEmailVerified = $guestEmail ? $this->otpService->isVerified($guestEmail) : false;
 
         return view('shop.checkout.show', [
             'items'             => $this->cart->items(),
@@ -184,6 +185,7 @@ class CheckoutController extends Controller
             'coupon_discount'   => $coupon ? $this->cart->couponDiscount() : 0.0,
             'customer'          => $customer,
             'guestEmail'        => $guestEmail,
+            'isEmailVerified'   => $isEmailVerified,
             'pendingData'       => $pending,
             'pickupStations'    => $pickupStations,
             'deliveryLocations' => $deliveryLocations,
