@@ -176,7 +176,14 @@ class CheckoutController extends Controller
         $customer = Auth::user();
         $pending = session('guest_checkout_pending');
         $guestEmail = session('guest_checkout_email') ?? $pending['email'] ?? null;
-        $isEmailVerified = $guestEmail ? $this->otpService->isVerified($guestEmail) : false;
+        $isEmailVerified = false;
+        if ($guestEmail) {
+            try {
+                $isEmailVerified = $this->otpService->isVerified($guestEmail);
+            } catch (\Throwable) {
+                // guest_otps table may not exist yet on production
+            }
+        }
 
         return view('shop.checkout.show', [
             'items'             => $this->cart->items(),

@@ -36,8 +36,8 @@ class SendOrderPlacedNotifications
             }
         } elseif ($order->guest_email) {
             try {
-                \Illuminate\Support\Facades\Mail::to($order->guest_email)
-                    ->send(new OrderPlacedNotification($order));
+                \Illuminate\Support\Facades\Notification::route('mail', $order->guest_email)
+                    ->notify(new OrderPlacedNotification($order));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('OrderPlaced notification to guest failed', [
                     'error' => $e->getMessage(),
