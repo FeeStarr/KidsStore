@@ -154,7 +154,7 @@
             </div>
 
             {{-- Pay Now panel --}}
-            @if($showPayNow)
+            @if($showPayNow || $order->payment_status === 'under_review' || session('verifying_payment'))
                 @if($order->payment_status === 'under_review')
                     <div class="card border-primary mb-4" id="pay-now-panel">
                         <div class="card-body text-center py-4">

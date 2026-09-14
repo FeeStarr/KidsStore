@@ -29,8 +29,7 @@ class PaystackController extends Controller
     public function initiate(Request $request, Order $order): JsonResponse|RedirectResponse
     {
         abort_unless((int) $order->customer_id === (int) Auth::id(), 403);
-        abort_if($order->payment_status === 'paid', 400, 'This order is already paid.');
-        abort_if($order->status === 'cancelled', 400, 'Cannot pay a cancelled order.');
+        abort_unless($order->isPayNowEligible(), 400, 'This order is not eligible for payment.');
 
         try {
             $transaction = $this->paystack->initiate($order);
@@ -191,8 +190,7 @@ class PaystackController extends Controller
     public function guestInitiate(Request $request, string $token): JsonResponse|RedirectResponse
     {
         $order = Order::where('lookup_token', $token)->firstOrFail();
-        abort_if($order->payment_status === 'paid', 400, 'This order is already paid.');
-        abort_if($order->status === 'cancelled', 400, 'Cannot pay a cancelled order.');
+        abort_unless($order->isPayNowEligible(), 400, 'This order is not eligible for payment.');
 
         try {
             $transaction = $this->paystack->initiate($order);
