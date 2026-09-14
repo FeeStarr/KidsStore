@@ -28,9 +28,25 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Email <span class="text-danger">*</span></label>
-                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
-                           value="{{ old('email', $guestEmail ?? '') }}" required>
-                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    @if($isEmailVerified && !old('email'))
+                        <input type="email" class="form-control" value="{{ $guestEmail }}" disabled id="email-display">
+                        <input type="hidden" name="email" value="{{ $guestEmail }}" id="email-hidden">
+                        <small class="text-muted">Verified. <a href="#" id="change-email-link" class="text-decoration-underline">Use a different email?</a></small>
+                        <script>
+                            document.getElementById('change-email-link')?.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                var display = document.getElementById('email-display');
+                                var hidden = document.getElementById('email-hidden');
+                                var wrapper = display.parentElement;
+                                wrapper.innerHTML = '<input type="email" name="email" class="form-control @error(\'email\') is-invalid @enderror" value="{{ $guestEmail }}" required id="email-input">' +
+                                    '@error(\'email\')<div class="invalid-feedback">{{ $message }}</div>@enderror';
+                            });
+                        </script>
+                    @else
+                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                               value="{{ old('email', $guestEmail ?? '') }}" required>
+                        @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    @endif
                 </div>
             @endif
             <div class="mb-3">
