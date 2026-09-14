@@ -32,7 +32,7 @@ class OrderPlacedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $order = $this->order;
-        $isInternal = $notifiable->isAdmin() || $notifiable->isStaff();
+        $isInternal = method_exists($notifiable, 'isAdmin') && ($notifiable->isAdmin() || $notifiable->isStaff());
 
         $subject = $isInternal
             ? "New Order Placed - {$order->reference}"

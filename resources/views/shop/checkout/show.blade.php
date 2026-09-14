@@ -38,8 +38,7 @@
                                 var display = document.getElementById('email-display');
                                 var hidden = document.getElementById('email-hidden');
                                 var wrapper = display.parentElement;
-                                wrapper.innerHTML = '<input type="email" name="email" class="form-control @error(\'email\') is-invalid @enderror" value="{{ $guestEmail }}" required id="email-input">' +
-                                    '@error(\'email\')<div class="invalid-feedback">{{ $message }}</div>@enderror';
+                                wrapper.innerHTML = '<input type="email" name="email" class="form-control" value="{{ $guestEmail }}" required id="email-input">';
                             });
                         </script>
                     @else

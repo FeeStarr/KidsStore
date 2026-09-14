@@ -155,7 +155,7 @@
             <a href="{{ route('shop.checkout.show') }}" class="btn btn-primary">Checkout <i class="bi bi-arrow-right"></i></a>
         @else
             <a href="{{ route('shop.checkout.show') }}" class="btn btn-primary">Checkout <i class="bi bi-arrow-right"></i></a>
-            <div class="w-100 text-center mt-1"><small class="text-muted">No account needed - track with your email</small></div>
+            <div class="w-100 text-center mt-1"><small class="text-muted">No account needed - track with your email and order number</small></div>
         @endauth
     </div>
 </div>
