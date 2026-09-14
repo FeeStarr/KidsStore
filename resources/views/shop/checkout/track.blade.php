@@ -68,21 +68,59 @@
                         @php
                             $statusColors = [
                                 'pending' => 'warning',
+                                'pending confirmation' => 'warning',
+                                'pending payment' => 'warning',
                                 'confirmed' => 'info',
                                 'processing' => 'primary',
                                 'shipped' => 'primary',
                                 'shipping to station' => 'primary',
+                                'out for delivery' => 'info',
                                 'ready for pick up' => 'success',
                                 'delivered' => 'success',
                                 'cancelled' => 'danger',
+                                'expired' => 'danger',
+                            ];
+                            $statusLabels = [
+                                'pending confirmation' => 'Pending Confirmation',
+                                'pending payment' => 'Awaiting Payment',
+                                'confirmed' => 'Confirmed',
+                                'processing' => 'Processing',
+                                'shipping to station' => 'On Its Way',
+                                'out for delivery' => 'Out for Delivery',
+                                'ready for pick up' => 'Ready for Pickup',
+                                'delivered' => 'Delivered',
+                                'cancelled' => 'Cancelled',
+                                'expired' => 'Expired',
                             ];
                             $color = $statusColors[$order->status] ?? 'secondary';
+                            $label = $statusLabels[$order->status] ?? str()->title($order->status);
                         @endphp
-                        <span class="badge bg-{{ $color }} fs-6 text-capitalize">{{ $order->status }}</span>
+                        <span class="badge bg-{{ $color }} fs-6">{{ $label }}</span>
                     </div>
                     <div class="col-sm-6 mb-3">
                         <strong>Payment Status</strong><br>
-                        <span class="text-capitalize">{{ $order->payment_status }}</span>
+                        @if($order->payment_method === 'pay_on_delivery' && $order->payment_status === 'unpaid')
+                            <span class="badge bg-info text-dark"><i class="bi bi-cash me-1"></i>Pay at Door</span>
+                            <span class="badge bg-warning text-dark ms-1">Unpaid</span>
+                        @elseif($order->payment_status === 'unpaid')
+                            <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Awaiting Payment</span>
+                        @elseif($order->payment_status === 'paid')
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid</span>
+                        @elseif($order->payment_status === 'under_review')
+                            <span class="badge bg-info text-dark"><i class="bi bi-hourglass-split me-1"></i>Under Review</span>
+                        @elseif($order->payment_status === 'refunded')
+                            <span class="badge bg-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Refunded</span>
+                        @else
+                            <span class="text-capitalize">{{ $order->payment_status }}</span>
+                        @endif
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <strong>Payment Method</strong><br>
+                        @if($order->payment_method === 'pay_on_delivery')
+                            <i class="bi bi-cash me-1 text-muted"></i>Pay on Delivery
+                        @else
+                            <i class="bi bi-shield-lock me-1 text-muted"></i>Paystack (Pay Now)
+                        @endif
                     </div>
                     <div class="col-sm-6 mb-3">
                         <strong>Order Date</strong><br>
@@ -114,6 +152,25 @@
                 </div>
             </div>
         </div>
+
+        @if($order->delivery_window !== 'N/A' && !in_array($order->status, ['cancelled', 'expired']))
+            <div class="alert alert-light border mb-4 d-flex align-items-center">
+                <i class="bi bi-calendar-event text-primary fs-4 me-3"></i>
+                <div>
+                    <strong>Estimated Delivery</strong><br>
+                    <span class="text-muted">{{ $order->delivery_window }}</span>
+                </div>
+            </div>
+        @endif
+
+        @if($order->payment_method === 'pay_on_delivery' && $order->payment_status === 'unpaid' && !in_array($order->status, ['cancelled', 'expired', 'delivered']))
+            <div class="alert alert-info d-flex align-items-center mb-4">
+                <i class="bi bi-cash-stack fs-4 me-3"></i>
+                <div>
+                    <strong>Pay at Door</strong> - Please have <strong>&#8358;{{ number_format($order->grand_total, 2) }}</strong> ready for payment when your order arrives.
+                </div>
+            </div>
+        @endif
 
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white"><strong>Order Items</strong></div>
