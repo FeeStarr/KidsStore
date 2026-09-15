@@ -187,19 +187,24 @@ class Order extends Model
      */
     public function isPayNowEligible(): bool
     {
-        if ($this->payment_method !== 'pay_now') {
-            return false;
-        }
-
         if (! in_array($this->payment_status, ['unpaid', 'partial'], true)) {
             return false;
         }
 
-        if ($this->status !== self::STATUS_PENDING_PAYMENT) {
-            return false;
+        // Pay Now orders - within 24h of creation
+        if ($this->payment_method === 'pay_now') {
+            if ($this->status !== self::STATUS_PENDING_PAYMENT) {
+                return false;
+            }
+            return $this->created_at->diffInHours(now()) < 24;
         }
 
-        return $this->created_at->diffInHours(now()) < 24;
+        // Pay on Delivery orders - out for delivery or ready for pickup
+        if ($this->payment_method === 'pay_on_delivery') {
+            return in_array($this->status, ['out for delivery', 'ready for pick up'], true);
+        }
+
+        return false;
     }
 
     public function getBalanceAttribute(): float

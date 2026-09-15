@@ -153,6 +153,23 @@
         </td>
     </tr>
 
+    @if($order->payment_method === 'pay_on_delivery' && $order->payment_status !== 'paid')
+    {{-- Payment on Delivery Instructions --}}
+    <tr>
+        <td style="padding:16px 30px 0;">
+            <div style="background-color:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:14px 18px;">
+                <p style="margin:0;font-size:14px;color:#92400e;">
+                    <strong>Payment of &#8358;{{ number_format($order->grand_total, 2) }} is due on delivery.</strong>
+                </p>
+                <p style="margin:8px 0 0;font-size:13px;color:#92400e;">
+                    When your order arrives, please complete your payment via your order details page.
+                    <a href="{{ route('shop.order.track', $order->lookup_token) }}" style="color:#2563eb;">Open Order Details</a>
+                </p>
+            </div>
+        </td>
+    </tr>
+    @endif
+
     {{-- CTA --}}
     <tr>
         <td style="padding:24px 30px 0;text-align:center;">
