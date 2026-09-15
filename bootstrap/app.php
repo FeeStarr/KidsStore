@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.admin'   => \App\Http\Middleware\AuthenticateAdmin::class,
             'auth.portal'  => \App\Http\Middleware\AuthenticatePickupPortal::class,
+            'auth.delivery'=> \App\Http\Middleware\AuthenticateDeliveryAgent::class,
             'role:customer' => \App\Http\Middleware\EnsureCustomerRole::class,
             'role:admin' => \App\Http\Middleware\EnsureAdminRole::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,

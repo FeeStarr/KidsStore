@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
 use App\Http\Requests\PaymentRequest;
+use App\Models\AuditLog;
+use App\Models\DeliveryAgent;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Product;
@@ -13,6 +15,7 @@ use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
@@ -297,5 +300,87 @@ class OrderController extends Controller
         }
 
         return back()->with('success', 'Order status updated to ' . ucfirst($newStatus) . '.');
+    }
+
+    public function approveDelivery(Order $order): RedirectResponse
+    {
+        abort_unless($order->delivery_method === 'delivery', 400);
+        abort_unless($order->delivery_agent_id, 400);
+        abort_unless(in_array($order->delivery_status, [null, 'pending']), 400);
+
+        $order->update([
+            'delivery_status'      => 'assigned',
+            'delivery_released_at' => now(),
+        ]);
+
+        AuditLog::create([
+            'user_id'        => Auth::id(),
+            'action'         => 'delivery.approved',
+            'auditable_type' => Order::class,
+            'auditable_id'   => $order->id,
+            'meta'           => json_encode(['delivery_agent_id' => $order->delivery_agent_id]),
+            'ip'             => request()->ip(),
+        ]);
+
+        return back()->with('success', "Delivery for {$order->reference} released to agent.");
+    }
+
+    public function reassignAgent(Request $request, Order $order): RedirectResponse
+    {
+        $status = $order->delivery_status;
+        $isRerelease = ($status === 'failed');
+        $isReassign  = in_array($status, [null, 'pending', 'assigned']);
+
+        abort_unless($isRerelease || $isReassign, 400, 'Cannot reassign at this stage.');
+
+        $rules = [
+            'delivery_agent_id' => ['required', 'exists:delivery_agents,id'],
+        ];
+
+        // Reason required for assigned reassignment and failed re-release
+        // Optional for pending (never released)
+        if ($status === 'assigned' || $status === 'failed') {
+            $rules['reason'] = ['required', 'string', 'max:500'];
+        } else {
+            $rules['reason'] = ['nullable', 'string', 'max:500'];
+        }
+
+        $data = $request->validate($rules);
+
+        $newAgent = DeliveryAgent::findOrFail($data['delivery_agent_id']);
+        abort_unless($newAgent->is_active, 400, 'Selected agent is not active.');
+
+        $previousAgentId = $order->delivery_agent_id;
+
+        $updates = ['delivery_agent_id' => $newAgent->id];
+
+        if ($status === 'failed') {
+            $updates['delivery_status'] = 'pending';
+            $updates['delivery_released_at'] = null;
+            $updates['delivery_issue_reason'] = null;
+            $updates['delivery_issue_notes'] = null;
+        } elseif ($status === 'assigned') {
+            $updates['delivery_status'] = 'pending';
+            $updates['delivery_released_at'] = null;
+        }
+
+        $order->update($updates);
+
+        AuditLog::create([
+            'user_id'        => Auth::id(),
+            'action'         => $isRerelease ? 'delivery.re_released' : 'delivery.reassigned',
+            'auditable_type' => Order::class,
+            'auditable_id'   => $order->id,
+            'meta'           => json_encode([
+                'previous_agent_id' => $previousAgentId,
+                'new_agent_id'      => $newAgent->id,
+                'reason'            => $data['reason'] ?? null,
+                'was'               => $status,
+            ]),
+            'ip'             => request()->ip(),
+        ]);
+
+        $label = $isRerelease ? 're-released' : 'reassigned';
+        return back()->with('success', "Order {$order->reference} {$label} to {$newAgent->name}.");
     }
 }

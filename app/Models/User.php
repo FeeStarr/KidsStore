@@ -62,6 +62,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'staff_type',
         'vendor_id',
         'is_active',
+        'must_change_password',
         'two_factor_enabled',
         'two_factor_backup_code',
         'two_factor_code',
@@ -91,6 +92,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at'     => 'datetime',
             'two_factor_expires_at' => 'datetime',
             'two_factor_enabled'    => 'boolean',
+            'must_change_password'  => 'boolean',
             'password'              => 'hashed',
         ];
     }
@@ -117,6 +119,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function vendor()
     {
         return $this->hasOne(Vendor::class, 'user_id');
+    }
+
+    /**
+     * Get the delivery agent profile (if user is a delivery agent).
+     */
+    public function deliveryAgent()
+    {
+        return $this->hasOne(DeliveryAgent::class);
     }
 
     /**
