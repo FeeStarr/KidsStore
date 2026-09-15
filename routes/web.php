@@ -389,6 +389,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('delivery-locations', DeliveryLocationController::class)->except(['show'])->middleware('permission:manage_settings');
         Route::resource('delivery-charges', DeliveryChargeController::class)->except(['show'])->middleware('permission:manage_settings');
 
+        // Delivery agent approval and reassignment
+        Route::post('orders/{order}/approve-delivery', [OrderController::class, 'approveDelivery'])
+            ->name('orders.approve-delivery')->middleware('permission:manage_orders');
+        Route::post('orders/{order}/reassign-agent', [OrderController::class, 'reassignAgent'])
+            ->name('orders.reassign-agent')->middleware('permission:manage_orders');
+
         Route::get('refunds', [AdminRefundController::class, 'index'])->name('refunds.index')->middleware('permission:manage_orders');
         Route::get('refunds/{refundRequest}', [AdminRefundController::class, 'show'])->name('refunds.show')->middleware('permission:manage_orders');
         Route::post('refunds/{refundRequest}/request-evidence', [AdminRefundController::class, 'requestEvidence'])->name('refunds.request-evidence')->middleware('permission:manage_orders');
@@ -463,5 +469,29 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
         Route::get('/reports/data', [PickupPortalController::class, 'reportsData'])->name('reports.data');
         Route::get('/reports/create', [PickupPortalController::class, 'createReport'])->name('reports.create');
         Route::post('/reports', [PickupPortalController::class, 'storeReport'])->name('reports.store')->middleware('throttle:10,1');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Delivery Agent Portal
+|--------------------------------------------------------------------------
+*/
+Route::prefix('delivery-portal')->name('delivery-portal.')->group(function () {
+    // Public routes (no auth required)
+    Route::get('/', [\App\Http\Controllers\DeliveryPortalController::class, 'showLogin'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\DeliveryPortalController::class, 'login'])->name('login.post');
+    Route::post('/logout', [\App\Http\Controllers\DeliveryPortalController::class, 'logout'])->name('logout');
+
+    // Protected routes — require delivery agent auth
+    Route::middleware('auth.delivery')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\DeliveryPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/deliveries', [\App\Http\Controllers\DeliveryPortalController::class, 'deliveries'])->name('deliveries');
+        Route::get('/deliveries/{order}', [\App\Http\Controllers\DeliveryPortalController::class, 'show'])->name('deliveries.show');
+        Route::post('/deliveries/{order}/received', [\App\Http\Controllers\DeliveryPortalController::class, 'markReceived'])->name('deliveries.received');
+        Route::post('/deliveries/{order}/delivered', [\App\Http\Controllers\DeliveryPortalController::class, 'markDelivered'])->name('deliveries.delivered');
+        Route::post('/deliveries/{order}/issue', [\App\Http\Controllers\DeliveryPortalController::class, 'reportIssue'])->name('deliveries.issue');
+        Route::get('/profile', [\App\Http\Controllers\DeliveryPortalController::class, 'profile'])->name('profile');
+        Route::post('/profile/password', [\App\Http\Controllers\DeliveryPortalController::class, 'updatePassword'])->name('profile.password');
     });
 });

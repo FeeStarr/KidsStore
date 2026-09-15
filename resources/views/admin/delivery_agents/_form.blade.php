@@ -1,5 +1,12 @@
 @php $agent = $agent ?? null; @endphp
 
+@if($agent && $agent->account_number)
+<div class="mb-3">
+    <label class="form-label">Account Number</label>
+    <input type="text" class="form-control" value="{{ $agent->account_number }}" readonly disabled>
+</div>
+@endif
+
 <div class="mb-3">
     <label class="form-label">Agent Name *</label>
     <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
@@ -21,9 +28,10 @@
 </div>
 
 <div class="mb-3 mt-3">
-    <label class="form-label">Email</label>
+    <label class="form-label">Email * <small class="text-muted">(used for portal login)</small></label>
     <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
-           value="{{ old('email', $agent?->email) }}">
+           value="{{ old('email', $agent?->email) }}" required>
+    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
 </div>
 
 <div class="mb-3">

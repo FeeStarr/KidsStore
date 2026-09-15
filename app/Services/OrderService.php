@@ -69,6 +69,9 @@ class OrderService
                 'delivery_agent_id'      => $data['delivery_agent_id'] ?? null,
                 'delivery_location_id'   => $data['delivery_location_id'] ?? null,
                 'delivery_charge_amount' => $data['delivery_charge_amount'] ?? null,
+                'delivery_status'        => (($data['delivery_method'] ?? 'delivery') === 'delivery' && ! empty($data['delivery_agent_id']))
+                    ? 'pending'
+                    : null,
                 'discount'               => (float) ($data['discount'] ?? 0),
                 'shipping_fee'           => (float) ($data['shipping_fee'] ?? 0),
                 'note'                   => $data['note'] ?? null,

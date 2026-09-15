@@ -114,6 +114,88 @@
                     @if($order->delivery_charge_amount !== null && $order->delivery_charge_amount > 0)
                         <small class="text-muted d-block">Charge: &#8358;{{ number_format($order->delivery_charge_amount, 2) }}</small>
                     @endif
+                    @if($order->delivery_status)
+                        <small class="d-block mt-1">
+                            Delivery Status:
+                            <span class="badge bg-{{ match($order->delivery_status) {
+                                'assigned' => 'primary',
+                                'received' => 'warning text-dark',
+                                'delivered' => 'success',
+                                'failed' => 'danger',
+                                'pending' => 'secondary',
+                                default => 'secondary'
+                            } }}">{{ $order->getDeliveryStatusLabel() }}</span>
+                        </small>
+                    @endif
+                    @if($order->delivery_released_at)
+                        <small class="text-muted d-block">Released: {{ $order->delivery_released_at->format('M d, Y g:i A') }}</small>
+                    @endif
+                    @if($order->delivery_received_at)
+                        <small class="text-muted d-block">Received: {{ $order->delivery_received_at->format('M d, Y g:i A') }}</small>
+                    @endif
+                    @if($order->delivery_delivered_at)
+                        <small class="text-muted d-block">Delivered: {{ $order->delivery_delivered_at->format('M d, Y g:i A') }}</small>
+                    @endif
+                    @if($order->delivery_status === 'failed' && $order->delivery_issue_reason)
+                        <small class="text-danger d-block">Issue: {{ str_replace('_', ' ', ucfirst($order->delivery_issue_reason)) }}</small>
+                        @if($order->delivery_issue_notes)
+                            <small class="text-muted d-block">{{ $order->delivery_issue_notes }}</small>
+                        @endif
+                    @endif
+
+                    {{-- Approve Delivery --}}
+                    @if($order->delivery_method === 'delivery' && $order->delivery_agent_id && in_array($order->delivery_status, [null, 'pending']))
+                        <form action="{{ route('admin.orders.approve-delivery', $order) }}" method="post" class="mt-2">
+                            @csrf
+                            <button class="btn btn-sm btn-success">
+                                <i class="bi bi-check-circle me-1"></i>Approve Delivery
+                            </button>
+                        </form>
+                    @endif
+
+                    {{-- Reassign / Re-release Agent --}}
+                    @if(in_array($order->delivery_status, [null, 'pending', 'assigned', 'failed']) && $order->delivery_method === 'delivery')
+                        @php
+                            $isRerelease = ($order->delivery_status === 'failed');
+                            $agents = \App\Models\DeliveryAgent::active()->orderBy('name')->get();
+                        @endphp
+                        @if($agents->isNotEmpty())
+                            <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#reassign-form">
+                                <i class="bi bi-person-check me-1"></i>{{ $isRerelease ? 'Re-release / Reassign' : 'Reassign Agent' }}
+                            </button>
+                            <div class="collapse mt-2" id="reassign-form">
+                                <form method="post" action="{{ route('admin.orders.reassign-agent', $order) }}" class="card card-body bg-light">
+                                    @csrf
+                                    <div class="mb-2">
+                                        <label class="form-label form-label-sm">New Agent *</label>
+                                        <select name="delivery_agent_id" class="form-select form-select-sm" required>
+                                            <option value="">Select agent...</option>
+                                            @foreach($agents as $a)
+                                                <option value="{{ $a->id }}" {{ (int)$a->id === (int)$order->delivery_agent_id ? 'selected' : '' }}>
+                                                    {{ $a->account_number }} - {{ $a->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    @if(in_array($order->delivery_status, ['assigned', 'failed']))
+                                        <div class="mb-2">
+                                            <label class="form-label form-label-sm">Reason *</label>
+                                            <input type="text" name="reason" class="form-control form-control-sm" required
+                                                   placeholder="Why is this being reassigned?">
+                                        </div>
+                                    @else
+                                        <div class="mb-2">
+                                            <label class="form-label form-label-sm">Reason <small class="text-muted">(optional)</small></label>
+                                            <input type="text" name="reason" class="form-control form-control-sm"
+                                                   placeholder="Optional reason...">
+                                        </div>
+                                    @endif
+                                    <button class="btn btn-sm btn-primary">Save</button>
+                                </form>
+                            </div>
+                        @endif
+                    @endif
                 @endif
                 @if($order->courier_name)
                     <small class="d-block mt-1"><i class="bi bi-truck me-1 text-primary"></i><strong>{{ $order->courier_name }}</strong></small>

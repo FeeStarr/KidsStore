@@ -14,10 +14,35 @@
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
+@if(session('temp_credentials'))
+    <div class="modal fade show d-block" id="tempCredsModal" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-key me-1"></i>Temporary Credentials</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">Copy these now. They will not be shown again.</p>
+                <dl class="row mb-0">
+                    <dt class="col-4">Account #</dt>
+                    <dd class="col-8 font-monospace fw-bold">{{ session('temp_credentials.account') }}</dd>
+                    <dt class="col-4">Email</dt>
+                    <dd class="col-8">{{ session('temp_credentials.email') }}</dd>
+                    <dt class="col-4">Password</dt>
+                    <dd class="col-8 font-monospace fw-bold">{{ session('temp_credentials.password') }}</dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('tempCredsModal').remove()">I've copied these</button>
+            </div>
+        </div></div>
+    </div>
+@endif
+
 <div class="card">
     <table class="table table-hover mb-0">
         <thead class="table-light">
             <tr>
+                <th>Account #</th>
                 <th>Name</th>
                 <th>Contact</th>
                 <th>Phone</th>
@@ -30,7 +55,8 @@
         <tbody>
             @forelse($agents as $agent)
                 <tr>
-                    <td class="fw-semibold">{{ $agent->name }}</td>
+                    <td class="font-monospace fw-semibold">{{ $agent->account_number ?? '-' }}</td>
+                    <td>{{ $agent->name }}</td>
                     <td>{{ $agent->contact_name ?: '-' }}</td>
                     <td>{{ $agent->phone ?: '-' }}</td>
                     <td>{{ $agent->email ?: '-' }}</td>
@@ -55,7 +81,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="text-muted text-center py-4">No delivery agents yet. <a href="{{ route('admin.delivery-agents.create') }}">Add one</a>.</td></tr>
+                <tr><td colspan="8" class="text-muted text-center py-4">No delivery agents yet. <a href="{{ route('admin.delivery-agents.create') }}">Add one</a>.</td></tr>
             @endforelse
         </tbody>
     </table>
