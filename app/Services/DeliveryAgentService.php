@@ -83,6 +83,12 @@ class DeliveryAgentService
             'Invalid status for this action.'
         );
 
+        abort_unless(
+            in_array($order->payment_status, ['paid', 'partial']),
+            400,
+            'Cannot mark as delivered: payment has not been confirmed.'
+        );
+
         $order->update([
             'delivery_status'       => Order::DELIVERY_STATUS_DELIVERED,
             'delivery_delivered_at' => now(),

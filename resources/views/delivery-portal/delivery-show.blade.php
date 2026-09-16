@@ -118,12 +118,19 @@
     @endif
 
     @if($order->delivery_status === 'out_for_delivery')
-        <form id="delivered-form" action="{{ route('delivery-portal.deliveries.delivered', $order) }}" method="post">
-            @csrf
-        </form>
-        <button type="button" class="btn btn-success btn-action" onclick="confirmAction('delivered-form', 'Deliver order?', 'Confirm this order has been delivered to the customer.')">
-            <i class="bi bi-check-circle me-2"></i>Mark as Delivered
-        </button>
+        @if(in_array($order->payment_status, ['paid', 'partial']))
+            <form id="delivered-form" action="{{ route('delivery-portal.deliveries.delivered', $order) }}" method="post">
+                @csrf
+            </form>
+            <button type="button" class="btn btn-success btn-action" onclick="confirmAction('delivered-form', 'Deliver order?', 'Confirm this order has been delivered to the customer.')">
+                <i class="bi bi-check-circle me-2"></i>Mark as Delivered
+            </button>
+        @else
+            <div class="alert alert-warning mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Payment not confirmed ({{ strtoupper($order->payment_status ?? 'unpaid') }}). You cannot mark this as delivered until payment is verified.
+            </div>
+        @endif
     @endif
 
     <button type="button" class="btn btn-outline-danger btn-action" data-bs-toggle="modal" data-bs-target="#issueModal">
