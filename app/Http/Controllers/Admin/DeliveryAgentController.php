@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryAgent;
 use App\Models\User;
+use App\Notifications\DeliveryAgentCredentialsNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
@@ -29,7 +30,7 @@ class DeliveryAgentController extends Controller
         $data = $request->validate([
             'name'         => ['required', 'string', 'max:120'],
             'contact_name' => ['nullable', 'string', 'max:120'],
-            'phone'        => ['nullable', 'string', 'max:30'],
+            'phone'        => ['required', 'string', 'max:30'],
             'email'        => ['required', 'email', 'max:255', 'unique:users,email'],
             'notes'        => ['nullable', 'string', 'max:1000'],
             'is_active'    => ['nullable', 'boolean'],
@@ -59,6 +60,12 @@ class DeliveryAgentController extends Controller
             'user_id'      => $user->id,
         ]);
 
+        $user->notify(new DeliveryAgentCredentialsNotification(
+            $data['email'],
+            $tempPassword,
+            $agent->account_number,
+        ));
+
         return redirect()->route('admin.delivery-agents.index')
             ->with('success', 'Delivery agent created.')
             ->with('temp_credentials', [
@@ -78,7 +85,7 @@ class DeliveryAgentController extends Controller
         $data = $request->validate([
             'name'         => ['required', 'string', 'max:120'],
             'contact_name' => ['nullable', 'string', 'max:120'],
-            'phone'        => ['nullable', 'string', 'max:30'],
+            'phone'        => ['required', 'string', 'max:30'],
             'email'        => ['required', 'email', 'max:255', 'unique:users,email,' . $deliveryAgent->user_id],
             'notes'        => ['nullable', 'string', 'max:1000'],
             'is_active'    => ['nullable', 'boolean'],

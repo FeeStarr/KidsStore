@@ -33,12 +33,12 @@
         <dl class="row mb-0">
             <dt class="col-4">Payment</dt>
             <dd class="col-8">
-                <span class="badge bg-{{ match($order->payment_status) {
+                <span class="badge bg-{{ match($order->payment_status ?? 'unpaid') {
                     'paid' => 'success',
                     'unpaid' => 'danger',
                     'partial' => 'warning text-dark',
                     default => 'secondary'
-                } }}">{{ strtoupper($order->payment_status) }}</span>
+                } }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
             </dd>
             <dt class="col-4">Delivery Fee</dt>
             <dd class="col-8">&#8358;{{ number_format($order->delivery_charge_amount ?? 0, 2) }}</dd>

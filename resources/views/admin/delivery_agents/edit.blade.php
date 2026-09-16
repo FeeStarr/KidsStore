@@ -13,7 +13,7 @@
     <div class="card-body">
         <form action="{{ route('admin.delivery-agents.update', $deliveryAgent) }}" method="post">
             @csrf @method('PUT')
-            @include('admin.delivery_agents._form')
+            @include('admin.delivery_agents._form', ['agent' => $deliveryAgent])
             <button class="btn btn-primary mt-3">Update Agent</button>
         </form>
     </div>
