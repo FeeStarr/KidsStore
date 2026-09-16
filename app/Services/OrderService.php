@@ -362,7 +362,7 @@ class OrderService
     {
         return DB::transaction(function () use ($order, $amount) {
             // Lock the order row to prevent concurrent payment race conditions
-            $order = $order->lockForUpdate()->first();
+            $order = Order::lockForUpdate()->find($order->id);
 
             $paid = round(((float) $order->amount_paid) + $amount, 2);
             $order->update([
