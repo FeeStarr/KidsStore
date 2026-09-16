@@ -30,6 +30,7 @@
     @stack('styles')
 </head>
 <body>
+@if(!in_array(request()->route()->getName(), ['delivery-portal.login', 'delivery-portal.login.post']))
 <div class="portal-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <span class="brand"><i class="bi bi-truck me-2" style="color:#ffc107"></i>KidsFlairr Delivery</span>
@@ -59,6 +60,7 @@
             <i class="bi bi-person"></i> Profile
         </a>
     </div>
+@endif
 @endif
 
 <div class="container" style="max-width:900px">

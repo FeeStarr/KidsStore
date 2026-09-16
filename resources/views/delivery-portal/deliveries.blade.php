@@ -45,12 +45,12 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">Payment:</small>
-                        <span class="badge bg-{{ match($order->payment_status) {
+                        <span class="badge bg-{{ match($order->payment_status ?? 'unpaid') {
                             'paid' => 'success',
                             'unpaid' => 'danger',
                             'partial' => 'warning text-dark',
                             default => 'secondary'
-                        } }}">{{ strtoupper($order->payment_status) }}</span>
+                        } }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
                         @if($order->delivery_charge_amount)
                             <small class="text-muted ms-2">Fee: &#8358;{{ number_format($order->delivery_charge_amount, 2) }}</small>
                         @endif

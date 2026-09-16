@@ -21,9 +21,9 @@
                value="{{ old('contact_name', $agent?->contact_name) }}">
     </div>
     <div class="col-md-6">
-        <label class="form-label">Phone</label>
+        <label class="form-label">Phone *</label>
         <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"
-               value="{{ old('phone', $agent?->phone) }}" placeholder="e.g. 08012345678">
+               value="{{ old('phone', $agent?->phone) }}" placeholder="e.g. 08012345678" required>
     </div>
 </div>
 
