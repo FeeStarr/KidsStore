@@ -489,6 +489,7 @@ Route::prefix('delivery-portal')->name('delivery-portal.')->group(function () {
         Route::get('/deliveries', [\App\Http\Controllers\DeliveryPortalController::class, 'deliveries'])->name('deliveries');
         Route::get('/deliveries/{order}', [\App\Http\Controllers\DeliveryPortalController::class, 'show'])->name('deliveries.show');
         Route::post('/deliveries/{order}/received', [\App\Http\Controllers\DeliveryPortalController::class, 'markReceived'])->name('deliveries.received');
+        Route::post('/deliveries/{order}/out-for-delivery', [\App\Http\Controllers\DeliveryPortalController::class, 'markOutForDelivery'])->name('deliveries.out-for-delivery');
         Route::post('/deliveries/{order}/delivered', [\App\Http\Controllers\DeliveryPortalController::class, 'markDelivered'])->name('deliveries.delivered');
         Route::post('/deliveries/{order}/issue', [\App\Http\Controllers\DeliveryPortalController::class, 'reportIssue'])->name('deliveries.issue');
         Route::get('/profile', [\App\Http\Controllers\DeliveryPortalController::class, 'profile'])->name('profile');

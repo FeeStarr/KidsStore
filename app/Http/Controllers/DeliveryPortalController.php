@@ -104,7 +104,7 @@ class DeliveryPortalController extends Controller
 
         abort_unless((int) $order->delivery_agent_id === (int) $agent->id, 403);
         abort_unless(in_array($order->delivery_status, [
-            'assigned', 'received', 'delivered', 'failed',
+            'assigned', 'received', 'out_for_delivery', 'delivered', 'failed',
         ]), 404);
 
         $order->load('customer', 'deliveryLocation', 'items.product', 'items.variant');
@@ -118,6 +118,14 @@ class DeliveryPortalController extends Controller
         $this->service->markReceived($order, $agent);
 
         return back()->with('success', 'Parcel marked as received.');
+    }
+
+    public function markOutForDelivery(Order $order): RedirectResponse
+    {
+        $agent = Auth::user()->deliveryAgent;
+        $this->service->markOutForDelivery($order, $agent);
+
+        return back()->with('success', 'Order marked as out for delivery. Customer has been notified.');
     }
 
     public function markDelivered(Order $order): RedirectResponse

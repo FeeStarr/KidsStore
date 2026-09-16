@@ -28,11 +28,12 @@ class Order extends Model
     public const DELIVERY_METHOD_DELIVERY = 'delivery';
 
     // Delivery Status Constants
-    public const DELIVERY_STATUS_PENDING   = 'pending';
-    public const DELIVERY_STATUS_ASSIGNED  = 'assigned';
-    public const DELIVERY_STATUS_RECEIVED  = 'received';
-    public const DELIVERY_STATUS_DELIVERED = 'delivered';
-    public const DELIVERY_STATUS_FAILED    = 'failed';
+    public const DELIVERY_STATUS_PENDING          = 'pending';
+    public const DELIVERY_STATUS_ASSIGNED         = 'assigned';
+    public const DELIVERY_STATUS_RECEIVED         = 'received';
+    public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+    public const DELIVERY_STATUS_DELIVERED        = 'delivered';
+    public const DELIVERY_STATUS_FAILED           = 'failed';
 
     protected $fillable = [
         'reference', 'customer_id', 'lookup_token', 'custom_order_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
@@ -40,7 +41,7 @@ class Order extends Model
         'pickup_station_id', 'delivery_address',
         'delivery_agent_id', 'delivery_location_id', 'delivery_charge_amount',
         'delivery_status', 'delivery_released_at', 'delivery_received_at',
-        'delivery_delivered_at', 'delivery_issue_reason', 'delivery_issue_notes',
+        'delivery_out_for_delivery_at', 'delivery_delivered_at', 'delivery_issue_reason', 'delivery_issue_notes',
         'courier_name', 'tracking_number', 'tracking_url',
         'total_amount',
         'subtotal', 'discount', 'shipping_fee', 'grand_total', 'amount_paid',
@@ -74,6 +75,7 @@ class Order extends Model
         'pickup_window_expired_at' => 'datetime',
         'delivery_released_at'  => 'datetime',
         'delivery_received_at'  => 'datetime',
+        'delivery_out_for_delivery_at' => 'datetime',
         'delivery_delivered_at' => 'datetime',
     ];
 
@@ -295,12 +297,13 @@ class Order extends Model
     public function getDeliveryStatusLabel(): string
     {
         return match ($this->delivery_status) {
-            self::DELIVERY_STATUS_PENDING   => 'Pending',
-            self::DELIVERY_STATUS_ASSIGNED  => 'Assigned',
-            self::DELIVERY_STATUS_RECEIVED  => 'Received',
-            self::DELIVERY_STATUS_DELIVERED => 'Delivered',
-            self::DELIVERY_STATUS_FAILED    => 'Failed',
-            default                         => '-',
+            self::DELIVERY_STATUS_PENDING          => 'Pending',
+            self::DELIVERY_STATUS_ASSIGNED         => 'Assigned',
+            self::DELIVERY_STATUS_RECEIVED         => 'Received',
+            self::DELIVERY_STATUS_OUT_FOR_DELIVERY => 'Out for Delivery',
+            self::DELIVERY_STATUS_DELIVERED        => 'Delivered',
+            self::DELIVERY_STATUS_FAILED           => 'Failed',
+            default                                => '-',
         };
     }
 
