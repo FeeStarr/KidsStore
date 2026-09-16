@@ -149,7 +149,7 @@ class PickupPayoutController extends Controller
         $payout = \App\Models\PickupPayout::create([
             'pickup_station_id' => $pickupStation->id,
             'amount' => round($total, 2),
-            'created_by' => auth()->id(),
+            'created_by' => auth()->guard('admin')->id(),
             'reference' => 'PP-' . Str::upper(substr((string) Str::uuid(), 0, 8)),
             'note' => $data['note'] ?? null,
         ]);

@@ -37,7 +37,7 @@ class VendorApprovalController extends Controller
         $data = $request->validate(['status' => 'required|in:approved,rejected', 'notes' => 'nullable|string']);
         $vendorApproval->status = $data['status'];
         $vendorApproval->notes = $data['notes'] ?? null;
-        $vendorApproval->reviewed_by = auth()->id();
+        $vendorApproval->reviewed_by = auth()->guard('admin')->id();
         $vendorApproval->reviewed_at = now();
         $vendorApproval->save();
 

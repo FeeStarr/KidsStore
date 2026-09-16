@@ -38,7 +38,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! $user->isCustomer() || ! Auth::validate($credentials)) {
+        if (! $user || ! $user->isCustomer() || ! Auth::guard('web')->validate($credentials)) {
             RateLimiter::hit($throttleKey, 60);
             return back()
                 ->withErrors(['email' => 'Invalid email or password.'])
@@ -64,7 +64,7 @@ class AuthController extends Controller
                 ->with('status', 'A verification code has been sent to your email.');
         }
 
-        Auth::login($user, $request->boolean('remember'));
+        Auth::guard('web')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
         app(CartService::class)->mergeSessionIntoDatabase();
@@ -98,7 +98,7 @@ class AuthController extends Controller
 
         // Accept backup code as an alternative
         if ($user->useBackupCode($input)) {
-            Auth::login($user, (bool) $request->session()->pull('shop_2fa_remember', false));
+            Auth::guard('web')->login($user, (bool) $request->session()->pull('shop_2fa_remember', false));
             $request->session()->forget('shop_2fa_user_id');
             $request->session()->regenerate();
             app(CartService::class)->mergeSessionIntoDatabase();
@@ -110,7 +110,7 @@ class AuthController extends Controller
             return back()->withErrors(['code' => 'Invalid or expired verification code.']);
         }
 
-        Auth::login($user, (bool) $request->session()->pull('shop_2fa_remember', false));
+        Auth::guard('web')->login($user, (bool) $request->session()->pull('shop_2fa_remember', false));
         $user->resetTwoFactorCode();
         $request->session()->forget('shop_2fa_user_id');
         $request->session()->regenerate();
@@ -141,7 +141,7 @@ class AuthController extends Controller
         $user->notify(new \App\Notifications\VerifyEmailNotification($user->id));
         $user->notify(new \App\Notifications\WelcomeNotification);
 
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
         app(CartService::class)->mergeSessionIntoDatabase();
 
@@ -150,8 +150,7 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::logout();
-        $request->session()->invalidate();
+        Auth::guard('web')->logout();
         $request->session()->regenerateToken();
 
         return redirect()->route('shop.home');
@@ -176,7 +175,7 @@ class AuthController extends Controller
 
     public function resendVerification(Request $request): RedirectResponse
     {
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
         if (! $user) {
             return redirect()->route('shop.login');

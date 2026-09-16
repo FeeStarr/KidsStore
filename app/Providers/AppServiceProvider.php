@@ -28,6 +28,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
+        // Log all authentication events (login, logout, failed, lockout)
+        \Illuminate\Support\Facades\Event::listen(
+            [\Illuminate\Auth\Events\Login::class, \Illuminate\Auth\Events\Logout::class,
+             \Illuminate\Auth\Events\Failed::class, \Illuminate\Auth\Events\Lockout::class],
+            \App\Listeners\LogAuthEvent::class
+        );
+
         // Superadmin bypasses all authorization checks
         Gate::before(function ($user, $ability) {
             if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {

@@ -11,33 +11,29 @@ class AuthenticateDeliveryAgent
 {
     public function handle(Request $request, Closure $next)
     {
-        if (! Auth::check()) {
+        if (! Auth::guard('delivery')->check()) {
             return redirect()->route('delivery-portal.login');
         }
 
-        $user = Auth::user();
+        $user = Auth::guard('delivery')->user();
 
-        // Must be delivery agent role
         if ($user->role !== User::ROLE_DELIVERY_AGENT) {
             abort(403);
         }
 
-        // User must be active
         if (! $user->is_active) {
-            Auth::logout();
+            Auth::guard('delivery')->logout();
             return redirect()->route('delivery-portal.login')
                 ->withErrors(['email' => 'Your account has been deactivated.']);
         }
 
-        // Must have linked delivery agent that is active
         $agent = $user->deliveryAgent;
         if (! $agent || ! $agent->is_active) {
-            Auth::logout();
+            Auth::guard('delivery')->logout();
             return redirect()->route('delivery-portal.login')
                 ->withErrors(['email' => 'Your delivery agent account is inactive.']);
         }
 
-        // Force password change — only allow profile/password/logout
         if ($user->must_change_password) {
             $allowedRoutes = ['delivery-portal.profile', 'delivery-portal.profile.password', 'delivery-portal.logout'];
             if (! in_array($request->route()->getName(), $allowedRoutes)) {
@@ -45,6 +41,9 @@ class AuthenticateDeliveryAgent
                     ->with('warning', 'You must change your password before continuing.');
             }
         }
+
+        // Set user resolver so downstream middleware resolve correctly
+        $request->setUserResolver(fn () => $user);
 
         return $next($request);
     }

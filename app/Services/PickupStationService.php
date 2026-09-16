@@ -299,7 +299,7 @@ class PickupStationService
                     'refund_request_id' => null,
                     'action' => 'station_reassigned',
                     'details' => "Order #{$order->reference} reassigned: {$reason}",
-                    'user_id' => auth()->id(),
+                    'user_id' => auth()->guard('admin')->id(),
                 ]);
             }
         });

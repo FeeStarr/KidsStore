@@ -10,10 +10,10 @@ class EnsureCustomerRole
 {
     public function handle(Request $request, Closure $next)
     {
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
-        if (!$user || !$user->isCustomer()) {
-            return redirect()->route('shop.login');
+        if (! $user || ! $user->isCustomer()) {
+            abort(403);
         }
 
         return $next($request);

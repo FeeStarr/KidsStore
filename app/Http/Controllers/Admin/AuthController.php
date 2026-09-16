@@ -18,7 +18,7 @@ class AuthController extends Controller
 {
     public function showLogin(): RedirectResponse|View
     {
-        if (auth()->check()) {
+        if (auth()->guard('admin')->check()) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -80,7 +80,7 @@ class AuthController extends Controller
         }
 
         // 2FA disabled - log in directly
-        Auth::login($user, $request->boolean('remember'));
+        Auth::guard('admin')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
         return redirect()->route('admin.dashboard');
@@ -114,7 +114,7 @@ class AuthController extends Controller
 
         // Accept a backup code as an alternative to the emailed OTP
         if ($user->useBackupCode($input)) {
-            Auth::login($user, (bool) $request->session()->pull('admin_2fa_remember', false));
+            Auth::guard('admin')->login($user, (bool) $request->session()->pull('admin_2fa_remember', false));
             $request->session()->forget('admin_2fa_user_id');
             $request->session()->regenerate();
             return redirect()->route('admin.dashboard')
@@ -127,7 +127,7 @@ class AuthController extends Controller
             ]);
         }
 
-        Auth::login($user, (bool) $request->session()->pull('admin_2fa_remember', false));
+        Auth::guard('admin')->login($user, (bool) $request->session()->pull('admin_2fa_remember', false));
         $user->resetTwoFactorCode();
 
         $request->session()->forget('admin_2fa_user_id');
@@ -138,9 +138,8 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::logout();
+        Auth::guard('admin')->logout();
 
-        $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('admin.login');

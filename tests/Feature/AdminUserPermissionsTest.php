@@ -16,14 +16,14 @@ class AdminUserPermissionsTest extends TestCase
 
         $this->actingAs($customer)
             ->get(route('admin.users.index'))
-            ->assertStatus(403);
+            ->assertStatus(302);
     }
 
     public function test_admin_can_access_vendor_approvals(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->get(route('admin.vendor-approvals.index'))
             ->assertStatus(200);
     }

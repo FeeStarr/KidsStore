@@ -16,7 +16,7 @@ class AdminAddressManagementTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $user = User::factory()->create(['role' => User::ROLE_CUSTOMER]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->post(route('admin.users.addresses.store', $user), [
                 'label' => 'Home',
                 'line1' => '12 Main Street',
@@ -30,11 +30,11 @@ class AdminAddressManagementTest extends TestCase
         $this->assertNotNull($address);
         $this->assertTrue((bool) $address->is_default);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->post(route('admin.users.addresses.default', [$user, $address]))
             ->assertRedirect();
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->delete(route('admin.users.addresses.destroy', [$user, $address]))
             ->assertRedirect();
 

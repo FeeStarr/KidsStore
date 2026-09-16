@@ -10,10 +10,10 @@ class EnsureAdminRole
 {
     public function handle(Request $request, Closure $next)
     {
-        $user = Auth::user();
+        $user = Auth::guard('admin')->user();
 
-        if (!$user || !$user->isAdmin()) {
-            return redirect()->route('admin.login');
+        if (! $user || (! $user->isAdmin() && ! $user->isStaff())) {
+            abort(403);
         }
 
         return $next($request);

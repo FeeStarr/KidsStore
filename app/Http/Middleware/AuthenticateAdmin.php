@@ -10,28 +10,28 @@ class AuthenticateAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        // Prevent running admin panel with debug mode on in production
         if (config('app.env') === 'production' && config('app.debug') === true) {
             abort(500, 'APP_DEBUG must be false in production.');
         }
 
-        if (! Auth::check()) {
+        if (! Auth::guard('admin')->check()) {
             return redirect()->route('admin.login');
         }
 
-        $user = Auth::user();
+        $user = Auth::guard('admin')->user();
 
-        // Must still be an admin/staff role
         if (! $user->isAdmin() && ! $user->isStaff()) {
             abort(403, 'Access denied.');
         }
 
-        // Account must be active
         if (! $user->is_active) {
-            Auth::logout();
+            Auth::guard('admin')->logout();
             return redirect()->route('admin.login')
                 ->withErrors(['email' => 'Your account has been deactivated.']);
         }
+
+        // Set user resolver so downstream middleware (LogUserActivity, EnsurePermission) resolve correctly
+        $request->setUserResolver(fn () => $user);
 
         return $next($request);
     }

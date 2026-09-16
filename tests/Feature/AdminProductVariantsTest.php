@@ -54,7 +54,7 @@ class AdminProductVariantsTest extends TestCase
             ],
         ];
 
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.products.store'), $payload);
 
         $response->assertRedirect();
@@ -93,7 +93,7 @@ class AdminProductVariantsTest extends TestCase
         $ageRange = AgeRange::factory()->create(['name' => '5-6 years']);
 
         // create initial product
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'admin')
             ->post(route('admin.products.store'), [
                 'name' => 'TShirt',
                 'category_id' => $category->id,
@@ -119,7 +119,7 @@ class AdminProductVariantsTest extends TestCase
             ],
         ];
 
-        $response = $this->actingAs($admin)
+        $response = $this->actingAs($admin, 'admin')
             ->put(route('admin.products.update', ['product' => $productId]), $payload);
 
         $response->assertRedirect();
