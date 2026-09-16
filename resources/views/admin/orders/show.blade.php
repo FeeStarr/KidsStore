@@ -120,6 +120,7 @@
                             <span class="badge bg-{{ match($order->delivery_status) {
                                 'assigned' => 'primary',
                                 'received' => 'warning text-dark',
+                                'out_for_delivery' => 'info',
                                 'delivered' => 'success',
                                 'failed' => 'danger',
                                 'pending' => 'secondary',
@@ -132,6 +133,9 @@
                     @endif
                     @if($order->delivery_received_at)
                         <small class="text-muted d-block">Received: {{ $order->delivery_received_at->format('M d, Y g:i A') }}</small>
+                    @endif
+                    @if($order->delivery_out_for_delivery_at)
+                        <small class="text-muted d-block">Out for Delivery: {{ $order->delivery_out_for_delivery_at->format('M d, Y g:i A') }}</small>
                     @endif
                     @if($order->delivery_delivered_at)
                         <small class="text-muted d-block">Delivered: {{ $order->delivery_delivered_at->format('M d, Y g:i A') }}</small>

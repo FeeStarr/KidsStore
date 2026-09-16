@@ -6,6 +6,8 @@
         <span class="badge bg-primary fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
     @elseif($order->delivery_status === 'received')
         <span class="badge bg-warning text-dark fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @elseif($order->delivery_status === 'out_for_delivery')
+        <span class="badge bg-info fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
     @elseif($order->delivery_status === 'delivered')
         <span class="badge bg-success fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
     @elseif($order->delivery_status === 'failed')
@@ -95,7 +97,7 @@
 </div>
 @endif
 
-@if(in_array($order->delivery_status, ['assigned', 'received']))
+@if(in_array($order->delivery_status, ['assigned', 'received', 'out_for_delivery']))
 <div class="d-grid gap-2">
     @if($order->delivery_status === 'assigned')
         <form id="received-form" action="{{ route('delivery-portal.deliveries.received', $order) }}" method="post">
@@ -107,6 +109,15 @@
     @endif
 
     @if($order->delivery_status === 'received')
+        <form id="out-for-delivery-form" action="{{ route('delivery-portal.deliveries.out-for-delivery', $order) }}" method="post">
+            @csrf
+        </form>
+        <button type="button" class="btn btn-info btn-action" onclick="confirmAction('out-for-delivery-form', 'Out for delivery?', 'Confirm you are heading out to deliver this parcel. The customer will be notified.')">
+            <i class="bi bi-truck me-2"></i>Mark Out for Delivery
+        </button>
+    @endif
+
+    @if($order->delivery_status === 'out_for_delivery')
         <form id="delivered-form" action="{{ route('delivery-portal.deliveries.delivered', $order) }}" method="post">
             @csrf
         </form>

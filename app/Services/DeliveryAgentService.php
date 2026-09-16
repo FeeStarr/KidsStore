@@ -15,17 +15,18 @@ class DeliveryAgentService
         $base = Order::where('delivery_agent_id', $agentId);
 
         return [
-            'assigned' => (clone $base)->where('delivery_status', 'assigned')->count(),
-            'received' => (clone $base)->where('delivery_status', 'received')->count(),
-            'delivered'=> (clone $base)->where('delivery_status', 'delivered')->count(),
-            'failed'   => (clone $base)->where('delivery_status', 'failed')->count(),
+            'assigned'         => (clone $base)->where('delivery_status', 'assigned')->count(),
+            'received'         => (clone $base)->where('delivery_status', 'received')->count(),
+            'out_for_delivery' => (clone $base)->where('delivery_status', 'out_for_delivery')->count(),
+            'delivered'        => (clone $base)->where('delivery_status', 'delivered')->count(),
+            'failed'           => (clone $base)->where('delivery_status', 'failed')->count(),
         ];
     }
 
     public function getDeliveries(int $agentId, ?string $filter = null): \Illuminate\Database\Eloquent\Collection
     {
         $query = Order::where('delivery_agent_id', $agentId)
-            ->whereIn('delivery_status', ['assigned', 'received', 'delivered', 'failed'])
+            ->whereIn('delivery_status', ['assigned', 'received', 'out_for_delivery', 'delivered', 'failed'])
             ->with('customer', 'deliveryLocation');
 
         if ($filter && $filter !== 'all') {
@@ -50,10 +51,37 @@ class DeliveryAgentService
         return $order->fresh();
     }
 
-    public function markDelivered(Order $order, DeliveryAgent $agent): Order
+    public function markOutForDelivery(Order $order, DeliveryAgent $agent): Order
     {
         $this->assertOwnership($order, $agent);
         abort_unless($order->delivery_status === Order::DELIVERY_STATUS_RECEIVED, 400, 'Invalid status for this action.');
+
+        $order->update([
+            'delivery_status'              => Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+            'delivery_out_for_delivery_at' => now(),
+        ]);
+
+        // Update overall order status + notify customer
+        if (in_array($order->status, ['ordered', 'pending confirmation', 'confirmed', 'processing'], true)) {
+            app(OrderService::class)->markShipped($order);
+        }
+
+        $this->logAction('delivery.out_for_delivery', $order, $agent);
+
+        return $order->fresh();
+    }
+
+    public function markDelivered(Order $order, DeliveryAgent $agent): Order
+    {
+        $this->assertOwnership($order, $agent);
+        abort_unless(
+            in_array($order->delivery_status, [
+                Order::DELIVERY_STATUS_RECEIVED,
+                Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+            ]),
+            400,
+            'Invalid status for this action.'
+        );
 
         $order->update([
             'delivery_status'       => Order::DELIVERY_STATUS_DELIVERED,
@@ -74,7 +102,11 @@ class DeliveryAgentService
     {
         $this->assertOwnership($order, $agent);
         abort_unless(
-            in_array($order->delivery_status, [Order::DELIVERY_STATUS_ASSIGNED, Order::DELIVERY_STATUS_RECEIVED]),
+            in_array($order->delivery_status, [
+                Order::DELIVERY_STATUS_ASSIGNED,
+                Order::DELIVERY_STATUS_RECEIVED,
+                Order::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+            ]),
             400,
             'Invalid status for this action.'
         );

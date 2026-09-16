@@ -3,7 +3,7 @@
 <h5 class="mb-3">My Deliveries</h5>
 
 <div class="d-flex gap-2 flex-wrap mb-3">
-    @php($filters = ['assigned' => 'Assigned', 'received' => 'Received', 'delivered' => 'Delivered', 'failed' => 'Issues'])
+    @php($filters = ['assigned' => 'Assigned', 'received' => 'Received', 'out_for_delivery' => 'Out for Delivery', 'delivered' => 'Delivered', 'failed' => 'Issues'])
     @foreach($filters as $key => $label)
         <a href="{{ route('delivery-portal.deliveries', ['filter' => $key]) }}"
            class="btn btn-sm {{ $filter === $key ? 'btn-primary' : 'btn-outline-primary' }}">
@@ -32,6 +32,8 @@
                         <span class="badge bg-primary">{{ $order->getDeliveryStatusLabel() }}</span>
                     @elseif($order->delivery_status === 'received')
                         <span class="badge bg-warning text-dark">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @elseif($order->delivery_status === 'out_for_delivery')
+                        <span class="badge bg-info">{{ $order->getDeliveryStatusLabel() }}</span>
                     @elseif($order->delivery_status === 'delivered')
                         <span class="badge bg-success">{{ $order->getDeliveryStatusLabel() }}</span>
                     @elseif($order->delivery_status === 'failed')
