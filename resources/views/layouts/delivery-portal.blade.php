@@ -34,11 +34,11 @@
 <div class="portal-header d-flex justify-content-between align-items-center mb-4">
     <div>
         <span class="brand"><i class="bi bi-truck me-2" style="color:#ffc107"></i>KidsFlairr Delivery</span>
-        @if(Auth::check() && Auth::user()->deliveryAgent)
-            <span class="ms-3 small opacity-75">{{ Auth::user()->deliveryAgent->account_number }}</span>
+        @if(Auth::guard('delivery')->check() && Auth::guard('delivery')->user()->deliveryAgent)
+            <span class="ms-3 small opacity-75">{{ Auth::guard('delivery')->user()->deliveryAgent->account_number }}</span>
         @endif
     </div>
-    @if(Auth::check())
+    @if(Auth::guard('delivery')->check())
         <form action="{{ route('delivery-portal.logout') }}" method="post" class="d-inline">
             @csrf
             <button class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
@@ -46,7 +46,7 @@
     @endif
 </div>
 
-@if(Auth::check() && Auth::user()->deliveryAgent)
+@if(Auth::guard('delivery')->check() && Auth::guard('delivery')->user()->deliveryAgent)
 @php($r = request()->route()->getName())
 <div class="container" style="max-width:900px">
     <div class="d-flex gap-2 flex-wrap mb-3">

@@ -80,7 +80,7 @@ class DealService
                 'is_featured'    => $deal->is_featured,
                 'max_uses'       => $deal->max_uses,
                 'current_uses'   => 0,
-                'created_by'     => auth()->id(),
+                'created_by'     => auth()->guard('admin')->id(),
             ]);
             $copy->products()->sync($productIds);
 

@@ -57,7 +57,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->requestEvidence($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+            $this->refunds->requestEvidence($refundRequest, Auth::guard('admin')->user(), $data['admin_note'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -72,7 +72,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->approve($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+            $this->refunds->approve($refundRequest, Auth::guard('admin')->user(), $data['admin_note'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -87,7 +87,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->reject($refundRequest, Auth::user(), $data['admin_note']);
+            $this->refunds->reject($refundRequest, Auth::guard('admin')->user(), $data['admin_note']);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -102,7 +102,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->markReceived($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+            $this->refunds->markReceived($refundRequest, Auth::guard('admin')->user(), $data['admin_note'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -118,7 +118,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->inspect($refundRequest, Auth::user(), $data['outcome'], $data['notes'] ?? null);
+            $this->refunds->inspect($refundRequest, Auth::guard('admin')->user(), $data['outcome'], $data['notes'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -137,7 +137,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->processRefund($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+            $this->refunds->processRefund($refundRequest, Auth::guard('admin')->user(), $data['admin_note'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -153,7 +153,7 @@ class RefundController extends Controller
     public function approveRefund(Request $request, RefundRequest $refundRequest): RedirectResponse
     {
         try {
-            $this->refunds->approveRefund($refundRequest, Auth::user(), $request->input('admin_note'));
+            $this->refunds->approveRefund($refundRequest, Auth::guard('admin')->user(), $request->input('admin_note'));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -163,7 +163,7 @@ class RefundController extends Controller
     public function retryRefund(Request $request, RefundRequest $refundRequest): RedirectResponse
     {
         try {
-            $this->refunds->retryRefund($refundRequest, Auth::user());
+            $this->refunds->retryRefund($refundRequest, Auth::guard('admin')->user());
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -197,7 +197,7 @@ class RefundController extends Controller
         ]);
 
         try {
-            $this->refunds->markReplacementShipped($refundRequest, Auth::user(), $data['admin_note'] ?? null);
+            $this->refunds->markReplacementShipped($refundRequest, Auth::guard('admin')->user(), $data['admin_note'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

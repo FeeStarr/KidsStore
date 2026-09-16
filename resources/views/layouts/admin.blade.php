@@ -37,12 +37,12 @@
     <div class="row">
         <nav class="col-md-2 sidebar p-0">
             <div class="brand"><img src="{{ asset('images/logo.png') }}" alt="{{ $appName }}" height="28" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"><span style="display:none"><i class="bi bi-balloon-heart-fill"></i> {{ $appName }}</span></div>
-            @if(auth()->check())
+            @if(auth()->guard('admin')->check())
                 <div class="px-3 py-2 bg-light border-bottom">
                     <small class="text-muted d-block">Logged in as:</small>
-                    <strong>{{ auth()->user()->name }}</strong><br>
+                    <strong>{{ auth()->guard('admin')->user()->name }}</strong><br>
                     <small class="text-capitalize">
-                        {{ implode(', ', auth()->user()->roles->pluck('name')->all() ?: [auth()->user()->role]) }}
+                        {{ implode(', ', auth()->guard('admin')->user()->roles->pluck('name')->all() ?: [auth()->guard('admin')->user()->role]) }}
                     </small>
                 </div>
                 <div class="px-2">
@@ -57,10 +57,10 @@
 <div class="collapse {{ $catalogActive ? 'show' : '' }}" id="menu-catalog">
     <a href="{{ route('admin.products.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.products') ? 'active':'' }}"><i class="bi bi-box-seam"></i> Products</a>
     <a href="{{ route('admin.categories.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
-    @if(auth()->user()->hasPermission('manage_deals'))
+    @if(auth()->guard('admin')->user()->hasPermission('manage_deals'))
         <a href="{{ route('admin.deals.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
     @endif
-    @if(auth()->user()->hasPermission('manage_coupons'))
+    @if(auth()->guard('admin')->user()->hasPermission('manage_coupons'))
         <a href="{{ route('admin.coupons.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.coupons') ? 'active':'' }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
     @endif
 </div>
@@ -90,7 +90,7 @@
     </a>
     <a href="{{ route('admin.pickup-stations.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-stations') ? 'active':'' }}"><i class="bi bi-geo-alt"></i> Pickup Stations</a>
     <a href="{{ route('admin.pickup-payouts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.pickup-payouts') ? 'active':'' }}"><i class="bi bi-cash-stack"></i> Pickup Payouts</a>
-    @if(auth()->user()->hasPermission('manage_settings'))
+    @if(auth()->guard('admin')->user()->hasPermission('manage_settings'))
         <a href="{{ route('admin.delivery-agents.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-agents') ? 'active':'' }}"><i class="bi bi-truck"></i> Delivery Agents</a>
         <a href="{{ route('admin.delivery-locations.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-locations') ? 'active':'' }}"><i class="bi bi-geo-alt-fill"></i> Delivery Locations</a>
         <a href="{{ route('admin.delivery-charges.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.delivery-charges') ? 'active':'' }}"><i class="bi bi-currency-dollar"></i> Delivery Charges</a>
@@ -111,7 +111,7 @@
 </a>
 <div class="collapse {{ $peopleActive ? 'show' : '' }}" id="menu-people">
     <a href="{{ route('admin.users.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.users') ? 'active':'' }}"><i class="bi bi-people"></i> Users</a>
-    @if(auth()->user()->hasRole(\App\Models\User::ROLE_SUPERADMIN))
+    @if(auth()->guard('admin')->user()->hasRole(\App\Models\User::ROLE_SUPERADMIN))
         <a href="{{ route('admin.reports.profit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.reports') ? 'active':'' }}"><i class="bi bi-graph-up-arrow"></i> Profit Report</a>
     @endif
 </div>
@@ -139,7 +139,7 @@
 </a>
 <div class="collapse {{ $settingsActive ? 'show' : '' }}" id="menu-settings">
     <a href="{{ route('admin.payment-methods.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.payment-methods') ? 'active':'' }}"><i class="bi bi-wallet2"></i> Payment Methods</a>
-    @if(auth()->user()->hasPermission('manage_settings'))
+    @if(auth()->guard('admin')->user()->hasPermission('manage_settings'))
         <a href="{{ route('admin.settings.edit') }}" class="sub {{ str_starts_with($r ?? '', 'admin.settings') ? 'active':'' }}"><i class="bi bi-gear"></i> Settings</a>
         <a href="{{ route('admin.bank-accounts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.bank-accounts') ? 'active':'' }}"><i class="bi bi-bank"></i> Bank Accounts</a>
     @endif
@@ -158,7 +158,7 @@
                 </div>
             @endif
         </nav>
-        <main class="@if(auth()->check()) col-md-10 @else col-md-12 @endif py-4 px-4">
+        <main class="@if(auth()->guard('admin')->check()) col-md-10 @else col-md-12 @endif py-4 px-4">
             @yield('content')
         </main>
     </div>

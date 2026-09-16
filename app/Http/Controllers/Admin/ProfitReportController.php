@@ -18,7 +18,7 @@ class ProfitReportController extends Controller
      */
     public function index(Request $request)
     {
-        abort_if(! auth()->check() || ! auth()->user()->hasRole(User::ROLE_SUPERADMIN), 403);
+        abort_if(! auth()->guard('admin')->check() || ! auth()->guard('admin')->user()->hasRole(User::ROLE_SUPERADMIN), 403);
 
         $from = $request->filled('from')
             ? Carbon::parse($request->input('from'))->startOfDay()

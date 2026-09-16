@@ -39,7 +39,9 @@ class DeliveryPortalController extends Controller
                 ->withInput();
         }
 
-        if (! Auth::attempt(['email' => $data['email'], 'password' => $data['password']])) {
+        $user = User::where('email', $data['email'])->first();
+
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
             RateLimiter::hit($throttleKey, 60);
             return back()->withErrors(['email' => 'Invalid credentials.'])
                 ->withInput();
@@ -47,21 +49,18 @@ class DeliveryPortalController extends Controller
 
         RateLimiter::clear($throttleKey);
 
-        $user = Auth::user();
-
-        // Validate role and active status
+        // Validate role and active status BEFORE logging in
         if ($user->role !== User::ROLE_DELIVERY_AGENT || ! $user->is_active) {
-            Auth::logout();
             return back()->withErrors(['email' => 'Invalid credentials.'])
                 ->withInput();
         }
 
         if (! $user->deliveryAgent || ! $user->deliveryAgent->is_active) {
-            Auth::logout();
             return back()->withErrors(['email' => 'Your account is inactive.'])
                 ->withInput();
         }
 
+        Auth::guard('delivery')->login($user);
         $request->session()->regenerate();
 
         if ($user->must_change_password) {
@@ -74,8 +73,7 @@ class DeliveryPortalController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        Auth::logout();
-        $request->session()->invalidate();
+        Auth::guard('delivery')->logout();
         $request->session()->regenerateToken();
 
         return redirect()->route('delivery-portal.login');
@@ -83,7 +81,7 @@ class DeliveryPortalController extends Controller
 
     public function dashboard(): View
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
         $stats = $this->service->getDashboardStats($agent->id);
 
         return view('delivery-portal.dashboard', compact('agent', 'stats'));
@@ -91,7 +89,7 @@ class DeliveryPortalController extends Controller
 
     public function deliveries(Request $request): View
     {
-        $agent  = Auth::user()->deliveryAgent;
+        $agent  = Auth::guard('delivery')->user()->deliveryAgent;
         $filter = $request->input('filter', 'assigned');
         $deliveries = $this->service->getDeliveries($agent->id, $filter);
 
@@ -100,7 +98,7 @@ class DeliveryPortalController extends Controller
 
     public function show(Order $order): View
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
 
         abort_unless((int) $order->delivery_agent_id === (int) $agent->id, 403);
         abort_unless(in_array($order->delivery_status, [
@@ -114,7 +112,7 @@ class DeliveryPortalController extends Controller
 
     public function markReceived(Order $order): RedirectResponse
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
         $this->service->markReceived($order, $agent);
 
         return back()->with('success', 'Parcel marked as received.');
@@ -122,7 +120,7 @@ class DeliveryPortalController extends Controller
 
     public function markOutForDelivery(Order $order): RedirectResponse
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
         $this->service->markOutForDelivery($order, $agent);
 
         return back()->with('success', 'Order marked as out for delivery. Customer has been notified.');
@@ -130,7 +128,7 @@ class DeliveryPortalController extends Controller
 
     public function markDelivered(Order $order): RedirectResponse
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
         $this->service->markDelivered($order, $agent);
 
         return back()->with('success', 'Order marked as delivered.');
@@ -143,7 +141,7 @@ class DeliveryPortalController extends Controller
             'notes'  => ['nullable', 'string', 'max:500'],
         ]);
 
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
         $this->service->reportIssue($order, $agent, $data['reason'], $data['notes']);
 
         return back()->with('success', 'Delivery issue reported.');
@@ -151,7 +149,7 @@ class DeliveryPortalController extends Controller
 
     public function profile(): View
     {
-        $agent = Auth::user()->deliveryAgent;
+        $agent = Auth::guard('delivery')->user()->deliveryAgent;
 
         return view('delivery-portal.profile', compact('agent'));
     }
@@ -163,7 +161,7 @@ class DeliveryPortalController extends Controller
             'password'         => ['required', 'confirmed', PasswordRule::defaults()],
         ]);
 
-        Auth::user()->update([
+        Auth::guard('delivery')->user()->update([
             'password'             => Hash::make($request->password),
             'must_change_password' => false,
         ]);

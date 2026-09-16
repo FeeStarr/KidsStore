@@ -21,7 +21,7 @@ class VendorApprovalShowTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->get(route('admin.vendor-approvals.show', $approval))
             ->assertStatus(200);
     }

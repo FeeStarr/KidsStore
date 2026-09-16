@@ -14,7 +14,7 @@ class AdminUserManagementTest extends TestCase
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->get(route('admin.users.index'))
             ->assertStatus(200);
     }
@@ -24,7 +24,7 @@ class AdminUserManagementTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $user = User::factory()->create(['role' => User::ROLE_CUSTOMER, 'is_active' => true]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->post(route('admin.users.assign-role', $user), [
                 'roles' => [User::ROLE_VENDOR],
             ])
@@ -35,7 +35,7 @@ class AdminUserManagementTest extends TestCase
             'role' => User::ROLE_VENDOR,
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->post(route('admin.users.toggle-active', $user))
             ->assertRedirect();
 
@@ -50,7 +50,7 @@ class AdminUserManagementTest extends TestCase
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $user = User::factory()->create(['role' => User::ROLE_CUSTOMER]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->put(route('admin.users.profile.update', $user), [
                 'name' => 'Updated User',
                 'phone' => '555-0100',

@@ -26,21 +26,21 @@ class CouponAdminTest extends TestCase
             'status'         => Coupon::STATUS_ACTIVE,
         ]);
 
-        $response = $this->actingAs($this->admin())->get(route('admin.coupons.index'));
+        $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.coupons.index'));
 
         $response->assertOk()->assertSee('save10');
     }
 
     public function test_create_page_renders(): void
     {
-        $this->actingAs($this->admin())
+        $this->actingAs($this->admin(), 'admin')
             ->get(route('admin.coupons.create'))
             ->assertOk();
     }
 
     public function test_store_creates_coupon_and_redirects(): void
     {
-        $response = $this->actingAs($this->admin())->post(route('admin.coupons.store'), [
+        $response = $this->actingAs($this->admin(), 'admin')->post(route('admin.coupons.store'), [
             'code'          => 'KIDS500',
             'name'          => 'Kids 500',
             'discount_type' => Coupon::TYPE_FIXED_AMOUNT,
@@ -63,7 +63,7 @@ class CouponAdminTest extends TestCase
             'status'         => Coupon::STATUS_INACTIVE,
         ]);
 
-        $response = $this->actingAs($this->admin())->put(route('admin.coupons.update', $coupon), [
+        $response = $this->actingAs($this->admin(), 'admin')->put(route('admin.coupons.update', $coupon), [
             'code'          => 'NEW20',
             'name'          => 'New Name',
             'discount_type' => Coupon::TYPE_PERCENTAGE,
@@ -89,7 +89,7 @@ class CouponAdminTest extends TestCase
             'status'         => Coupon::STATUS_ACTIVE,
         ]);
 
-        $response = $this->actingAs($this->admin())->post(route('admin.coupons.store'), [
+        $response = $this->actingAs($this->admin(), 'admin')->post(route('admin.coupons.store'), [
             'code'          => 'dup10',
             'name'          => 'Second',
             'discount_type' => Coupon::TYPE_FIXED_AMOUNT,
@@ -111,10 +111,10 @@ class CouponAdminTest extends TestCase
             'status'         => Coupon::STATUS_INACTIVE,
         ]);
 
-        $this->actingAs($this->admin())->post(route('admin.coupons.activate', $coupon));
+        $this->actingAs($this->admin(), 'admin')->post(route('admin.coupons.activate', $coupon));
         $this->assertEquals(Coupon::STATUS_ACTIVE, $coupon->fresh()->status);
 
-        $this->actingAs($this->admin())->post(route('admin.coupons.deactivate', $coupon));
+        $this->actingAs($this->admin(), 'admin')->post(route('admin.coupons.deactivate', $coupon));
         $this->assertEquals(Coupon::STATUS_INACTIVE, $coupon->fresh()->status);
     }
 }

@@ -116,7 +116,7 @@ class CouponController extends Controller
         $data['usage_limit']             = isset($data['usage_limit']) && $data['usage_limit'] !== null && $data['usage_limit'] !== ''
             ? (int) $data['usage_limit']
             : null;
-        $data['created_by'] = $coupon?->created_by ?? auth()->id();
+        $data['created_by'] = $coupon?->created_by ?? auth()->guard('admin')->id();
 
         return $data;
     }

@@ -146,7 +146,7 @@ class DealController extends Controller
             $data['thumbnail_image'] = $result['path'];
         }
 
-        $data['created_by'] = $deal?->created_by ?? auth()->id();
+        $data['created_by'] = $deal?->created_by ?? auth()->guard('admin')->id();
 
         return $data;
     }

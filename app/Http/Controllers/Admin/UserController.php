@@ -70,7 +70,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->guard('admin')->user();
 
         // Security: only superadmin can edit another superadmin or change someone's role to superadmin
         $requestedRoles = $request->input('roles', []);
@@ -135,7 +135,7 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user): RedirectResponse
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->guard('admin')->user();
 
         $data = $request->validate([
             'roles' => ['required', 'array', 'min:1'],
@@ -176,12 +176,12 @@ class UserController extends Controller
 
     public function toggleActive(User $user): RedirectResponse
     {
-        if (auth()->id() === $user->id) {
+        if (auth()->guard('admin')->id() === $user->id) {
             return redirect()->back()->withErrors(['error' => 'You cannot deactivate your own account.']);
         }
 
         // Only superadmin can deactivate other admins/superadmins (optional but safer)
-        if ($user->isAdmin() && !auth()->user()->isSuperAdmin()) {
+        if ($user->isAdmin() && !auth()->guard('admin')->user()->isSuperAdmin()) {
             return redirect()->back()->withErrors(['error' => 'Only Super Admins can deactivate other Admin accounts.']);
         }
 

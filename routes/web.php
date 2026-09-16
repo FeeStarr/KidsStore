@@ -97,7 +97,7 @@ Route::name('shop.')->group(function () {
     Route::delete('/cart/{variant}', [CartController::class, 'remove'])->name('cart.remove');
     Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
 
-    Route::middleware('guest')->group(function () {
+    Route::middleware('guest:web')->group(function () {
         Route::get('/login', [ShopAuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [ShopAuthController::class, 'login'])->middleware('throttle:10,1');
         Route::get('/register', [ShopAuthController::class, 'showRegister'])->name('register');
@@ -197,7 +197,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/reset-password/{token}', [AdminPasswordResetController::class, 'showResetForm'])->name('password.reset');
     Route::post('/reset-password', [AdminPasswordResetController::class, 'resetPassword'])->name('password.update')->middleware('throttle:5,1');
     // Admin authentication (outside auth middleware)
-    Route::middleware('guest')->group(function () {
+    Route::middleware('guest:admin')->group(function () {
         Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:10,1');
         Route::get('/login/2fa', [AdminAuthController::class, 'showTwoFactorForm'])->name('login.2fa');
@@ -479,8 +479,10 @@ Route::prefix('pickup-portal')->name('pickup-portal.')->group(function () {
 */
 Route::prefix('delivery-portal')->name('delivery-portal.')->group(function () {
     // Public routes (no auth required)
-    Route::get('/', [\App\Http\Controllers\DeliveryPortalController::class, 'showLogin'])->name('login');
-    Route::post('/login', [\App\Http\Controllers\DeliveryPortalController::class, 'login'])->name('login.post');
+    Route::middleware('guest:delivery')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DeliveryPortalController::class, 'showLogin'])->name('login');
+        Route::post('/login', [\App\Http\Controllers\DeliveryPortalController::class, 'login'])->name('login.post');
+    });
     Route::post('/logout', [\App\Http\Controllers\DeliveryPortalController::class, 'logout'])->name('logout');
 
     // Protected routes — require delivery agent auth

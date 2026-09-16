@@ -29,7 +29,7 @@ class PaymentVerificationService
                 'pickup_station_id' => $stationId,
                 'status'            => PaymentVerification::STATUS_PENDING,
                 'station_note'      => $note,
-                'submitted_by'      => auth()->id(),
+                'submitted_by'      => auth()->guard('admin')->id(),
                 'submitted_at'      => now(),
             ]);
         });
@@ -55,7 +55,7 @@ class PaymentVerificationService
             $verification->update([
                 'status'      => PaymentVerification::STATUS_CONFIRMED,
                 'admin_note'  => $note,
-                'reviewed_by' => auth()->id(),
+                'reviewed_by' => auth()->guard('admin')->id(),
                 'reviewed_at' => now(),
             ]);
 
@@ -81,7 +81,7 @@ class PaymentVerificationService
             $verification->update([
                 'status'      => PaymentVerification::STATUS_REJECTED,
                 'admin_note'  => $reason,
-                'reviewed_by' => auth()->id(),
+                'reviewed_by' => auth()->guard('admin')->id(),
                 'reviewed_at' => now(),
             ]);
 

@@ -15,7 +15,7 @@ class VendorApprovalTest extends TestCase
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->get(route('admin.vendor-approvals.index'))
             ->assertStatus(200);
     }
@@ -30,7 +30,7 @@ class VendorApprovalTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin, 'admin')
             ->post(route('admin.vendor-approvals.review', $approval), [
                 'status' => 'approved',
                 'notes' => 'Approved for marketplace access.',
