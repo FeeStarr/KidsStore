@@ -1,17 +1,18 @@
 @extends('layouts.delivery-portal', ['title' => 'Order ' . $order->reference])
 @section('content')
-@php
-    $statusBadge = match($order->delivery_status) {
-        'assigned' => 'primary',
-        'received' => 'warning text-dark',
-        'delivered' => 'success',
-        'failed' => 'danger',
-        default => 'secondary',
-    };
-@endphp
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0">{{ $order->reference }}</h5>
-    <span class="badge bg-{{ $statusBadge }} fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @if($order->delivery_status === 'assigned')
+        <span class="badge bg-primary fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @elseif($order->delivery_status === 'received')
+        <span class="badge bg-warning text-dark fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @elseif($order->delivery_status === 'delivered')
+        <span class="badge bg-success fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @elseif($order->delivery_status === 'failed')
+        <span class="badge bg-danger fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @else
+        <span class="badge bg-secondary fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+    @endif
 </div>
 
 <div class="card mb-3">
@@ -30,21 +31,21 @@
     </div>
 </div>
 
-@php
-    $paymentBadge = match($order->payment_status ?? 'unpaid') {
-        'paid' => 'success',
-        'unpaid' => 'danger',
-        'partial' => 'warning text-dark',
-        default => 'secondary',
-    };
-@endphp
 <div class="card mb-3">
     <div class="card-body">
         <h6 class="card-title text-muted mb-3">Order Info</h6>
         <dl class="row mb-0">
             <dt class="col-4">Payment</dt>
             <dd class="col-8">
-                <span class="badge bg-{{ $paymentBadge }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                @if($order->payment_status === 'paid')
+                    <span class="badge bg-success">PAID</span>
+                @elseif($order->payment_status === 'partial')
+                    <span class="badge bg-warning text-dark">PARTIAL</span>
+                @elseif($order->payment_status === 'unpaid')
+                    <span class="badge bg-danger">UNPAID</span>
+                @else
+                    <span class="badge bg-secondary">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                @endif
             </dd>
             <dt class="col-4">Delivery Fee</dt>
             <dd class="col-8">&#8358;{{ number_format($order->delivery_charge_amount ?? 0, 2) }}</dd>
