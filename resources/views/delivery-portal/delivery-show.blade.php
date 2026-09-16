@@ -1,14 +1,17 @@
 @extends('layouts.delivery-portal', ['title' => 'Order ' . $order->reference])
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">{{ $order->reference }}</h5>
-    <span class="badge bg-{{ match($order->delivery_status) {
+@php
+    $statusBadge = match($order->delivery_status) {
         'assigned' => 'primary',
         'received' => 'warning text-dark',
         'delivered' => 'success',
         'failed' => 'danger',
-        default => 'secondary'
-    }} fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
+        default => 'secondary',
+    };
+@endphp
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">{{ $order->reference }}</h5>
+    <span class="badge bg-{{ $statusBadge }} fs-6">{{ $order->getDeliveryStatusLabel() }}</span>
 </div>
 
 <div class="card mb-3">
@@ -27,18 +30,21 @@
     </div>
 </div>
 
+@php
+    $paymentBadge = match($order->payment_status ?? 'unpaid') {
+        'paid' => 'success',
+        'unpaid' => 'danger',
+        'partial' => 'warning text-dark',
+        default => 'secondary',
+    };
+@endphp
 <div class="card mb-3">
     <div class="card-body">
         <h6 class="card-title text-muted mb-3">Order Info</h6>
         <dl class="row mb-0">
             <dt class="col-4">Payment</dt>
             <dd class="col-8">
-                <span class="badge bg-{{ match($order->payment_status ?? 'unpaid') {
-                    'paid' => 'success',
-                    'unpaid' => 'danger',
-                    'partial' => 'warning text-dark',
-                    default => 'secondary'
-                } }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                <span class="badge bg-{{ $paymentBadge }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
             </dd>
             <dt class="col-4">Delivery Fee</dt>
             <dd class="col-8">&#8358;{{ number_format($order->delivery_charge_amount ?? 0, 2) }}</dd>

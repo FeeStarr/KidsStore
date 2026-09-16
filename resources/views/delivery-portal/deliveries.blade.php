@@ -21,6 +21,21 @@
     </div>
 @else
     @foreach($deliveries as $order)
+        @php
+            $statusBadge = match($order->delivery_status) {
+                'assigned' => 'primary',
+                'received' => 'warning text-dark',
+                'delivered' => 'success',
+                'failed' => 'danger',
+                default => 'secondary',
+            };
+            $paymentBadge = match($order->payment_status ?? 'unpaid') {
+                'paid' => 'success',
+                'unpaid' => 'danger',
+                'partial' => 'warning text-dark',
+                default => 'secondary',
+            };
+        @endphp
         <div class="card mb-3 delivery-card {{ $order->delivery_status }}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -28,13 +43,7 @@
                         <h6 class="mb-0 fw-bold">{{ $order->reference }}</h6>
                         <small class="text-muted">{{ $order->customer?->name ?? $order->guest_name ?? '-' }}</small>
                     </div>
-                    <span class="badge bg-{{ match($order->delivery_status) {
-                        'assigned' => 'primary',
-                        'received' => 'warning text-dark',
-                        'delivered' => 'success',
-                        'failed' => 'danger',
-                        default => 'secondary'
-                    } }}">{{ $order->getDeliveryStatusLabel() }}</span>
+                    <span class="badge bg-{{ $statusBadge }}">{{ $order->getDeliveryStatusLabel() }}</span>
                 </div>
                 <div class="mb-2">
                     <small class="text-muted d-block"><i class="bi bi-geo-alt me-1"></i>{{ $order->deliveryLocation?->name ?? '-' }}</small>
@@ -45,12 +54,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">Payment:</small>
-                        <span class="badge bg-{{ match($order->payment_status ?? 'unpaid') {
-                            'paid' => 'success',
-                            'unpaid' => 'danger',
-                            'partial' => 'warning text-dark',
-                            default => 'secondary'
-                        } }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                        <span class="badge bg-{{ $paymentBadge }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
                         @if($order->delivery_charge_amount)
                             <small class="text-muted ms-2">Fee: &#8358;{{ number_format($order->delivery_charge_amount, 2) }}</small>
                         @endif
