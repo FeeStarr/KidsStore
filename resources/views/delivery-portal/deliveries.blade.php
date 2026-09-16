@@ -21,21 +21,6 @@
     </div>
 @else
     @foreach($deliveries as $order)
-        @php
-            $statusBadge = match($order->delivery_status) {
-                'assigned' => 'primary',
-                'received' => 'warning text-dark',
-                'delivered' => 'success',
-                'failed' => 'danger',
-                default => 'secondary',
-            };
-            $paymentBadge = match($order->payment_status ?? 'unpaid') {
-                'paid' => 'success',
-                'unpaid' => 'danger',
-                'partial' => 'warning text-dark',
-                default => 'secondary',
-            };
-        @endphp
         <div class="card mb-3 delivery-card {{ $order->delivery_status }}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -43,7 +28,17 @@
                         <h6 class="mb-0 fw-bold">{{ $order->reference }}</h6>
                         <small class="text-muted">{{ $order->customer?->name ?? $order->guest_name ?? '-' }}</small>
                     </div>
-                    <span class="badge bg-{{ $statusBadge }}">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @if($order->delivery_status === 'assigned')
+                        <span class="badge bg-primary">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @elseif($order->delivery_status === 'received')
+                        <span class="badge bg-warning text-dark">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @elseif($order->delivery_status === 'delivered')
+                        <span class="badge bg-success">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @elseif($order->delivery_status === 'failed')
+                        <span class="badge bg-danger">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @else
+                        <span class="badge bg-secondary">{{ $order->getDeliveryStatusLabel() }}</span>
+                    @endif
                 </div>
                 <div class="mb-2">
                     <small class="text-muted d-block"><i class="bi bi-geo-alt me-1"></i>{{ $order->deliveryLocation?->name ?? '-' }}</small>
@@ -54,7 +49,15 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">Payment:</small>
-                        <span class="badge bg-{{ $paymentBadge }}">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                        @if($order->payment_status === 'paid')
+                            <span class="badge bg-success">PAID</span>
+                        @elseif($order->payment_status === 'partial')
+                            <span class="badge bg-warning text-dark">PARTIAL</span>
+                        @elseif($order->payment_status === 'unpaid')
+                            <span class="badge bg-danger">UNPAID</span>
+                        @else
+                            <span class="badge bg-secondary">{{ strtoupper($order->payment_status ?? 'unpaid') }}</span>
+                        @endif
                         @if($order->delivery_charge_amount)
                             <small class="text-muted ms-2">Fee: &#8358;{{ number_format($order->delivery_charge_amount, 2) }}</small>
                         @endif
