@@ -105,6 +105,10 @@
     <a href="{{ route('admin.custom-orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.custom-orders') ? 'active':'' }}"><i class="bi bi-list-ul"></i> All Requests</a>
 </div>
 
+<a href="{{ route('admin.custom-creations.index') }}" class="{{ str_starts_with($r ?? '', 'admin.custom-creations') ? 'active' : '' }}">
+    <i class="bi bi-images"></i> Custom Creations
+</a>
+
 @php($peopleActive = str_starts_with($r ?? '', 'admin.users') || str_starts_with($r ?? '', 'admin.reports'))
 <a href="#menu-people" data-bs-toggle="collapse" role="button" aria-expanded="{{ $peopleActive ? 'true' : 'false' }}" class="{{ $peopleActive ? 'active' : '' }}">
     <i class="bi bi-people"></i> Customers &amp; Reports <i class="bi bi-chevron-down chevron"></i>

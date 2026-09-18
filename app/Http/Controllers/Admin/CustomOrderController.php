@@ -241,39 +241,4 @@ class CustomOrderController extends Controller
         if (!$response) abort(404);
         return $response;
     }
-
-    public function updateShowcase(CustomOrder $customOrder, Request $request)
-    {
-        $data = $request->validate([
-            'showcase_enabled' => 'required|boolean',
-            'showcase_title' => 'nullable|string|max:255',
-            'showcase_price' => 'nullable|numeric|min:0',
-            'showcase_description' => 'nullable|string|max:1000',
-            'showcase_category' => 'nullable|string|in:' . implode(',', array_keys(CustomOrder::SHOWCASE_CATEGORIES)),
-        ]);
-
-        $customOrder->update($data);
-
-        return back()->with('success', 'Showcase settings updated.');
-    }
-
-    public function uploadShowcaseImage(CustomOrder $customOrder, Request $request)
-    {
-        $request->validate([
-            'showcase_image' => 'required|image|max:5120|mimes:jpg,jpeg,png,webp',
-        ]);
-
-        // Delete old showcase image if exists
-        if ($customOrder->showcase_image_path) {
-            Storage::disk('public')->delete($customOrder->showcase_image_path);
-        }
-
-        $file = $request->file('showcase_image');
-        $filename = 'showcase.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('custom-creations/' . $customOrder->id, $filename, 'public');
-
-        $customOrder->update(['showcase_image_path' => $path]);
-
-        return back()->with('success', 'Showcase image uploaded.');
-    }
 }

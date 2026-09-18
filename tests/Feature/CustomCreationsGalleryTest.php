@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\CustomOrder;
+use App\Models\CustomCreation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -12,16 +13,24 @@ class CustomCreationsGalleryTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createShowcase(array $overrides = []): CustomOrder
+    // ── Helpers ──────────────────────────────────────────────────
+
+    private function createCreation(array $overrides = []): CustomCreation
     {
-        return CustomOrder::factory()->completed()->create(array_merge([
-            'showcase_enabled' => true,
-            'showcase_title' => 'Birthday Princess Frock',
-            'showcase_price' => 35000,
-            'showcase_description' => 'A beautiful custom birthday dress.',
-            'showcase_image_path' => 'custom-creations/1/showcase.jpg',
-            'showcase_category' => 'birthday',
+        return CustomCreation::factory()->create(array_merge([
+            'title' => 'Birthday Princess Frock',
+            'image_path' => 'custom-creations/test-image.jpg',
+            'price' => 35000,
+            'is_price_from' => false,
+            'description' => 'A beautiful custom birthday dress.',
+            'category' => 'birthday',
+            'is_active' => true,
         ], $overrides));
+    }
+
+    private function admin(): User
+    {
+        return User::factory()->create(['role' => User::ROLE_ADMIN]);
     }
 
     // ── Public Gallery Index ─────────────────────────────────────
@@ -33,16 +42,16 @@ class CustomCreationsGalleryTest extends TestCase
             ->assertSee('Custom Creations');
     }
 
-    public function test_guest_sees_empty_state_when_no_showcases(): void
+    public function test_guest_sees_empty_state_when_no_creations(): void
     {
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
             ->assertSee('No creations to display yet');
     }
 
-    public function test_gallery_displays_showcased_orders(): void
+    public function test_gallery_displays_active_creations(): void
     {
-        $order = $this->createShowcase();
+        $creation = $this->createCreation();
 
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
@@ -50,45 +59,28 @@ class CustomCreationsGalleryTest extends TestCase
             ->assertSee('35,000');
     }
 
-    public function test_gallery_does_not_show_disabled_showcases(): void
+    public function test_gallery_does_not_show_inactive_creations(): void
     {
-        $this->createShowcase(['showcase_enabled' => false]);
+        $this->createCreation(['is_active' => false]);
 
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
             ->assertDontSee('Birthday Princess Frock');
     }
 
-    public function test_gallery_does_not_show_orders_without_image(): void
+    public function test_gallery_shows_from_prefix_when_is_price_from(): void
     {
-        $this->createShowcase(['showcase_image_path' => null]);
+        $this->createCreation(['price' => 35000, 'is_price_from' => true]);
 
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
-            ->assertSee('No creations to display yet');
-    }
-
-    public function test_gallery_does_not_expose_customer_data(): void
-    {
-        $order = $this->createShowcase();
-        $user = $order->user;
-
-        $response = $this->get(route('shop.custom-creations.index'));
-        $response->assertOk();
-        $response->assertDontSee($user->name);
-        $response->assertDontSee($user->email);
-        $response->assertDontSee($order->child_name);
-        $response->assertDontSee($order->customer_notes);
-        $response->assertDontSee($order->delivery_address);
-        $response->assertDontSee($order->admin_notes);
+            ->assertSee('From')
+            ->assertSee('35,000');
     }
 
     public function test_gallery_has_pagination(): void
     {
-        CustomOrder::factory()->completed()->count(15)->create([
-            'showcase_enabled' => true,
-            'showcase_image_path' => 'custom-creations/{id}/showcase.jpg',
-        ]);
+        CustomCreation::factory()->count(15)->active()->create();
 
         $response = $this->get(route('shop.custom-creations.index'));
         $response->assertOk();
@@ -102,8 +94,8 @@ class CustomCreationsGalleryTest extends TestCase
 
     public function test_category_filter_works(): void
     {
-        $this->createShowcase(['showcase_category' => 'birthday']);
-        $this->createShowcase(['showcase_title' => 'Elegant Red Gown', 'showcase_category' => 'party']);
+        $this->createCreation(['category' => 'birthday']);
+        $this->createCreation(['title' => 'Elegant Red Gown', 'category' => 'party']);
 
         $response = $this->get(route('shop.custom-creations.index', ['category' => 'birthday']));
         $response->assertOk();
@@ -113,7 +105,7 @@ class CustomCreationsGalleryTest extends TestCase
 
     public function test_invalid_category_shows_all(): void
     {
-        $this->createShowcase();
+        $this->createCreation();
 
         $this->get(route('shop.custom-creations.index', ['category' => 'invalid']))
             ->assertOk()
@@ -124,168 +116,227 @@ class CustomCreationsGalleryTest extends TestCase
 
     public function test_guest_can_view_detail_page(): void
     {
-        $order = $this->createShowcase();
+        $creation = $this->createCreation();
 
-        $this->get(route('shop.custom-creations.show', $order->id))
+        $this->get(route('shop.custom-creations.show', $creation->id))
             ->assertOk()
             ->assertSee('Birthday Princess Frock')
             ->assertSee('35,000')
             ->assertSee('A beautiful custom birthday dress');
     }
 
-    public function test_detail_page_returns_404_for_disabled_showcase(): void
+    public function test_detail_page_returns_404_for_inactive(): void
     {
-        $order = $this->createShowcase(['showcase_enabled' => false]);
+        $creation = $this->createCreation(['is_active' => false]);
 
-        $this->get(route('shop.custom-creations.show', $order->id))
+        $this->get(route('shop.custom-creations.show', $creation->id))
             ->assertNotFound();
     }
 
-    public function test_detail_page_returns_404_for_no_image(): void
+    public function test_detail_page_shows_from_prefix(): void
     {
-        $order = $this->createShowcase(['showcase_image_path' => null]);
+        $creation = $this->createCreation(['price' => 35000, 'is_price_from' => true]);
 
-        $this->get(route('shop.custom-creations.show', $order->id))
-            ->assertNotFound();
+        $this->get(route('shop.custom-creations.show', $creation->id))
+            ->assertOk()
+            ->assertSee('From');
     }
 
-    public function test_detail_page_does_not_expose_customer_data(): void
+    public function test_detail_page_shows_category_badge(): void
     {
-        $order = $this->createShowcase();
-        $user = $order->user;
+        $creation = $this->createCreation(['category' => 'princess']);
 
-        $response = $this->get(route('shop.custom-creations.show', $order->id));
-        $response->assertOk();
-        $response->assertDontSee($user->name);
-        $response->assertDontSee($user->email);
-        $response->assertDontSee($order->child_name);
-        $response->assertDontSee($order->customer_notes);
+        $this->get(route('shop.custom-creations.show', $creation->id))
+            ->assertOk()
+            ->assertSee('Princess Dresses');
     }
 
-    public function test_manipulating_url_cannot_reveal_private_order(): void
+    public function test_detail_page_shows_start_custom_order_cta(): void
     {
-        $order = CustomOrder::factory()->submitted()->create([
-            'showcase_enabled' => false,
-            'child_name' => 'Secret Child',
-        ]);
+        $creation = $this->createCreation();
 
-        $this->get(route('shop.custom-creations.show', $order->id))
-            ->assertNotFound();
+        $this->get(route('shop.custom-creations.show', $creation->id))
+            ->assertOk()
+            ->assertSee('Start Custom Order');
     }
 
-    // ── Navigation ───────────────────────────────────────────────
+    // ── Admin CRUD ───────────────────────────────────────────────
 
-    public function test_nav_link_appears_in_layout(): void
+    public function test_admin_can_view_index(): void
     {
-        $this->get(route('shop.custom-creations.index'))
+        $admin = $this->admin();
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.custom-creations.index'))
             ->assertOk()
             ->assertSee('Custom Creations');
     }
 
-    // ── Admin Showcase Toggle ────────────────────────────────────
-
-    private function admin(): User
-    {
-        return User::factory()->create(['role' => User::ROLE_ADMIN]);
-    }
-
-    public function test_admin_can_enable_showcase(): void
+    public function test_admin_can_view_create_form(): void
     {
         $admin = $this->admin();
-        $order = CustomOrder::factory()->completed()->create();
 
         $this->actingAs($admin, 'admin')
-            ->patch(route('admin.custom-orders.update-showcase', $order), [
-                'showcase_enabled' => true,
-                'showcase_title' => 'Beautiful Dress',
-                'showcase_price' => 25000,
-                'showcase_category' => 'party',
-            ]);
-
-        $order->refresh();
-        $this->assertTrue($order->showcase_enabled);
-        $this->assertEquals('Beautiful Dress', $order->showcase_title);
-        $this->assertEquals(25000, $order->showcase_price);
-        $this->assertEquals('party', $order->showcase_category);
+            ->get(route('admin.custom-creations.create'))
+            ->assertOk()
+            ->assertSee('Add Custom Creation');
     }
 
-    public function test_admin_can_disable_showcase(): void
-    {
-        $admin = $this->admin();
-        $order = $this->createShowcase();
-
-        $this->actingAs($admin, 'admin')
-            ->patch(route('admin.custom-orders.update-showcase', $order), [
-                'showcase_enabled' => false,
-                'showcase_title' => $order->showcase_title,
-            ]);
-
-        $order->refresh();
-        $this->assertFalse($order->showcase_enabled);
-    }
-
-    public function test_disabled_showcase_disappears_from_gallery(): void
-    {
-        $order = $this->createShowcase();
-
-        // Initially visible
-        $this->get(route('shop.custom-creations.index'))
-            ->assertSee('Birthday Princess Frock');
-
-        // Admin disables it
-        $admin = $this->admin();
-        $this->actingAs($admin, 'admin')
-            ->patch(route('admin.custom-orders.update-showcase', $order), [
-                'showcase_enabled' => false,
-                'showcase_title' => $order->showcase_title,
-            ]);
-
-        // No longer visible
-        $this->get(route('shop.custom-creations.index'))
-            ->assertDontSee('Birthday Princess Frock');
-    }
-
-    public function test_admin_can_upload_showcase_image(): void
+    public function test_admin_can_store_creation(): void
     {
         Storage::fake('public');
         $admin = $this->admin();
-        $order = CustomOrder::factory()->completed()->create();
 
-        $file = \Illuminate\Http\UploadedFile::fake()->image('showcase.jpg', 600, 800);
+        $file = UploadedFile::fake()->image('design.jpg', 600, 800);
 
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.custom-orders.showcase-image', $order), [
-                'showcase_image' => $file,
+            ->post(route('admin.custom-creations.store'), [
+                'title' => 'Elegant Ankara Frock',
+                'image' => $file,
+                'price' => 45000,
+                'is_price_from' => true,
+                'category' => 'ankara',
+                'description' => 'Beautiful ankara design.',
+                'is_active' => true,
+                'sort_order' => 0,
             ]);
 
-        $order->refresh();
-        $this->assertNotNull($order->showcase_image_path);
-        $this->assertStringContainsString('custom-creations/' . $order->id, $order->showcase_image_path);
+        $creation = CustomCreation::where('title', 'Elegant Ankara Frock')->first();
+        $this->assertNotNull($creation);
+        $this->assertEquals('ankara', $creation->category);
+        $this->assertTrue($creation->is_price_from);
+        $this->assertTrue($creation->is_active);
+        $this->assertStringContainsString('custom-creations/', $creation->image_path);
     }
 
-    public function test_unauthenticated_cannot_enable_showcase(): void
+    public function test_admin_can_view_edit_form(): void
     {
-        $order = CustomOrder::factory()->completed()->create();
+        $admin = $this->admin();
+        $creation = $this->createCreation();
 
-        $this->patch(route('admin.custom-orders.update-showcase', $order), [
-            'showcase_enabled' => true,
-        ])->assertRedirect();
-
-        $order->refresh();
-        $this->assertFalse($order->showcase_enabled);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.custom-creations.edit', $creation))
+            ->assertOk()
+            ->assertSee('Edit Custom Creation')
+            ->assertSee('Birthday Princess Frock');
     }
 
-    public function test_customer_cannot_enable_showcase(): void
+    public function test_admin_can_update_creation(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+        $creation = $this->createCreation();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.custom-creations.update', $creation), [
+                'title' => 'Updated Princess Frock',
+                'price' => 50000,
+                'category' => 'princess',
+                'is_active' => true,
+                'sort_order' => 5,
+            ]);
+
+        $creation->refresh();
+        $this->assertEquals('Updated Princess Frock', $creation->title);
+        $this->assertEquals(50000, $creation->price);
+        $this->assertEquals('princess', $creation->category);
+    }
+
+    public function test_admin_can_update_with_new_image(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+        $creation = $this->createCreation();
+
+        $file = UploadedFile::fake()->image('new-design.jpg', 600, 800);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.custom-creations.update', $creation), [
+                'title' => 'Updated Title',
+                'image' => $file,
+                'is_active' => true,
+            ]);
+
+        $creation->refresh();
+        $this->assertNotEquals('custom-creations/test-image.jpg', $creation->image_path);
+        $this->assertStringContainsString('custom-creations/', $creation->image_path);
+    }
+
+    public function test_admin_can_toggle_active(): void
+    {
+        $admin = $this->admin();
+        $creation = $this->createCreation(['is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.custom-creations.toggle-active', $creation));
+
+        $creation->refresh();
+        $this->assertFalse($creation->is_active);
+    }
+
+    public function test_admin_can_toggle_active_back(): void
+    {
+        $admin = $this->admin();
+        $creation = $this->createCreation(['is_active' => false]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.custom-creations.toggle-active', $creation));
+
+        $creation->refresh();
+        $this->assertTrue($creation->is_active);
+    }
+
+    public function test_admin_can_destroy_creation(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+        $creation = $this->createCreation();
+
+        $this->actingAs($admin, 'admin')
+            ->delete(route('admin.custom-creations.destroy', $creation));
+
+        $this->assertDatabaseMissing('custom_creations', ['id' => $creation->id]);
+    }
+
+    public function test_admin_destroy_cleans_up_image_file(): void
+    {
+        Storage::fake('public');
+        $admin = $this->admin();
+        $creation = $this->createCreation(['image_path' => 'custom-creations/test-cleanup.jpg']);
+
+        Storage::disk('public')->put('custom-creations/test-cleanup.jpg', 'fake');
+
+        $this->actingAs($admin, 'admin')
+            ->delete(route('admin.custom-creations.destroy', $creation));
+
+        Storage::disk('public')->assertMissing('custom-creations/test-cleanup.jpg');
+    }
+
+    // ── Auth & Authorization ─────────────────────────────────────
+
+    public function test_unauthenticated_admin_cannot_access_crud(): void
+    {
+        $creation = $this->createCreation();
+
+        $this->get(route('admin.custom-creations.index'))->assertRedirect();
+        $this->get(route('admin.custom-creations.create'))->assertRedirect();
+        $this->get(route('admin.custom-creations.edit', $creation))->assertRedirect();
+    }
+
+    public function test_customer_cannot_access_admin_crud(): void
     {
         $customer = User::factory()->create(['role' => User::ROLE_CUSTOMER]);
-        $order = CustomOrder::factory()->completed()->create();
+        $creation = $this->createCreation();
 
         $this->actingAs($customer)
-            ->patch(route('admin.custom-orders.update-showcase', $order), [
-                'showcase_enabled' => true,
-            ]);
+            ->get(route('admin.custom-creations.index'))
+            ->assertRedirect();
+    }
 
-        $order->refresh();
-        $this->assertFalse($order->showcase_enabled);
+    public function test_guest_cannot_store_creation(): void
+    {
+        $this->post(route('admin.custom-creations.store'), [
+            'title' => 'Test',
+        ])->assertRedirect();
     }
 }

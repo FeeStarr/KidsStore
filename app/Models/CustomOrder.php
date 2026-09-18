@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class CustomOrder extends Model
@@ -37,14 +35,6 @@ class CustomOrder extends Model
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_REJECTED = 'rejected';
     const STATUS_QUOTE_EXPIRED = 'quote_expired';
-
-    const SHOWCASE_CATEGORIES = [
-        'birthday' => 'Birthday Dresses',
-        'party' => 'Party Dresses',
-        'princess' => 'Princess Dresses',
-        'ankara' => 'Ankara',
-        'special_occasion' => 'Special Occasion',
-    ];
 
     const VALID_TRANSITIONS = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED],
@@ -186,27 +176,11 @@ class CustomOrder extends Model
         return $this->hasOne(Order::class);
     }
 
-    // ── Scopes ──────────────────────────────────────────────────────
-
-    public function scopeShowcased(Builder $query): Builder
-    {
-        return $query->where('showcase_enabled', true);
-    }
-
     // ── Accessors ──────────────────────────────────────────────────
 
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
-    }
-
-    public function getShowcaseImageUrlAttribute(): ?string
-    {
-        if (!$this->showcase_image_path) {
-            return null;
-        }
-
-        return Storage::disk('public')->url($this->showcase_image_path);
     }
 
     // ── Methods ────────────────────────────────────────────────────

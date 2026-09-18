@@ -34,20 +34,20 @@
                     <a href="{{ route('shop.custom-creations.show', $creation->id) }}" class="text-decoration-none">
                         <div class="card h-100 shadow-sm border-0 creation-card">
                             <div class="position-relative" style="aspect-ratio:3/4; overflow:hidden; border-radius:.375rem .375rem 0 0;">
-                                <img src="{{ $creation->showcase_image_url }}"
-                                     alt="{{ $creation->showcase_title }}"
+                                <img src="{{ $creation->image_url }}"
+                                     alt="{{ $creation->title }}"
                                      class="w-100 h-100"
                                      style="object-fit:cover;" loading="lazy" decoding="async">
-                                @if ($creation->showcase_category && isset($categories[$creation->showcase_category]))
+                                @if ($creation->category && isset($categories[$creation->category]))
                                     <span class="badge bg-primary position-absolute top-0 end-0 m-2">
-                                        {{ $categories[$creation->showcase_category] }}
+                                        {{ $categories[$creation->category] }}
                                     </span>
                                 @endif
                             </div>
                             <div class="card-body">
-                                <h6 class="card-title mb-1 text-dark">{{ $creation->showcase_title }}</h6>
-                                @if ($creation->showcase_price)
-                                    <p class="fw-bold mb-0" style="color:var(--kid-pink);">&#8358;{{ number_format($creation->showcase_price, 2) }}</p>
+                                <h6 class="card-title mb-1 text-dark">{{ $creation->title }}</h6>
+                                @if ($creation->price)
+                                    <p class="fw-bold mb-0" style="color:var(--kid-pink);">@if ($creation->is_price_from)From @endif&#8358;{{ number_format($creation->price, 2) }}</p>
                                 @endif
                             </div>
                         </div>
