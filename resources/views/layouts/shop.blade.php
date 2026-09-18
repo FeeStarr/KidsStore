@@ -258,7 +258,7 @@
                         @endif
                         <li><a class="dropdown-item" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
-                        <li><a class="dropdown-item" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
+                        <li><a class="dropdown-item" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Orders</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf

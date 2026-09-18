@@ -38,7 +38,7 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="child_name" class="form-label">Child's Name / Nickname <span class="text-danger">*</span></label>
-                                    <input type="text" name="child_name" id="child_name" class="form-control" value="{{ old('child_name') }}" maxlength="100" required>
+                                    <input type="text" name="child_name" id="child_name" class="form-control" value="{{ old('child_name', $saved['child_name'] ?? '') }}" maxlength="100" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Gender</label>
@@ -48,11 +48,11 @@
                                     <label for="delivery_method" class="form-label">Delivery Method <span class="text-danger">*</span></label>
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="delivery_method" id="delivery_home" value="delivery" checked>
+                                            <input class="form-check-input" type="radio" name="delivery_method" id="delivery_home" value="delivery" {{ (old('delivery_method', $saved['delivery_method'] ?? 'delivery')) === 'delivery' ? 'checked' : '' }}>
                                             <label class="form-check-label" for="delivery_home">Home Delivery</label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="delivery_method" id="delivery_pickup" value="pickup">
+                                            <input class="form-check-input" type="radio" name="delivery_method" id="delivery_pickup" value="pickup" {{ (old('delivery_method', $saved['delivery_method'] ?? '')) === 'pickup' ? 'checked' : '' }}>
                                             <label class="form-check-label" for="delivery_pickup">Pickup Station</label>
                                         </div>
                                     </div>
@@ -62,17 +62,17 @@
                                     <select name="pickup_station_id" id="pickup_station_id" class="form-select">
                                         <option value="">Select station...</option>
                                         @foreach ($pickupStations as $station)
-                                            <option value="{{ $station->id }}">{{ $station->name }} - {{ $station->address }}</option>
+                                            <option value="{{ $station->id }}" {{ old('pickup_station_id', $saved['pickup_station_id'] ?? '') == $station->id ? 'selected' : '' }}>{{ $station->name }} - {{ $station->address }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-12 delivery-field">
                                     <label for="delivery_address" class="form-label">Delivery Address <span class="text-danger">*</span></label>
-                                    <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2" maxlength="500">{{ old('delivery_address') }}</textarea>
+                                    <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2" maxlength="500">{{ old('delivery_address', $saved['delivery_address'] ?? '') }}</textarea>
                                 </div>
                                 <div class="col-12">
                                     <label for="customer_notes" class="form-label">Notes (optional)</label>
-                                    <textarea name="customer_notes" id="customer_notes" class="form-control" rows="2" maxlength="1000" placeholder="Any special requests...">{{ old('customer_notes') }}</textarea>
+                                    <textarea name="customer_notes" id="customer_notes" class="form-control" rows="2" maxlength="1000" placeholder="Any special requests...">{{ old('customer_notes', $saved['customer_notes'] ?? '') }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -109,7 +109,7 @@
                                     <select name="standard_size" class="form-select" required>
                                         <option value="">Select age...</option>
                                         @foreach (\App\Models\AgeRange::where('is_active', true)->orderBy('name')->get() as $age)
-                                            <option value="{{ $age->name }}" {{ old('standard_size') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
+                                            <option value="{{ $age->name }}" {{ old('standard_size', $saved['standard_size'] ?? '') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -117,7 +117,7 @@
                                 {{-- Size preference --}}
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Size Preference</label>
-                                    <input type="text" name="child_size" class="form-control" placeholder="e.g. Small, Medium, Large" value="{{ old('child_size') }}">
+                                    <input type="text" name="child_size" class="form-control" placeholder="e.g. Small, Medium, Large" value="{{ old('child_size', $saved['child_size'] ?? '') }}">
                                     <small class="text-muted">Optional - our team will confirm during review.</small>
                                 </div>
 
@@ -134,26 +134,26 @@
                                         @endforeach
                                     </div>
                                     @endif
-                                    <input type="text" name="primary_colour" id="primary_colour" class="form-control form-control-sm" value="{{ old('primary_colour') }}" placeholder="e.g. Pink, Red, Blue" maxlength="128" required>
+                                    <input type="text" name="primary_colour" id="primary_colour" class="form-control form-control-sm" value="{{ old('primary_colour', $saved['primary_colour'] ?? '') }}" placeholder="e.g. Pink, Red, Blue" maxlength="128" required>
                                     <small class="text-muted">Pick a swatch or type a colour name.</small>
                                 </div>
 
                                 {{-- Secondary colour --}}
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold">Secondary Colour</label>
-                                    <input type="text" name="secondary_colour" class="form-control" placeholder="e.g. White" value="{{ old('secondary_colour') }}" maxlength="128">
+                                    <input type="text" name="secondary_colour" class="form-control" placeholder="e.g. White" value="{{ old('secondary_colour', $saved['secondary_colour'] ?? '') }}" maxlength="128">
                                 </div>
 
                                 {{-- Accent colour --}}
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold">Accent Colour</label>
-                                    <input type="text" name="accent_colour" class="form-control" placeholder="e.g. Gold" value="{{ old('accent_colour') }}" maxlength="128">
+                                    <input type="text" name="accent_colour" class="form-control" placeholder="e.g. Gold" value="{{ old('accent_colour', $saved['accent_colour'] ?? '') }}" maxlength="128">
                                 </div>
 
                                 {{-- Colour description --}}
                                 <div class="col-12">
                                     <label class="form-label">Colour Description (optional)</label>
-                                    <input type="text" name="custom_colour_description" class="form-control" placeholder="Describe your preferred colours..." value="{{ old('custom_colour_description') }}" maxlength="500">
+                                    <input type="text" name="custom_colour_description" class="form-control" placeholder="Describe your preferred colours..." value="{{ old('custom_colour_description', $saved['custom_colour_description'] ?? '') }}" maxlength="500">
                                 </div>
 
                                 {{-- Colour reference images --}}
