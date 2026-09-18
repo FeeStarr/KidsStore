@@ -29,12 +29,7 @@ class CustomCreation extends Model
         'sort_order' => 'integer',
     ];
 
-    const CATEGORIES = [
-        'birthday' => 'Birthday Dresses',
-        'princess' => 'Princess Dresses',
-        'ankara' => 'Ankara',
-        'special_occasion' => 'Special Occasion',
-    ];
+    const CATEGORIES = [];
 
     // ── Scopes ──────────────────────────────────────────────────
 
