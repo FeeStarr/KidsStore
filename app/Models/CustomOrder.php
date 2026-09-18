@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class CustomOrder extends Model
@@ -36,6 +37,14 @@ class CustomOrder extends Model
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_REJECTED = 'rejected';
     const STATUS_QUOTE_EXPIRED = 'quote_expired';
+
+    const SHOWCASE_CATEGORIES = [
+        'birthday' => 'Birthday Dresses',
+        'party' => 'Party Dresses',
+        'princess' => 'Princess Dresses',
+        'ankara' => 'Ankara',
+        'special_occasion' => 'Special Occasion',
+    ];
 
     const VALID_TRANSITIONS = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED],
@@ -92,6 +101,8 @@ class CustomOrder extends Model
         'tracking_number', 'courier_name',
         'submitted_at', 'quoted_at', 'approved_at', 'paid_at',
         'production_started_at', 'completed_at', 'cancelled_at',
+        'showcase_enabled', 'showcase_title', 'showcase_price',
+        'showcase_description', 'showcase_image_path', 'showcase_category',
     ];
 
     protected $casts = [
@@ -112,6 +123,8 @@ class CustomOrder extends Model
         'production_started_at' => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'showcase_enabled' => 'boolean',
+        'showcase_price' => 'decimal:2',
     ];
 
     protected $appends = ['status_label'];
@@ -173,11 +186,27 @@ class CustomOrder extends Model
         return $this->hasOne(Order::class);
     }
 
+    // ── Scopes ──────────────────────────────────────────────────────
+
+    public function scopeShowcased(Builder $query): Builder
+    {
+        return $query->where('showcase_enabled', true);
+    }
+
     // ── Accessors ──────────────────────────────────────────────────
 
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
+    }
+
+    public function getShowcaseImageUrlAttribute(): ?string
+    {
+        if (!$this->showcase_image_path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->showcase_image_path);
     }
 
     // ── Methods ────────────────────────────────────────────────────

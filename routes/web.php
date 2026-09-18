@@ -38,6 +38,7 @@ use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\ContactController as ShopContactController;
 use App\Http\Controllers\Shop\CustomOrderController;
 use App\Http\Controllers\Shop\CustomOrderFileController;
+use App\Http\Controllers\Shop\CustomCreationController;
 use App\Http\Controllers\Shop\PwaInstallController;
 use App\Http\Controllers\Shop\DealController as ShopDealController;
 use App\Http\Controllers\Shop\HomeController;
@@ -88,6 +89,9 @@ Route::name('shop.')->group(function () {
 
     Route::get('/deals', [ShopDealController::class, 'index'])->name('deals.index');
     Route::get('/deals/{deal}', [ShopDealController::class, 'show'])->name('deals.show');
+
+    Route::get('/custom-creations', [CustomCreationController::class, 'index'])->name('custom-creations.index');
+    Route::get('/custom-creations/{id}', [CustomCreationController::class, 'show'])->name('custom-creations.show')->where('id', '[0-9]+');
 
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
@@ -296,6 +300,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('custom-orders/{customOrder}/message', [App\Http\Controllers\Admin\CustomOrderController::class, 'sendMessage'])->name('custom-orders.message')->middleware(['permission:manage_orders', 'throttle:10,1']);
         Route::patch('custom-orders/{customOrder}/notes', [App\Http\Controllers\Admin\CustomOrderController::class, 'updateNotes'])->name('custom-orders.update-notes')->middleware('permission:manage_orders');
         Route::get('custom-orders/{customOrder}/files/{file}', [App\Http\Controllers\Admin\CustomOrderController::class, 'serveFile'])->name('custom-orders.file')->middleware('permission:manage_orders');
+
+        // Showcase management
+        Route::patch('custom-orders/{customOrder}/showcase', [App\Http\Controllers\Admin\CustomOrderController::class, 'updateShowcase'])->name('custom-orders.update-showcase')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/showcase-image', [App\Http\Controllers\Admin\CustomOrderController::class, 'uploadShowcaseImage'])->name('custom-orders.showcase-image')->middleware('permission:manage_orders');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])
