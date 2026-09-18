@@ -220,6 +220,7 @@
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.custom-creations.*') ? 'active' : '' }}" href="{{ route('shop.custom-creations.index') }}"><i class="bi bi-stars me-1"></i>Custom Creations</a></li>
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">More</a>
                 <ul class="dropdown-menu">

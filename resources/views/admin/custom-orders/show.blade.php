@@ -305,6 +305,70 @@
                 </form>
             </div>
         </div>
+
+        {{-- Public Showcase --}}
+        <div class="card shadow-sm mb-4 border-primary">
+            <div class="card-header bg-primary text-white"><h6 class="mb-0"><i class="bi bi-stars me-1"></i> Public Showcase</h6></div>
+            <div class="card-body">
+                <form method="POST" action="{{ route('admin.custom-orders.update-showcase', $customOrder) }}">
+                    @csrf @method('PATCH')
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="showcase_enabled" value="1" id="showcaseEnabled" {{ $customOrder->showcase_enabled ? 'checked' : '' }}>
+                        <label class="form-check-label fw-bold" for="showcaseEnabled">Show in Custom Creations</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Showcase Title</label>
+                        <input type="text" name="showcase_title" class="form-control form-control-sm" value="{{ $customOrder->showcase_title }}" placeholder="e.g. Birthday Princess Frock" maxlength="255">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Showcase Price</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">&#8358;</span>
+                            <input type="number" name="showcase_price" class="form-control" value="{{ $customOrder->showcase_price }}" step="0.01" min="0" placeholder="35000">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Category</label>
+                        <select name="showcase_category" class="form-select form-select-sm">
+                            <option value="">No category</option>
+                            @foreach (\App\Models\CustomOrder::SHOWCASE_CATEGORIES as $key => $label)
+                                <option value="{{ $key }}" {{ $customOrder->showcase_category === $key ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Description</label>
+                        <textarea name="showcase_description" class="form-control form-control-sm" rows="2" maxlength="1000" placeholder="A short public description...">{{ $customOrder->showcase_description }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Save Showcase Settings</button>
+                </form>
+
+                <hr>
+
+                <div class="mb-0">
+                    <label class="form-label small fw-bold">Showcase Image</label>
+                    <p class="text-muted small mb-2">Only enable this if the image contains no customer or child-identifying information and is suitable for public display.</p>
+
+                    @if ($customOrder->showcase_image_path)
+                        <div class="mb-2">
+                            <img src="{{ Storage::disk('public')->url($customOrder->showcase_image_path) }}" class="img-thumbnail" style="max-height:150px;" alt="Showcase image">
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('admin.custom-orders.showcase-image', $customOrder) }}" enctype="multipart/form-data">
+                        @csrf
+                        <input type="file" name="showcase_image" class="form-control form-control-sm mb-2" accept="image/jpeg,image/png,image/webp" required>
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">{{ $customOrder->showcase_image_path ? 'Replace Image' : 'Upload Image' }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
