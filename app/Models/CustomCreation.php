@@ -31,7 +31,6 @@ class CustomCreation extends Model
 
     const CATEGORIES = [
         'birthday' => 'Birthday Dresses',
-        'party' => 'Party Dresses',
         'princess' => 'Princess Dresses',
         'ankara' => 'Ankara',
         'special_occasion' => 'Special Occasion',
