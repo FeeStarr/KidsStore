@@ -3,58 +3,60 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
-use App\Models\CustomOrder;
+use App\Models\CustomCreation;
 use Illuminate\Http\Request;
 
 class CustomCreationController extends Controller
 {
     public function index(Request $request)
     {
-        $query = CustomOrder::showcased()
-            ->whereNotNull('showcase_image_path')
+        $query = CustomCreation::active()
             ->select([
                 'id',
-                'showcase_title',
-                'showcase_price',
-                'showcase_description',
-                'showcase_image_path',
-                'showcase_category',
+                'title',
+                'image_path',
+                'price',
+                'is_price_from',
+                'description',
+                'category',
             ]);
 
         $category = $request->input('category');
 
-        if ($category && array_key_exists($category, CustomOrder::SHOWCASE_CATEGORIES)) {
-            $query->where('showcase_category', $category);
+        if ($category && array_key_exists($category, CustomCreation::CATEGORIES)) {
+            $query->where('category', $category);
         }
 
-        $creations = $query->orderByDesc('completed_at')->paginate(12)->withQueryString();
+        $creations = $query->orderBy('sort_order')
+            ->orderByDesc('created_at')
+            ->paginate(12)
+            ->withQueryString();
 
         return view('shop.custom-creations.index', [
             'creations' => $creations,
-            'categories' => CustomOrder::SHOWCASE_CATEGORIES,
+            'categories' => CustomCreation::CATEGORIES,
             'activeCategory' => $category,
         ]);
     }
 
     public function show(int $id)
     {
-        $creation = CustomOrder::showcased()
+        $creation = CustomCreation::active()
             ->where('id', $id)
-            ->whereNotNull('showcase_image_path')
             ->select([
                 'id',
-                'showcase_title',
-                'showcase_price',
-                'showcase_description',
-                'showcase_image_path',
-                'showcase_category',
-                'completed_at',
+                'title',
+                'image_path',
+                'price',
+                'is_price_from',
+                'description',
+                'category',
             ])
             ->firstOrFail();
 
         return view('shop.custom-creations.show', [
             'creation' => $creation,
-            'categories' => CustomOrder::SHOWCASE_CATEGORIES,
+            'categories' => CustomCreation::CATEGORIES,
         ]);
     }
 }

@@ -301,9 +301,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('custom-orders/{customOrder}/notes', [App\Http\Controllers\Admin\CustomOrderController::class, 'updateNotes'])->name('custom-orders.update-notes')->middleware('permission:manage_orders');
         Route::get('custom-orders/{customOrder}/files/{file}', [App\Http\Controllers\Admin\CustomOrderController::class, 'serveFile'])->name('custom-orders.file')->middleware('permission:manage_orders');
 
-        // Showcase management
-        Route::patch('custom-orders/{customOrder}/showcase', [App\Http\Controllers\Admin\CustomOrderController::class, 'updateShowcase'])->name('custom-orders.update-showcase')->middleware('permission:manage_orders');
-        Route::post('custom-orders/{customOrder}/showcase-image', [App\Http\Controllers\Admin\CustomOrderController::class, 'uploadShowcaseImage'])->name('custom-orders.showcase-image')->middleware('permission:manage_orders');
+        // Custom Creations (standalone gallery)
+        Route::get('custom-creations', [App\Http\Controllers\Admin\CustomCreationController::class, 'index'])->name('custom-creations.index')->middleware('permission:manage_orders');
+        Route::get('custom-creations/create', [App\Http\Controllers\Admin\CustomCreationController::class, 'create'])->name('custom-creations.create')->middleware('permission:manage_orders');
+        Route::post('custom-creations', [App\Http\Controllers\Admin\CustomCreationController::class, 'store'])->name('custom-creations.store')->middleware('permission:manage_orders');
+        Route::get('custom-creations/{customCreation}/edit', [App\Http\Controllers\Admin\CustomCreationController::class, 'edit'])->name('custom-creations.edit')->middleware('permission:manage_orders');
+        Route::put('custom-creations/{customCreation}', [App\Http\Controllers\Admin\CustomCreationController::class, 'update'])->name('custom-creations.update')->middleware('permission:manage_orders');
+        Route::delete('custom-creations/{customCreation}', [App\Http\Controllers\Admin\CustomCreationController::class, 'destroy'])->name('custom-creations.destroy')->middleware('permission:manage_orders');
+        Route::post('custom-creations/{customCreation}/toggle-active', [App\Http\Controllers\Admin\CustomCreationController::class, 'toggleActive'])->name('custom-creations.toggle-active')->middleware('permission:manage_orders');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index')->middleware('permission:view_inventory');
         Route::patch('inventory/{inventory}/reorder-level', [InventoryController::class, 'updateReorderLevel'])
