@@ -168,6 +168,7 @@ Route::name('shop.')->group(function () {
 // Custom Frock - create is public, rest requires auth
 Route::get('/custom-frock', [CustomOrderController::class, 'index'])->name('shop.custom-frock.index')->middleware('auth');
 Route::get('/custom-frock/create', [CustomOrderController::class, 'create'])->name('shop.custom-frock.create')->middleware('auth');
+Route::get('/custom-frock/{customOrder}/create-similar', [CustomOrderController::class, 'createSimilar'])->name('shop.custom-frock.create-similar')->middleware('auth');
 Route::post('/custom-frock', [CustomOrderController::class, 'store'])->name('shop.custom-frock.store')->middleware(['auth', 'throttle:10,1']);
 Route::get('/custom-frock/{customOrder}', [CustomOrderController::class, 'show'])->name('shop.custom-frock.show')->middleware('auth');
 Route::post('/custom-frock/{customOrder}/approve-quote', [CustomOrderController::class, 'approveQuote'])->name('shop.custom-frock.approve-quote')->middleware(['auth', 'throttle:5,1']);

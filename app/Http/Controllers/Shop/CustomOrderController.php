@@ -26,13 +26,25 @@ class CustomOrderController extends Controller
         private CustomPaymentService $paymentService,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $orders = CustomOrder::where('user_id', Auth::id())
-            ->latest()
-            ->paginate(10);
+        $filter = $request->input('filter');
 
-        return view('shop.custom-frock.index', compact('orders'));
+        $query = CustomOrder::where('user_id', Auth::id())
+            ->with(['files' => fn ($q) => $q->where('file_type', 'reference_image')->limit(1)])
+            ->latest();
+
+        if ($filter === 'active') {
+            $query->whereNotIn('status', ['completed', 'cancelled', 'rejected']);
+        } elseif ($filter === 'completed') {
+            $query->where('status', 'completed');
+        } elseif ($filter === 'cancelled') {
+            $query->whereIn('status', ['cancelled', 'rejected']);
+        }
+
+        $orders = $query->paginate(12)->withQueryString();
+
+        return view('shop.custom-frock.index', compact('orders', 'filter'));
     }
 
     public function create()
@@ -45,11 +57,41 @@ class CustomOrderController extends Controller
             $baseProduct = Product::findOrFail(request('product_id'));
         }
 
-        // Restore session data if available
+        // Restore session data if available (draft or create-similar)
         $saved = Session::get('custom_order_draft', []);
+        Session::forget('custom_order_draft');
         $fileService = $this->fileService;
 
         return view('shop.custom-frock.create', array_merge($data, compact('baseProduct', 'saved', 'fileService')));
+    }
+
+    public function createSimilar(CustomOrder $customOrder)
+    {
+        abort_unless($customOrder->user_id === Auth::id(), 403);
+
+        // Build pre-population data from the existing order
+        $customizations = $customOrder->customizations->pluck('value', 'attribute')->toArray();
+
+        $saved = array_filter([
+            'child_name' => $customOrder->child_name,
+            'child_age' => $customOrder->child_age,
+            'child_gender' => $customOrder->child_gender,
+            'delivery_method' => $customOrder->delivery_method,
+            'pickup_station_id' => $customOrder->pickup_station_id,
+            'delivery_address' => $customOrder->delivery_address,
+            'customer_notes' => null,
+            'primary_colour' => $customizations['primary_colour'] ?? null,
+            'secondary_colour' => $customizations['secondary_colour'] ?? null,
+            'accent_colour' => $customizations['accent_colour'] ?? null,
+            'custom_colour_description' => $customOrder->custom_colour_description,
+            'standard_size' => $customizations['standard_size'] ?? null,
+            'child_size' => $customizations['child_size'] ?? null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        Session::put('custom_order_draft', $saved);
+
+        return redirect()->route('shop.custom-frock.create')
+            ->with('success', 'Previous order details pre-filled. Please review and submit your new custom order.');
     }
 
     public function store(Request $request)

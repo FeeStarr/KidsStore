@@ -95,6 +95,26 @@
                 </div>
             @endif
 
+            {{-- Customer Notes --}}
+            @if ($customOrder->customer_notes)
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h6 class="mb-0">Your Notes</h6></div>
+                    <div class="card-body">
+                        <p class="mb-0">{{ $customOrder->customer_notes }}</p>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Customer Visible Notes --}}
+            @if ($customOrder->customer_visible_notes)
+                <div class="card shadow-sm mb-4 border-info">
+                    <div class="card-header bg-info bg-opacity-10"><h6 class="mb-0 text-info"><i class="bi bi-info-circle me-1"></i> Note from KidsFlairr</h6></div>
+                    <div class="card-body">
+                        <p class="mb-0">{{ $customOrder->customer_visible_notes }}</p>
+                    </div>
+                </div>
+            @endif
+
             {{-- Quote --}}
             @if ($approvedQuote || $latestQuote)
                 @php $quote = $approvedQuote ?? $latestQuote; @endphp
@@ -206,6 +226,37 @@
                 </div>
             </div>
 
+            {{-- Payment Info --}}
+            @if ($customOrder->total_amount > 0)
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h6 class="mb-0">Payment</h6></div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Total</span>
+                            <strong>₦{{ number_format($customOrder->total_amount, 2) }}</strong>
+                        </div>
+                        @if ($customOrder->amount_paid > 0)
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Paid</span>
+                                <span class="text-success">₦{{ number_format($customOrder->amount_paid, 2) }}</span>
+                            </div>
+                        @endif
+                        @php $outstanding = max(0, $customOrder->total_amount - $customOrder->amount_paid); @endphp
+                        @if ($outstanding > 0)
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Outstanding</span>
+                                <span class="text-danger fw-bold">₦{{ number_format($outstanding, 2) }}</span>
+                            </div>
+                        @endif
+                        <div class="mt-2">
+                            <span class="badge {{ $customOrder->payment_status === 'paid' ? 'text-bg-success' : 'text-bg-warning text-dark' }}">
+                                {{ ucfirst($customOrder->payment_status) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             {{-- Actions --}}
             @if (in_array($customOrder->status, ['draft']))
                 <div class="card shadow-sm mb-4">
@@ -214,6 +265,17 @@
                             @csrf
                             <button type="submit" class="btn btn-outline-danger w-100">Cancel Order</button>
                         </form>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Create Similar Order --}}
+            @if ($customOrder->status === 'completed')
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <a href="{{ route('shop.custom-frock.create-similar', $customOrder) }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-arrow-repeat me-1"></i> Create Similar Order
+                        </a>
                     </div>
                 </div>
             @endif
