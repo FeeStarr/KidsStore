@@ -13,7 +13,7 @@
     <div class="card-body">
         <form action="{{ route('admin.delivery-locations.update', $deliveryLocation) }}" method="post">
             @csrf @method('PUT')
-            @include('admin.delivery_locations._form')
+            @include('admin.delivery_locations._form', ['loc' => $deliveryLocation])
             <button class="btn btn-primary mt-3">Update Location</button>
         </form>
     </div>

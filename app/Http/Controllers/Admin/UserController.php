@@ -45,7 +45,7 @@ class UserController extends Controller
             'email' => $data['email'],
             'role' => $roles[0],
             'staff_type' => $staffType,
-            'password' => Hash::make($data['password']),
+            'password' => $data['password'],
             'is_active' => (bool) ($data['is_active'] ?? true),
         ]);
 
@@ -124,7 +124,7 @@ class UserController extends Controller
         }
 
         if (!empty($data['password'])) {
-            $user->password = Hash::make($data['password']);
+            $user->password = $data['password'];
         }
 
         $user->save();

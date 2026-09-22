@@ -32,6 +32,7 @@ class DeliveryAgentController extends Controller
             'contact_name' => ['nullable', 'string', 'max:120'],
             'phone'        => ['required', 'string', 'max:30'],
             'email'        => ['required', 'email', 'max:255', 'unique:users,email'],
+            'address'      => ['nullable', 'string', 'max:500'],
             'notes'        => ['nullable', 'string', 'max:1000'],
             'is_active'    => ['nullable', 'boolean'],
         ]);
@@ -42,7 +43,7 @@ class DeliveryAgentController extends Controller
         $user = User::create([
             'name'                => $data['name'],
             'email'               => $data['email'],
-            'password'            => Hash::make($tempPassword),
+            'password'            => $tempPassword,
             'phone'               => $data['phone'] ?? null,
             'role'                => User::ROLE_DELIVERY_AGENT,
             'is_active'           => $data['is_active'],
@@ -54,6 +55,7 @@ class DeliveryAgentController extends Controller
             'contact_name' => $data['contact_name'] ?? null,
             'phone'        => $data['phone'] ?? null,
             'email'        => $data['email'],
+            'address'      => $data['address'] ?? null,
             'notes'        => $data['notes'] ?? null,
             'is_active'    => $data['is_active'],
             'account_number' => 'DA-' . str_pad($user->id, 6, '0', STR_PAD_LEFT),
@@ -87,6 +89,7 @@ class DeliveryAgentController extends Controller
             'contact_name' => ['nullable', 'string', 'max:120'],
             'phone'        => ['required', 'string', 'max:30'],
             'email'        => ['required', 'email', 'max:255', 'unique:users,email,' . $deliveryAgent->user_id],
+            'address'      => ['nullable', 'string', 'max:500'],
             'notes'        => ['nullable', 'string', 'max:1000'],
             'is_active'    => ['nullable', 'boolean'],
         ]);

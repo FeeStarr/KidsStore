@@ -1,50 +1,109 @@
 @extends('layouts.admin', ['title' => 'Purchases'])
 @section('content')
-<div class="d-flex justify-content-between mb-3">
-    <h3>Purchases</h3>
-    <a href="{{ route('admin.purchases.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Purchase</a>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h3 class="mb-0"><i class="bi bi-bag-check"></i> Purchases</h3>
+        <p class="text-muted mb-0">Track and manage purchase orders.</p>
+    </div>
+    <a href="{{ route('admin.purchases.create') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> New Purchase
+    </a>
 </div>
 
-<div class="card"><div class="card-body">
-<table id="purchases-table" class="table align-middle w-100">
-    <thead>
-    <tr>
-        <th data-dt-no-export>#</th>
-        <th>Purchase Number</th>
-        <th>Date</th>
-        <th>Supplier</th>
-        <th>Status</th>
-        <th class="text-end">Total (NGN)</th>
-        <th data-dt-no-export class="text-end">Actions</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach($purchases as $p)
-        <tr>
-            <td>{{ $loop->iteration }}</td>
-            <td>{{ $p->display_number }}</td>
-            <td>{{ $p->purchase_date->format('Y-m-d H:i') }}</td>
-            <td>{{ $p->supplier?->name ?? '-' }}</td>
-            <td>{{ $p->status }}</td>
-            <td class="text-end">{{ number_format($p->total_cost, 2) }}</td>
-            <td class="text-end text-nowrap">
-                <a href="{{ route('admin.purchases.show', $p) }}" class="btn btn-sm btn-outline-secondary">View</a>
-            </td>
-        </tr>
-    @endforeach
-    </tbody>
-</table>
-</div></div>
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <select id="filter-status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="received">Received</option>
+            <option value="cancelled">Cancelled</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select id="filter-supplier" class="form-select form-select-sm">
+            <option value="">All Suppliers</option>
+            @foreach($suppliers as $supplier)
+                <option value="{{ $supplier->name }}">{{ $supplier->name }}</option>
+            @endforeach
+        </select>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="purchases-table" class="table table-hover mb-0 align-middle w-100">
+                <thead class="table-light">
+                <tr>
+                    <th>Purchase #</th>
+                    <th>Date</th>
+                    <th>Supplier</th>
+                    <th>Products</th>
+                    <th>Status</th>
+                    <th class="text-end">Total</th>
+                    <th data-dt-no-export class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach($purchases as $p)
+                    @php
+                        $productNames = $p->items->pluck('product.name')->filter()->unique()->values();
+                        $shown = $productNames->take(3);
+                        $remaining = $productNames->count() - 3;
+                    @endphp
+                    <tr>
+                        <td class="fw-semibold">{{ $p->display_number }}</td>
+                        <td data-order="{{ $p->purchase_date->timestamp }}">{{ $p->purchase_date->format('M d, Y') }}</td>
+                        <td>{{ $p->supplier?->name ?? '-' }}</td>
+                        <td>
+                            @forelse($shown as $name)
+                                <span class="badge bg-light text-dark border">{{ $name }}</span>
+                            @empty
+                                <span class="text-muted">-</span>
+                            @endforelse
+                            @if($remaining > 0)
+                                <span class="badge bg-secondary">+{{ $remaining }} more</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($p->status === 'received')
+                                <span class="badge bg-success">Received</span>
+                            @elseif($p->status === 'cancelled')
+                                <span class="badge bg-danger">Cancelled</span>
+                            @else
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            @endif
+                        </td>
+                        <td class="text-end" data-order="{{ $p->total_cost }}">&#8358;{{ number_format($p->total_cost, 2) }}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="{{ route('admin.purchases.show', $p) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection
 
 @push('scripts')
 <script>
 $(function () {
-    $('#purchases-table').DataTable({
-        order: [[2, 'desc']],
-        pageLength: 15,
-        lengthMenu: [[10, 15, 25, 50, 100, -1], [10, 15, 25, 50, 100, 'All']],
+    var table = $('#purchases-table').DataTable({
+        order: [[1, 'desc']],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
         columnDefs: [
-            { targets: 0, orderable: false, searchable: false, width: '40px' },
             { targets: -1, orderable: false, searchable: false }
         ],
         layout: {
@@ -59,6 +118,13 @@ $(function () {
             },
             topEnd: ['pageLength', 'search']
         }
+    });
+
+    $('#filter-status').on('change', function () {
+        table.column(4).search(this.value).draw();
+    });
+    $('#filter-supplier').on('change', function () {
+        table.column(2).search(this.value).draw();
     });
 });
 </script>

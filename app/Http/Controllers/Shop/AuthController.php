@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -55,7 +56,15 @@ class AuthController extends Controller
         // 2FA required for this user?
         if ($user->two_factor_enabled) {
             $user->generateTwoFactorCode();
-            $user->notify(new AdminTwoFactorCodeNotification($user->two_factor_code));
+
+            try {
+                $user->notify(new AdminTwoFactorCodeNotification($user->two_factor_code));
+            } catch (\Throwable $e) {
+                Log::error('Failed to send shop 2FA email', [
+                    'user_id' => $user->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
 
             $request->session()->put('shop_2fa_user_id',  $user->id);
             $request->session()->put('shop_2fa_remember', $request->boolean('remember'));
