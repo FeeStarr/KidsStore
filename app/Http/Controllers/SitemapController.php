@@ -11,7 +11,7 @@ class SitemapController extends Controller
 {
     public function robots(): Response
     {
-        $sitemapUrl = rtrim(config('app.url'), '/') . '/sitemap.xml';
+        $sitemapUrl = rtrim((string) config('app.url'), '/') . '/sitemap.xml';
 
         $content = <<<TXT
 User-agent: *
@@ -33,7 +33,7 @@ TXT;
 
     public function sitemap(): Response
     {
-        $baseUrl = rtrim(config('app.url'), '/');
+        $baseUrl = rtrim((string) config('app.url'), '/');
         $urls = [];
 
         // ── Static public pages ────────────────────────────────────────
@@ -54,54 +54,66 @@ TXT;
         }
 
         // ── Active products ────────────────────────────────────────────
-        Product::where(function ($q) {
-                $q->where('status', 'active')->where('is_active', true);
-            })
-            ->orWhere(function ($q) {
-                $q->whereNull('status')->where('is_active', true);
-            })
-            ->select('id', 'updated_at')
-            ->orderBy('id')
-            ->chunk(200, function ($products) use (&$urls) {
-                foreach ($products as $product) {
-                    $urls[] = [
-                        'loc'        => url('/products/' . $product->id),
-                        'lastmod'    => $product->updated_at->toIso8601String(),
-                        'changefreq' => 'weekly',
-                        'priority'   => '0.8',
-                    ];
-                }
-            });
+        try {
+            Product::where(function ($q) {
+                    $q->where('status', 'active')->where('is_active', true);
+                })
+                ->orWhere(function ($q) {
+                    $q->whereNull('status')->where('is_active', true);
+                })
+                ->select('id', 'updated_at')
+                ->orderBy('id')
+                ->chunk(200, function ($products) use (&$urls, $baseUrl) {
+                    foreach ($products as $product) {
+                        $urls[] = [
+                            'loc'        => $baseUrl . '/products/' . $product->id,
+                            'lastmod'    => $this->lastModified($product),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.8',
+                        ];
+                    }
+                });
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         // ── Live deals ─────────────────────────────────────────────────
-        Deal::live()
-            ->select('id', 'updated_at')
-            ->orderBy('id')
-            ->chunk(200, function ($deals) use (&$urls) {
-                foreach ($deals as $deal) {
-                    $urls[] = [
-                        'loc'        => url('/deals/' . $deal->id),
-                        'lastmod'    => $deal->updated_at->toIso8601String(),
-                        'changefreq' => 'weekly',
-                        'priority'   => '0.7',
-                    ];
-                }
-            });
+        try {
+            Deal::live()
+                ->select('id', 'updated_at')
+                ->orderBy('id')
+                ->chunk(200, function ($deals) use (&$urls, $baseUrl) {
+                    foreach ($deals as $deal) {
+                        $urls[] = [
+                            'loc'        => $baseUrl . '/deals/' . $deal->id,
+                            'lastmod'    => $this->lastModified($deal),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.7',
+                        ];
+                    }
+                });
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         // ── Active custom creations ────────────────────────────────────
-        CustomCreation::active()
-            ->select('id', 'updated_at')
-            ->orderBy('id')
-            ->chunk(200, function ($creations) use (&$urls) {
-                foreach ($creations as $creation) {
-                    $urls[] = [
-                        'loc'        => url('/custom-creations/' . $creation->id),
-                        'lastmod'    => $creation->updated_at->toIso8601String(),
-                        'changefreq' => 'weekly',
-                        'priority'   => '0.7',
-                    ];
-                }
-            });
+        try {
+            CustomCreation::active()
+                ->select('id', 'updated_at')
+                ->orderBy('id')
+                ->chunk(200, function ($creations) use (&$urls, $baseUrl) {
+                    foreach ($creations as $creation) {
+                        $urls[] = [
+                            'loc'        => $baseUrl . '/custom-creations/' . $creation->id,
+                            'lastmod'    => $this->lastModified($creation),
+                            'changefreq' => 'weekly',
+                            'priority'   => '0.7',
+                        ];
+                    }
+                });
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         // ── Build XML ──────────────────────────────────────────────────
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
@@ -121,5 +133,20 @@ TXT;
         $xml .= "</urlset>\n";
 
         return response($xml, 200, ['Content-Type' => 'application/xml']);
+    }
+
+    private function lastModified($model): ?string
+    {
+        $timestamp = $model->updated_at ?? $model->created_at;
+
+        if ($timestamp === null) {
+            return null;
+        }
+
+        try {
+            return $timestamp->toIso8601String();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }
