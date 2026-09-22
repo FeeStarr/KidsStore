@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class DeliveryAgent extends Model
 {
     protected $fillable = [
-        'name', 'contact_name', 'phone', 'email', 'notes', 'is_active',
+        'name', 'contact_name', 'phone', 'email', 'address', 'notes', 'is_active',
         'account_number', 'user_id',
     ];
 

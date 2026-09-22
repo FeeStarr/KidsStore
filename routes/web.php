@@ -48,6 +48,7 @@ use App\Http\Controllers\Shop\RefundController as ShopRefundController;
 use App\Http\Controllers\Shop\ReturnPolicyController as ShopReturnPolicyController;
 use App\Http\Controllers\Shop\ReviewController;
 use App\Http\Controllers\Shop\ShopController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -68,6 +69,14 @@ Route::get('/sw.js', function () {
         'Cache-Control' => 'no-cache',
     ]);
 });
+
+/*
+|--------------------------------------------------------------------------
+| SEO Crawling / Discovery
+|--------------------------------------------------------------------------
+*/
+Route::get('robots.txt', [SitemapController::class, 'robots'])->name('robots');
+Route::get('sitemap.xml', [SitemapController::class, 'sitemap'])->name('sitemap');
 
 /*
 |--------------------------------------------------------------------------
@@ -319,6 +328,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])->middleware('permission:update_inventory');
         Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive'])->name('purchases.receive')->middleware('permission:update_inventory');
         Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel')->middleware('permission:update_inventory');
+        Route::post('purchases/{purchase}/update-selling-prices', [PurchaseController::class, 'updateSellingPrices'])->name('purchases.update-selling-prices')->middleware('permission:update_inventory');
 
         Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:manage_orders');
         Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid')->middleware('permission:update_order_status');

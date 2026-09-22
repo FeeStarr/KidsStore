@@ -20,9 +20,10 @@ class PurchaseController extends Controller
 
     public function index(): View
     {
-        $purchases = Purchase::with('supplier')->latest()->limit(2000)->get();
+        $purchases = Purchase::with('supplier', 'items.product')->latest()->limit(2000)->get();
+        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.purchases.index', compact('purchases'));
+        return view('admin.purchases.index', compact('purchases', 'suppliers'));
     }
 
     public function create(): View
@@ -111,5 +112,32 @@ class PurchaseController extends Controller
         $this->purchases->cancel($purchase);
 
         return back()->with('success', 'Purchase cancelled.');
+    }
+
+    public function updateSellingPrices(Purchase $purchase): RedirectResponse
+    {
+        if ($purchase->status !== 'received') {
+            return back()->with('error', 'Only received purchases can sync selling prices.');
+        }
+
+        $updated = 0;
+
+        foreach ($purchase->items as $item) {
+            if ((float) $item->selling_price <= 0) {
+                continue;
+            }
+
+            if ($item->variant) {
+                $item->variant->update(['selling_price' => $item->selling_price]);
+            }
+
+            if ($product = $item->variant?->product) {
+                $product->update(['selling_price' => (float) $item->selling_price]);
+            }
+
+            $updated++;
+        }
+
+        return back()->with('success', "Selling prices updated for {$updated} item(s) from purchase record.");
     }
 }

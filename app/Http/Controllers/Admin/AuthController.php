@@ -70,7 +70,15 @@ class AuthController extends Controller
 
         if ($requires2FA) {
             $user->generateTwoFactorCode();
-            $user->notify(new AdminTwoFactorCodeNotification($user->two_factor_code));
+
+            try {
+                $user->notify(new AdminTwoFactorCodeNotification($user->two_factor_code));
+            } catch (\Throwable $e) {
+                Log::error('Failed to send 2FA email', [
+                    'user_id' => $user->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
 
             $request->session()->put('admin_2fa_user_id', $user->id);
             $request->session()->put('admin_2fa_remember', $request->boolean('remember'));

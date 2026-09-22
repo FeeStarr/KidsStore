@@ -26,6 +26,7 @@ class OptimizeExistingImages extends Command
         $productImages = ProductImage::all();
         $processed = 0;
         $skipped = 0;
+        $alreadyOptimized = 0;
         $failed = 0;
 
         $this->info("Processing {$productImages->count()} product images...");
@@ -37,7 +38,10 @@ class OptimizeExistingImages extends Command
                 $size = Storage::disk($disk)->exists($img->path)
                     ? Storage::disk($disk)->size($img->path)
                     : 0;
-                if ($size >= config('image-optimization.compress_threshold', 204800)) {
+                $webpPath = $optimizer->webpPathFor($img->path, $disk);
+                if ($webpPath && file_exists($webpPath)) {
+                    $alreadyOptimized++;
+                } elseif ($size >= config('image-optimization.compress_threshold', 204800)) {
                     $this->newLine();
                     $this->line("  Would optimize: {$img->path} (".number_format($size).' bytes)');
                     $processed++;
@@ -49,7 +53,13 @@ class OptimizeExistingImages extends Command
                     if ($optimizer->optimizeExisting($img->path, $disk)) {
                         $processed++;
                     } else {
-                        $skipped++;
+                        // Distinguish between already optimized and skipped
+                        $webpPath = $optimizer->webpPathFor($img->path, $disk);
+                        if ($webpPath && file_exists($webpPath)) {
+                            $alreadyOptimized++;
+                        } else {
+                            $skipped++;
+                        }
                     }
                 } catch (\Throwable $e) {
                     $failed++;
@@ -82,7 +92,10 @@ class OptimizeExistingImages extends Command
                     $size = Storage::disk($disk)->exists($path)
                         ? Storage::disk($disk)->size($path)
                         : 0;
-                    if ($size >= config('image-optimization.compress_threshold', 204800)) {
+                    $webpPath = $optimizer->webpPathFor($path, $disk);
+                    if ($webpPath && file_exists($webpPath)) {
+                        $alreadyOptimized++;
+                    } elseif ($size >= config('image-optimization.compress_threshold', 204800)) {
                         $this->newLine();
                         $this->line("  Would optimize: {$path} (".number_format($size).' bytes)');
                         $processed++;
@@ -94,7 +107,12 @@ class OptimizeExistingImages extends Command
                         if ($optimizer->optimizeExisting($path, $disk)) {
                             $processed++;
                         } else {
-                            $skipped++;
+                            $webpPath = $optimizer->webpPathFor($path, $disk);
+                            if ($webpPath && file_exists($webpPath)) {
+                                $alreadyOptimized++;
+                            } else {
+                                $skipped++;
+                            }
                         }
                     } catch (\Throwable $e) {
                         $failed++;
@@ -112,6 +130,7 @@ class OptimizeExistingImages extends Command
         $this->info('Done!');
         $this->table(['Metric', 'Count'], [
             ['Optimized', $processed],
+            ['Already optimized (skipped)', $alreadyOptimized],
             ['Skipped (below threshold or unsupported)', $skipped],
             ['Failed', $failed],
         ]);

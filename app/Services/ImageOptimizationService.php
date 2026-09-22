@@ -92,6 +92,12 @@ class ImageOptimizationService
             return false;
         }
 
+        // Skip if already optimized (WebP version exists)
+        $webpFull = $this->webpPath($fullPath);
+        if (file_exists($webpFull)) {
+            return false;
+        }
+
         $size = filesize($fullPath);
         $mime = mime_content_type($fullPath);
         if ($size < $this->threshold || ! $this->isSupported($mime)) {
@@ -110,7 +116,6 @@ class ImageOptimizationService
             return false;
         }
 
-        $webpFull = $this->webpPath($fullPath);
         $this->convertToWebp($fullPath, $webpFull, $targetWidth);
 
         foreach ($this->srcsetWidths as $w) {
@@ -124,6 +129,12 @@ class ImageOptimizationService
         }
 
         return true;
+    }
+
+    public function webpPathFor(string $relativePath, string $disk): string
+    {
+        $fullPath = Storage::disk($disk)->path($relativePath);
+        return $this->webpPath($fullPath);
     }
 
     public function getStats(string $disk): array

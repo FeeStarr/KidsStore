@@ -156,13 +156,26 @@ class DeliveryPortalController extends Controller
 
     public function updatePassword(Request $request): RedirectResponse
     {
+        $user = Auth::guard('delivery')->user();
+
         $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password'         => ['required', 'confirmed', PasswordRule::defaults()],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
         ]);
 
-        Auth::guard('delivery')->user()->update([
-            'password'             => Hash::make($request->password),
+        // Only require current password verification if NOT a forced password reset
+        if (! $user->must_change_password) {
+            $request->validate([
+                'current_password' => ['required', 'string'],
+            ]);
+
+            // Manual check — current_password rule uses the default web guard, not delivery
+            if (! Hash::check($request->current_password, $user->password)) {
+                return back()->withErrors(['current_password' => 'The password is incorrect.']);
+            }
+        }
+
+        $user->update([
+            'password'             => $request->password,
             'must_change_password' => false,
         ]);
 

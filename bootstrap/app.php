@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -45,7 +46,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // Convert all exceptions to JSON for API/AJAX requests
         $exceptions->renderable(function (\Throwable $e, Request $request) {
             if ($request->expectsJson() || $request->is('api/*') || $request->ajax()) {
-                $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                $status = match (true) {
+                    $e instanceof \Illuminate\Auth\AuthenticationException => 401,
+                    $e instanceof \Illuminate\Validation\ValidationException => 422,
+                    method_exists($e, 'getStatusCode') => $e->getStatusCode(),
+                    default => 500,
+                };
 
                 // Never expose internal details
                 $message = match (true) {

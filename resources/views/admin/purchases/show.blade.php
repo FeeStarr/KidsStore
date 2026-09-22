@@ -18,6 +18,13 @@
                 @csrf <button class="btn btn-outline-danger">Cancel</button>
             </form>
         @endif
+        @if($purchase->status === 'received')
+            <form action="{{ route('admin.purchases.update-selling-prices', $purchase) }}" method="post" class="d-inline"
+                  data-confirm="This will overwrite the current selling prices on products/variants with the values from this purchase." data-confirm-title="Update Selling Prices?"
+                  data-confirm-yes="Yes, update">
+                @csrf <button class="btn btn-outline-primary"><i class="bi bi-sync"></i> Update Selling Prices</button>
+            </form>
+        @endif
     </div>
 </div>
 

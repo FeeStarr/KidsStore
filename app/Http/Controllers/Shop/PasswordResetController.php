@@ -107,7 +107,7 @@ class PasswordResetController extends Controller
         }
 
         // Update password
-        $user->update(['password' => Hash::make($request->password)]);
+        $user->update(['password' => $request->password]);
 
         // Delete used token
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
