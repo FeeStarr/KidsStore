@@ -33,7 +33,16 @@ class PaymentController extends BaseController
             return $this->errorResponse('This order is not eligible for payment.', 422);
         }
 
-        $transaction = $this->paystack->initiate($order);
+        try {
+            $transaction = $this->paystack->initiate($order);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->errorResponse(
+                'Unable to start payment right now. Please try again.',
+                422
+            );
+        }
 
         return $this->successResponse([
             'reference'         => $transaction->reference,
