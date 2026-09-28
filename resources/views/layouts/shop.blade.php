@@ -7,6 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} | {{ $appName }}</title>
+    <?php
+        // SEO: canonical URL on the preferred host/scheme; keep pagination,
+        // drop filter/search/sort params so filtered variants don't look like duplicates.
+        $canonicalPath = parse_url(request()->url(), PHP_URL_PATH) ?: '/';
+        $canonicalPage = (int) request()->query('page', 1);
+        $canonicalUrl  = rtrim(config('app.url'), '/') . $canonicalPath
+            . ($canonicalPage > 1 ? '?page=' . $canonicalPage : '');
+    ?>
+    <link rel="canonical" href="{{ $canonicalUrl }}">
     <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff6fa3">
