@@ -26,12 +26,29 @@
     $reviewsCount = (int) ($product->reviews_count ?? 0);
 
     $deal = app(\App\Services\DealService::class)->activeDealForProduct($product);
+
+    $cartQtys = $cartQtys ?? [];
+    $inCartQty = 0;
+    if ($defaultVariant) {
+        $inCartQty = (int) ($cartQtys[$defaultVariant->id] ?? 0);
+    }
+    if ($inCartQty <= 0) {
+        $allVariantIds = $product->relationLoaded('variants')
+            ? $product->variants->pluck('id')
+            : $product->variants()->pluck('id');
+        foreach ($allVariantIds as $vid) {
+            $inCartQty += (int) ($cartQtys[$vid] ?? 0);
+        }
+    }
 @endphp
 <div class="card product-card h-100 shadow-sm border-0 {{ $stock <= 0 ? 'opacity-50' : '' }}">
     <a href="{{ route('shop.products.show', $product) }}" class="text-decoration-none text-dark">
         <div class="img-wrap m-2 position-relative">
             @if($stock <= 0)
                 <span class="position-absolute top-50 start-50 translate-middle badge bg-secondary fs-6 z-1 px-3 py-2">Sold out</span>
+            @endif
+            @if($inCartQty > 0)
+                <span class="position-absolute top-0 end-0 m-2 badge bg-success z-1"><i class="bi bi-check2-circle"></i> In cart ({{ $inCartQty }})</span>
             @endif
             @if($img)
                 @if($imgModel && $imgModel->webp_url)
