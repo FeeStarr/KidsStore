@@ -304,6 +304,7 @@ class OrderController extends Controller
 
     public function approveDelivery(Order $order): RedirectResponse
     {
+        abort_unless($order->status !== 'cancelled', 400, 'Order is cancelled.');
         abort_unless($order->delivery_method === 'delivery', 400);
         abort_unless($order->delivery_agent_id, 400);
         abort_unless(in_array($order->delivery_status, [null, 'pending']), 400);
@@ -327,6 +328,7 @@ class OrderController extends Controller
 
     public function reassignAgent(Request $request, Order $order): RedirectResponse
     {
+        abort_unless($order->status !== 'cancelled', 400, 'Order is cancelled.');
         $status = $order->delivery_status;
         $isRerelease = ($status === 'failed');
         $isReassign  = in_array($status, [null, 'pending', 'assigned']);

@@ -34,6 +34,7 @@ class Order extends Model
     public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
     public const DELIVERY_STATUS_DELIVERED        = 'delivered';
     public const DELIVERY_STATUS_FAILED           = 'failed';
+    public const DELIVERY_STATUS_CANCELLED        = 'cancelled';
 
     protected $fillable = [
         'reference', 'customer_id', 'lookup_token', 'custom_order_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
@@ -303,6 +304,7 @@ class Order extends Model
             self::DELIVERY_STATUS_OUT_FOR_DELIVERY => 'Out for Delivery',
             self::DELIVERY_STATUS_DELIVERED        => 'Delivered',
             self::DELIVERY_STATUS_FAILED           => 'Failed',
+            self::DELIVERY_STATUS_CANCELLED        => 'Cancelled',
             default                                => '-',
         };
     }
