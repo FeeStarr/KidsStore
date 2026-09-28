@@ -124,6 +124,7 @@
                                 'delivered' => 'success',
                                 'failed' => 'danger',
                                 'pending' => 'secondary',
+                                'cancelled' => 'dark',
                                 default => 'secondary'
                             } }}">{{ $order->getDeliveryStatusLabel() }}</span>
                         </small>
@@ -148,7 +149,7 @@
                     @endif
 
                     {{-- Approve Delivery --}}
-                    @if($order->delivery_method === 'delivery' && $order->delivery_agent_id && in_array($order->delivery_status, [null, 'pending']))
+                    @if($order->status !== 'cancelled' && $order->delivery_method === 'delivery' && $order->delivery_agent_id && in_array($order->delivery_status, [null, 'pending']))
                         <form action="{{ route('admin.orders.approve-delivery', $order) }}" method="post" class="mt-2">
                             @csrf
                             <button class="btn btn-sm btn-success">
@@ -158,7 +159,7 @@
                     @endif
 
                     {{-- Reassign / Re-release Agent --}}
-                    @if(in_array($order->delivery_status, [null, 'pending', 'assigned', 'failed']) && $order->delivery_method === 'delivery')
+                    @if($order->status !== 'cancelled' && in_array($order->delivery_status, [null, 'pending', 'assigned', 'failed']) && $order->delivery_method === 'delivery')
                         @php
                             $isRerelease = ($order->delivery_status === 'failed');
                             $agents = \App\Models\DeliveryAgent::active()->orderBy('name')->get();

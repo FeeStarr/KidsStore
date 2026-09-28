@@ -254,6 +254,7 @@ class OrderService
                 $this->coupons->releaseForOrder($order);
             }
             $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            $this->syncDeliveryStatusOnCancel($order);
             $fresh = $order->fresh();
 
             // Auto-create refund_required for paid orders transactionally
@@ -287,6 +288,24 @@ class OrderService
         $this->notifyStatusChange($result[0], $result[1]);
 
         return $result[0];
+    }
+
+    /**
+     * When an order is cancelled, mirror that onto the delivery status so
+     * delivery actions/buttons are blocked — except when already delivered.
+     */
+    private function syncDeliveryStatusOnCancel(Order $order): void
+    {
+        if ($order->delivery_status === Order::DELIVERY_STATUS_DELIVERED) {
+            return;
+        }
+
+        $isDeliveryOrder = $order->delivery_method === Order::DELIVERY_METHOD_DELIVERY;
+        if ($order->delivery_status === null && ! $isDeliveryOrder) {
+            return;
+        }
+
+        $order->update(['delivery_status' => Order::DELIVERY_STATUS_CANCELLED]);
     }
 
     /**
@@ -333,6 +352,7 @@ class OrderService
             $allCancelled = $freshOrder->items->every(fn ($i) => $i->remainingQuantity() === 0);
             if ($allCancelled) {
                 $freshOrder->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+                $this->syncDeliveryStatusOnCancel($freshOrder);
             }
 
             // Create refund_required for paid portion
