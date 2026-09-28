@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\AgeRange;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\Request;
 
 class ShopController extends Controller
 {
+    public function __construct(private CartService $cart)
+    {
+    }
+
     public function index(Request $request)
     {
         $hideOutOfStock = config('shop.out_of_stock_visibility') === 'hide';
@@ -86,7 +91,9 @@ class ShopController extends Controller
 
         $ageRanges = AgeRange::where('is_active', true)->orderBy('name')->get();
 
-        return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges', 'matchingCategories'));
+        $cartQtys = $this->cart->qtysByVariant();
+
+        return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges', 'matchingCategories', 'cartQtys'));
     }
 
     public function show(Product $product)

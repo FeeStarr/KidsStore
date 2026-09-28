@@ -94,6 +94,24 @@ class CartService
             ->sum(fn ($line) => (int) ($line['quantity'] ?? 0));
     }
 
+    /**
+     * Total quantity per variant id across all cart lines (single raw() pass).
+     *
+     * @return array<int, int>
+     */
+    public function qtysByVariant(): array
+    {
+        $totals = [];
+        foreach ($this->raw() as $line) {
+            $variantId = (int) ($line['variant_id'] ?? 0);
+            if ($variantId > 0) {
+                $totals[$variantId] = ($totals[$variantId] ?? 0) + (int) ($line['quantity'] ?? 0);
+            }
+        }
+
+        return $totals;
+    }
+
     public function getLineQty(int $variantId, ?string $ageGroup = null, ?string $selectedSize = null): int
     {
         $lineKey = $this->makeLineKey($variantId, $ageGroup, $selectedSize);
