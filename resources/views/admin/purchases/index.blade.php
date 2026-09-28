@@ -129,4 +129,3 @@ $(function () {
 });
 </script>
 @endpush
-@endsection
