@@ -87,7 +87,15 @@
 <div class="row g-3 mb-3">
     <div class="col-md-6"><div class="card"><div class="card-body">
         <dl class="row mb-0">
-            <dt class="col-4">Customer</dt><dd class="col-8">{{ $order->customer?->name ?? $order->guest_name ?? '-' }}</dd>
+            <dt class="col-4">Customer</dt>
+            <dd class="col-8">
+                {{ $order->customer?->name ?? $order->guest_name ?? '-' }}
+                @if($order->customer)
+                    <span class="badge bg-primary">Registered</span>
+                @else
+                    <span class="badge bg-secondary">Guest</span>
+                @endif
+            </dd>
             <dt class="col-4">Date</dt><dd class="col-8">{{ $order->order_date->format('Y-m-d H:i') }}</dd>
             <dt class="col-4">Status</dt>
             <dd class="col-8"><span class="badge {{ match($order->status) {
@@ -334,16 +342,33 @@
     @foreach($order->items as $it)
         <tr>
             <td>
-                {{ $it->product->name }}
-                @if($it->variant && $it->variant->options_label)
-                    <small class="text-muted d-block">{{ $it->variant->options_label }}</small>
-                @endif
-                @if($it->selected_size)
-                    <small class="text-muted d-block">Size: {{ $it->selected_size }}</small>
-                @endif
-                @if($it->selected_age_group)
-                    <small class="text-muted d-block">Age: {{ $it->selected_age_group }}</small>
-                @endif
+                @php
+                    $thumb = $it->product?->primaryImage?->url ?? $it->product?->catalog_image;
+                @endphp
+                <div class="d-flex align-items-center gap-2">
+                    @if($thumb)
+                        <img src="{{ $thumb }}" alt="{{ $it->product?->name }}"
+                             style="width:44px;height:44px;object-fit:cover;border-radius:.35rem;flex:0 0 auto;"
+                             loading="lazy" decoding="async">
+                    @else
+                        <div class="bg-body-secondary d-flex align-items-center justify-content-center text-muted"
+                             style="width:44px;height:44px;border-radius:.35rem;flex:0 0 auto;">
+                            <i class="bi bi-image"></i>
+                        </div>
+                    @endif
+                    <div>
+                        {{ $it->product->name }}
+                        @if($it->variant && $it->variant->options_label)
+                            <small class="text-muted d-block">{{ $it->variant->options_label }}</small>
+                        @endif
+                        @if($it->selected_size)
+                            <small class="text-muted d-block">Size: {{ $it->selected_size }}</small>
+                        @endif
+                        @if($it->selected_age_group)
+                            <small class="text-muted d-block">Age: {{ $it->selected_age_group }}</small>
+                        @endif
+                    </div>
+                </div>
             </td>
             <td>{{ $it->quantity }}</td>
             <td>
