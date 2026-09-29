@@ -39,7 +39,6 @@ use App\Http\Controllers\Shop\ContactController as ShopContactController;
 use App\Http\Controllers\Shop\CustomOrderController;
 use App\Http\Controllers\Shop\CustomOrderFileController;
 use App\Http\Controllers\Shop\CustomCreationController;
-use App\Http\Controllers\Shop\PwaInstallController;
 use App\Http\Controllers\Shop\DealController as ShopDealController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\PasswordResetController as ShopPasswordResetController;
@@ -50,25 +49,6 @@ use App\Http\Controllers\Shop\ReviewController;
 use App\Http\Controllers\Shop\ShopController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| PWA Static Files (bypass nginx)
-|--------------------------------------------------------------------------
-*/
-Route::get('/manifest.json', function () {
-    return response()->file(public_path('manifest.json'), [
-        'Content-Type' => 'application/manifest+json',
-        'Cache-Control' => 'public, max-age=0',
-    ]);
-});
-
-Route::get('/sw.js', function () {
-    return response()->file(public_path('sw.js'), [
-        'Content-Type' => 'application/javascript',
-        'Cache-Control' => 'no-cache',
-    ]);
-});
 
 /*
 |--------------------------------------------------------------------------
@@ -92,7 +72,6 @@ Route::name('shop.')->group(function () {
     Route::get('/cookie-policy', [\App\Http\Controllers\Shop\CookiePolicyController::class, 'show'])->name('cookie-policy');
     Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send')->middleware('throttle:5,1');
 
-    Route::post('/pwa/install', [PwaInstallController::class, 'store'])->name('pwa.install');
     Route::get('/shop', [ShopController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ShopController::class, 'show'])->name('products.show');
 
@@ -283,9 +262,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Custom Orders
         Route::get('custom-orders', [App\Http\Controllers\Admin\CustomOrderController::class, 'index'])->name('custom-orders.index')->middleware('permission:manage_orders');
         Route::get('custom-orders/{customOrder}', [App\Http\Controllers\Admin\CustomOrderController::class, 'show'])->name('custom-orders.show')->middleware('permission:manage_orders');
-
-        // PWA Installs
-        Route::get('pwa-installs', [App\Http\Controllers\Admin\PwaInstallController::class, 'index'])->name('pwa-installs.index');
 
         // Pickup Reports
         Route::get('pickup-reports', [App\Http\Controllers\Admin\PickupReportController::class, 'index'])->name('pickup-reports.index');
