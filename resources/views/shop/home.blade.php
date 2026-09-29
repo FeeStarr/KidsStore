@@ -7,6 +7,9 @@
             <span class="badge bg-white text-dark mb-3 px-3 py-2" style="border-radius:50px;">
                 <i class="bi bi-stars text-warning"></i> Fun for every age
             </span>
+            <span class="badge bg-white text-dark mb-3 ms-1 px-3 py-2" style="border-radius:50px;">
+                <i class="bi bi-phone text-primary"></i> Mobile app in progress
+            </span>
             <h1 class="fw-bold mb-3">Where little dreams<br><span style="color:var(--kid-yellow);">come to play!</span></h1>
             <p class="lead mb-4 opacity-90">Clothes, shoes & more - handpicked for happy kids and delivered to your door.</p>
             <a href="{{ route('shop.products.index') }}" class="btn btn-light btn-lg me-2">

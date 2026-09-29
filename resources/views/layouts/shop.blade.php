@@ -307,6 +307,9 @@
 
 <footer style="flex-shrink: 0;">
     <div class="container small">
+        <div class="text-center pb-3 small text-white-50">
+            <i class="bi bi-phone me-1"></i> Our mobile app is <strong class="text-white">in progress</strong> — coming soon to Android &amp; iOS!
+        </div>
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span>&copy; {{ date('Y') }} {{ $appName }}. All prices in &#8358; (NGN).</span>
             <div class="d-flex gap-3">
