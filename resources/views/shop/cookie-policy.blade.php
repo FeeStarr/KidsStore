@@ -39,16 +39,6 @@
                     <td>Remembers that you accepted our cookie notice</td>
                     <td>1 year</td>
                 </tr>
-                <tr>
-                    <td><code>kidsflairr_pwa_installed</code></td>
-                    <td>Remembers that you installed our app</td>
-                    <td>Persistent</td>
-                </tr>
-                <tr>
-                    <td><code>kidsflairr_pwa_dismissed</code></td>
-                    <td>Remembers that you dismissed the install prompt</td>
-                    <td>Persistent</td>
-                </tr>
             </tbody>
         </table>
     </div>

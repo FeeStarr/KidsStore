@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 class GenerateIcons extends Command
 {
     protected $signature = 'icons:generate {source=public/images/logo.png}';
-    protected $description = 'Generate PWA icons and favicon from source image';
+    protected $description = 'Generate favicon from source image';
 
     public function handle(): int
     {
@@ -18,9 +18,7 @@ class GenerateIcons extends Command
         }
 
         $sizes = [
-            'public/icons/icon-192.png' => 192,
-            'public/icons/icon-512.png' => 512,
-            'public/favicon.png'        => 64,
+            'public/favicon.png' => 64,
         ];
 
         foreach ($sizes as $dest => $size) {
