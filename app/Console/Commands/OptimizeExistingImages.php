@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CustomCreation;
 use App\Models\Deal;
 use App\Models\ProductImage;
 use App\Services\ImageOptimizationService;
@@ -12,7 +13,7 @@ class OptimizeExistingImages extends Command
 {
     protected $signature = 'images:optimize {--disk=public} {--dry-run}';
 
-    protected $description = 'Batch-compress existing product and deal images, create WebP and srcset thumbnails';
+    protected $description = 'Batch-compress existing product, deal and custom creation images, create WebP and srcset thumbnails';
 
     public function handle(ImageOptimizationService $optimizer): int
     {
@@ -22,109 +23,43 @@ class OptimizeExistingImages extends Command
         $this->info("Optimizing images on disk: {$disk}");
         $this->newLine();
 
-        // ── Product images ───────────────────────────────────────────────
-        $productImages = ProductImage::all();
         $processed = 0;
         $skipped = 0;
         $alreadyOptimized = 0;
         $failed = 0;
 
-        $this->info("Processing {$productImages->count()} product images...");
-        $bar = $this->output->createProgressBar($productImages->count());
-        $bar->start();
+        $sources = [
+            'product images' => ProductImage::pluck('path'),
+            'deal images' => Deal::whereNotNull('banner_image')->orWhereNotNull('thumbnail_image')->get()
+                ->flatMap(fn ($deal) => [$deal->banner_image, $deal->thumbnail_image])
+                ->filter()->unique()->values(),
+            'custom creation images' => CustomCreation::whereNotNull('image_path')->pluck('image_path'),
+        ];
 
-        foreach ($productImages as $img) {
-            if ($dryRun) {
-                $size = Storage::disk($disk)->exists($img->path)
-                    ? Storage::disk($disk)->size($img->path)
-                    : 0;
-                $webpPath = $optimizer->webpPathFor($img->path, $disk);
-                if ($webpPath && file_exists($webpPath)) {
-                    $alreadyOptimized++;
-                } elseif ($size >= config('image-optimization.compress_threshold', 204800)) {
+        foreach ($sources as $label => $paths) {
+            $this->info("Processing {$paths->count()} {$label}...");
+            $bar = $this->output->createProgressBar($paths->count());
+            $bar->start();
+
+            foreach ($paths as $path) {
+                [$state, $error] = $this->optimizePath($optimizer, $path, $disk, $dryRun);
+
+                match ($state) {
+                    'optimized' => $processed++,
+                    'already' => $alreadyOptimized++,
+                    'skipped' => $skipped++,
+                    'failed' => $failed++,
+                };
+
+                if ($state === 'failed') {
                     $this->newLine();
-                    $this->line("  Would optimize: {$img->path} (".number_format($size).' bytes)');
-                    $processed++;
-                } else {
-                    $skipped++;
+                    $this->error("  Failed: {$path} - {$error}");
                 }
-            } else {
-                try {
-                    if ($optimizer->optimizeExisting($img->path, $disk)) {
-                        $processed++;
-                    } else {
-                        // Distinguish between already optimized and skipped
-                        $webpPath = $optimizer->webpPathFor($img->path, $disk);
-                        if ($webpPath && file_exists($webpPath)) {
-                            $alreadyOptimized++;
-                        } else {
-                            $skipped++;
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    $failed++;
-                    $this->newLine();
-                    $this->error("  Failed: {$img->path} - {$e->getMessage()}");
-                }
+                $bar->advance();
             }
-            $bar->advance();
+            $bar->finish();
+            $this->newLine(2);
         }
-        $bar->finish();
-        $this->newLine(2);
-
-        // ── Deal images ──────────────────────────────────────────────────
-        $deals = Deal::whereNotNull('banner_image')
-            ->orWhereNotNull('thumbnail_image')
-            ->get();
-
-        $this->info("Processing {$deals->count()} deal images...");
-        $bar = $this->output->createProgressBar($deals->count());
-        $bar->start();
-
-        foreach ($deals as $deal) {
-            foreach (['banner_image', 'thumbnail_image'] as $field) {
-                $path = $deal->{$field};
-                if (! $path) {
-                    continue;
-                }
-
-                if ($dryRun) {
-                    $size = Storage::disk($disk)->exists($path)
-                        ? Storage::disk($disk)->size($path)
-                        : 0;
-                    $webpPath = $optimizer->webpPathFor($path, $disk);
-                    if ($webpPath && file_exists($webpPath)) {
-                        $alreadyOptimized++;
-                    } elseif ($size >= config('image-optimization.compress_threshold', 204800)) {
-                        $this->newLine();
-                        $this->line("  Would optimize: {$path} (".number_format($size).' bytes)');
-                        $processed++;
-                    } else {
-                        $skipped++;
-                    }
-                } else {
-                    try {
-                        if ($optimizer->optimizeExisting($path, $disk)) {
-                            $processed++;
-                        } else {
-                            $webpPath = $optimizer->webpPathFor($path, $disk);
-                            if ($webpPath && file_exists($webpPath)) {
-                                $alreadyOptimized++;
-                            } else {
-                                $skipped++;
-                            }
-                        }
-                    } catch (\Throwable $e) {
-                        $failed++;
-                        $this->newLine();
-                        $this->error("  Failed: {$path} - {$e->getMessage()}");
-                    }
-                }
-            }
-            $bar->advance();
-        }
-        $bar->finish();
-        $this->newLine(2);
 
         // ── Summary ──────────────────────────────────────────────────────
         $this->info('Done!');
@@ -136,5 +71,40 @@ class OptimizeExistingImages extends Command
         ]);
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * @return array{0: string, 1: string} [state, error message]
+     */
+    private function optimizePath(ImageOptimizationService $optimizer, string $path, string $disk, bool $dryRun): array
+    {
+        if ($dryRun) {
+            $size = Storage::disk($disk)->exists($path)
+                ? Storage::disk($disk)->size($path)
+                : 0;
+            $webpPath = $optimizer->webpPathFor($path, $disk);
+            if ($webpPath && file_exists($webpPath)) {
+                return ['already', ''];
+            }
+            if ($size >= config('image-optimization.compress_threshold', 204800)) {
+                $this->newLine();
+                $this->line("  Would optimize: {$path} (".number_format($size).' bytes)');
+                return ['optimized', ''];
+            }
+            return ['skipped', ''];
+        }
+
+        try {
+            if ($optimizer->optimizeExisting($path, $disk)) {
+                return ['optimized', ''];
+            }
+            $webpPath = $optimizer->webpPathFor($path, $disk);
+            if ($webpPath && file_exists($webpPath)) {
+                return ['already', ''];
+            }
+            return ['skipped', ''];
+        } catch (\Throwable $e) {
+            return ['failed', $e->getMessage()];
+        }
     }
 }

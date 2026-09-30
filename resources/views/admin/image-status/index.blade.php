@@ -58,6 +58,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>#</th>
+                        <th>Source</th>
                         <th>Image</th>
                         <th>PNG Size</th>
                         <th>WebP Size</th>
@@ -71,6 +72,9 @@
                     @forelse ($stats['details'] as $i => $d)
                     <tr>
                         <td>{{ $i + 1 }}</td>
+                        <td>
+                            <span class="badge {{ $d['source'] === 'Custom Creation' ? 'bg-dark' : 'bg-light text-dark' }}">{{ $d['source'] }}</span>
+                        </td>
                         <td>
                             <code class="small">{{ basename($d['path']) }}</code>
                         </td>
@@ -110,7 +114,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">No product images found</td>
+                        <td colspan="9" class="text-center text-muted py-4">No images found</td>
                     </tr>
                     @endforelse
                 </tbody>

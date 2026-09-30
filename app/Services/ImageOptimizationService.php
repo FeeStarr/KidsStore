@@ -139,7 +139,12 @@ class ImageOptimizationService
 
     public function getStats(string $disk): array
     {
-        $images = \App\Models\ProductImage::all();
+        $images = \App\Models\ProductImage::all()
+            ->map(fn ($img) => ['path' => $img->path, 'source' => 'Product'])
+            ->concat(
+                \App\Models\CustomCreation::whereNotNull('image_path')->get()
+                    ->map(fn ($creation) => ['path' => $creation->image_path, 'source' => 'Custom Creation'])
+            );
         $totalSize = 0;
         $compressed = 0;
         $hasWebp = 0;
@@ -147,7 +152,7 @@ class ImageOptimizationService
         $details = [];
 
         foreach ($images as $img) {
-            $fullPath = Storage::disk($disk)->path($img->path);
+            $fullPath = Storage::disk($disk)->path($img['path']);
             if (! file_exists($fullPath)) {
                 continue;
             }
@@ -175,7 +180,8 @@ class ImageOptimizationService
             }
 
             $details[] = [
-                'path'      => $img->path,
+                'path'      => $img['path'],
+                'source'    => $img['source'],
                 'size'      => $size,
                 'webp_size' => $webpSize,
                 'has_webp'  => $webpExists,
