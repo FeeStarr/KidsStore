@@ -101,12 +101,20 @@
                     <div class="col-sm-6">
                         <strong>Child:</strong> {{ $customOrder->child_name ?: '-' }}<br>
                         <strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '-' }}<br>
-                        <strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '-') }}
+                        <strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '-') }}<br>
+                        <strong>Category:</strong> {{ $customOrder->category_label ?: '-' }}
                     </div>
                 </div>
                 @if ($customOrder->delivery_address)
                     <hr>
                     <strong>Delivery Address:</strong> {{ $customOrder->delivery_address }}
+                @endif
+                @if ($customOrder->deliveryLocation)
+                    <hr>
+                    <strong>Delivery Location:</strong> {{ $customOrder->deliveryLocation->name }}{{ $customOrder->deliveryLocation->state ? ', ' . $customOrder->deliveryLocation->state : '' }}
+                    @if ($customOrder->delivery_fee > 0)
+                        <br><strong>Delivery Charge:</strong> &#8358;{{ number_format($customOrder->delivery_fee, 2) }}
+                    @endif
                 @endif
                 @if ($customOrder->pickupStation)
                     <hr>

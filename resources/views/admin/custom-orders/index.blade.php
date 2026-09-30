@@ -58,6 +58,14 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-md-3">
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    @foreach (\App\Models\CustomOrder::CATEGORIES as $value => $label)
+                        <option value="{{ $value }}" {{ request('category') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Filter</button>
             </div>
@@ -78,6 +86,7 @@
                             <th>Order #</th>
                             <th>Customer</th>
                             <th>Child</th>
+                            <th>Category</th>
                             <th>Design</th>
                             <th>Status</th>
                             <th>Quote</th>
@@ -91,6 +100,13 @@
                                 <td class="fw-bold">{{ $order->custom_order_number }}</td>
                                 <td>{{ $order->user?->name }}</td>
                                 <td>{{ $order->child_name }} {{ $order->child_age ? "({$order->child_age}y)" : '' }}</td>
+                                <td>
+                                    @if ($order->category)
+                                        <span class="badge bg-light text-dark">{{ $order->category_label }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                                 <td>{{ $order->getCustomizationValue('dress_style') ?: 'Custom' }}</td>
                                 <td>
                                     <span class="badge bg-{{ match($order->status) {
