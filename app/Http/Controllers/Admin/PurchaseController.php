@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PurchasePricesRequest;
 use App\Http\Requests\PurchaseRequest;
 use App\Models\Product;
 use App\Models\PickupStation;
@@ -114,30 +115,35 @@ class PurchaseController extends Controller
         return back()->with('success', 'Purchase cancelled.');
     }
 
-    public function updateSellingPrices(Purchase $purchase): RedirectResponse
+    public function editPrices(Purchase $purchase): View|\Illuminate\Http\RedirectResponse
     {
         if ($purchase->status !== 'received') {
-            return back()->with('error', 'Only received purchases can sync selling prices.');
+            return redirect()->route('admin.purchases.show', $purchase)
+                ->with('error', 'Only received purchases can have prices and quantities corrected.');
         }
 
-        $updated = 0;
+        $purchase->load('items.variant.inventory', 'items.product.images', 'items.product');
 
-        foreach ($purchase->items as $item) {
-            if ((float) $item->selling_price <= 0) {
-                continue;
-            }
+        return view('admin.purchases.edit-prices', compact('purchase'));
+    }
 
-            if ($item->variant) {
-                $item->variant->update(['selling_price' => $item->selling_price]);
-            }
-
-            if ($product = $item->variant?->product) {
-                $product->update(['selling_price' => (float) $item->selling_price]);
-            }
-
-            $updated++;
+    public function updatePrices(PurchasePricesRequest $request, Purchase $purchase): RedirectResponse
+    {
+        if ($purchase->status !== 'received') {
+            return redirect()->route('admin.purchases.show', $purchase)
+                ->with('error', 'Only received purchases can have prices and quantities corrected.');
         }
 
-        return back()->with('success', "Selling prices updated for {$updated} item(s) from purchase record.");
+        $summary = $this->purchases->updatePrices($purchase, $request->validated()['items']);
+
+        $message = "Prices and quantities updated for {$summary['updated']} item(s).";
+        if ($summary['increased'] > 0) {
+            $message .= " Stock increased by {$summary['increased']} unit(s).";
+        }
+        if ($summary['decreased'] > 0) {
+            $message .= " Stock decreased by {$summary['decreased']} unit(s).";
+        }
+
+        return redirect()->route('admin.purchases.show', $purchase)->with('success', $message);
     }
 }

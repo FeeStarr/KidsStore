@@ -304,7 +304,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])->middleware('permission:update_inventory');
         Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive'])->name('purchases.receive')->middleware('permission:update_inventory');
         Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel')->middleware('permission:update_inventory');
-        Route::post('purchases/{purchase}/update-selling-prices', [PurchaseController::class, 'updateSellingPrices'])->name('purchases.update-selling-prices')->middleware('permission:update_inventory');
+        Route::get('purchases/{purchase}/edit-prices', [PurchaseController::class, 'editPrices'])->name('purchases.edit-prices')->middleware('permission:update_inventory');
+        Route::put('purchases/{purchase}/prices', [PurchaseController::class, 'updatePrices'])->name('purchases.update-prices')->middleware('permission:update_inventory');
 
         Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:manage_orders');
         Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid')->middleware('permission:update_order_status');
