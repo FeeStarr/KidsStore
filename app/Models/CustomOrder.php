@@ -80,10 +80,18 @@ class CustomOrder extends Model
         self::STATUS_QUOTE_EXPIRED => 'Quote Expired',
     ];
 
+    const CATEGORIES = [
+        'birthday' => 'Birthday Dresses',
+        'party' => 'Party Dresses',
+        'princess' => 'Princess Dresses',
+        'ankara' => 'Ankara',
+        'special_occasion' => 'Special Occasion',
+    ];
+
     protected $fillable = [
-        'custom_order_number', 'user_id', 'item_type', 'status', 'payment_status',
+        'custom_order_number', 'user_id', 'item_type', 'category', 'status', 'payment_status',
         'base_product_id', 'child_name', 'child_age', 'child_gender',
-        'delivery_method', 'pickup_station_id', 'delivery_address',
+        'delivery_method', 'pickup_station_id', 'delivery_location_id', 'delivery_address',
         'customer_notes', 'admin_notes', 'production_notes', 'customer_visible_notes',
         'custom_colour_description',
         'subtotal', 'customization_fee', 'rush_fee', 'delivery_fee', 'total_amount', 'amount_paid',
@@ -117,6 +125,15 @@ class CustomOrder extends Model
         'showcase_price' => 'decimal:2',
     ];
 
+    public function getCategoryLabelAttribute(): ?string
+    {
+        if (! $this->category) {
+            return null;
+        }
+
+        return self::CATEGORIES[$this->category] ?? $this->category;
+    }
+
     protected $appends = ['status_label'];
 
     // ── Relationships ──────────────────────────────────────────────
@@ -134,6 +151,11 @@ class CustomOrder extends Model
     public function pickupStation(): BelongsTo
     {
         return $this->belongsTo(PickupStation::class);
+    }
+
+    public function deliveryLocation(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryLocation::class);
     }
 
     public function measurements(): HasMany

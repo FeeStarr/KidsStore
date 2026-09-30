@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderColour;
+use App\Models\DeliveryCharge;
+use App\Models\DeliveryLocation;
 use App\Models\PickupStation;
 use App\Models\Product;
 use App\Models\User;
@@ -76,8 +78,10 @@ class CustomOrderController extends Controller
             'child_name' => $customOrder->child_name,
             'child_age' => $customOrder->child_age,
             'child_gender' => $customOrder->child_gender,
+            'category' => $customOrder->category,
             'delivery_method' => $customOrder->delivery_method,
             'pickup_station_id' => $customOrder->pickup_station_id,
+            'delivery_location_id' => $customOrder->delivery_location_id,
             'delivery_address' => $customOrder->delivery_address,
             'customer_notes' => null,
             'primary_colour' => $customizations['primary_colour'] ?? null,
@@ -98,9 +102,12 @@ class CustomOrderController extends Controller
     {
         $data = $request->validate([
             'child_name' => ['required', 'string', 'max:100'],
+            'category' => ['nullable', 'string', 'in:' . implode(',', array_keys(CustomOrder::CATEGORIES))],
             'delivery_method' => ['required', 'in:pickup,delivery'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
+            'delivery_location_id' => ['required_if:delivery_method,delivery', 'nullable', 'exists:delivery_locations,id'],
             'delivery_address' => ['required_if:delivery_method,delivery', 'nullable', 'string', 'max:500'],
+            'delivery_location_id' => ['required_if:delivery_method,delivery', 'nullable', 'exists:delivery_locations,id'],
             'customer_notes' => ['nullable', 'string', 'max:1000'],
             'base_product_id' => ['nullable', 'exists:products,id'],
             'primary_colour' => ['required', 'string', 'max:128'],
@@ -127,11 +134,14 @@ class CustomOrderController extends Controller
         $order = $this->customOrderService->create([
             'user_id' => Auth::id(),
             'item_type' => 'frock',
+            'category' => $data['category'] ?? null,
             'base_product_id' => $data['base_product_id'] ?? null,
             'child_name' => $data['child_name'],
             'child_gender' => 'girl',
             'delivery_method' => $data['delivery_method'],
             'pickup_station_id' => $data['pickup_station_id'] ?? null,
+            'delivery_location_id' => $data['delivery_method'] === 'delivery' ? ($data['delivery_location_id'] ?? null) : null,
+            'delivery_fee' => $this->resolveDeliveryFee($data),
             'delivery_address' => $data['delivery_address'] ?? null,
             'customer_notes' => $data['customer_notes'] ?? null,
             'custom_colour_description' => $data['custom_colour_description'] ?? null,
@@ -264,11 +274,42 @@ class CustomOrderController extends Controller
         }
     }
 
+    private function resolveDeliveryFee(array $data): float
+    {
+        if (($data['delivery_method'] ?? null) !== 'delivery' || empty($data['delivery_location_id'])) {
+            return 0.0;
+        }
+
+        $charge = DeliveryCharge::where('delivery_location_id', (int) $data['delivery_location_id'])
+            ->where('is_active', true)
+            ->with('agent')
+            ->first();
+
+        if ($charge && $charge->agent && $charge->agent->is_active) {
+            return (float) $charge->amount;
+        }
+
+        return 0.0;
+    }
+
     private function getFormOptions(): array
     {
+        $deliveryCharges = DeliveryCharge::where('is_active', true)
+            ->whereHas('agent', fn ($q) => $q->where('is_active', true))
+            ->get()
+            ->map(fn ($c) => [
+                'location_id' => $c->delivery_location_id,
+                'amount' => (float) $c->amount,
+                'agent_name' => $c->agent->name,
+            ])
+            ->values();
+
         return [
             'colours' => CustomOrderColour::active()->get(),
             'pickupStations' => PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
+            'deliveryLocations' => DeliveryLocation::where('is_active', true)->orderBy('name')->get(),
+            'deliveryCharges' => $deliveryCharges,
+            'chargesByLocation' => $deliveryCharges->keyBy('location_id'),
         ];
     }
 }

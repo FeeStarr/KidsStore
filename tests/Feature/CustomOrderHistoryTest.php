@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderCustomization;
 use App\Models\CustomOrderFile;
+use App\Models\DeliveryLocation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -359,10 +360,12 @@ class CustomOrderHistoryTest extends TestCase
     public function test_custom_order_submission_still_works(): void
     {
         $user = $this->customer();
+        $location = DeliveryLocation::create(['name' => 'Test City', 'state' => 'Lagos', 'is_active' => true]);
 
         $response = $this->actingAs($user)->post(route('shop.custom-frock.store'), [
             'child_name' => 'Test Child',
             'delivery_method' => 'delivery',
+            'delivery_location_id' => $location->id,
             'delivery_address' => '123 Test Street',
             'primary_colour' => 'Blue',
             'standard_size' => '2-3 Years',

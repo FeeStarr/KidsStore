@@ -45,6 +45,15 @@
                                     <div class="form-control-plaintext fw-bold text-muted"><i class="bi bi-gender-female text-danger me-1"></i> Girl</div>
                                 </div>
                                 <div class="col-md-6">
+                                    <label for="category" class="form-label">Category <span class="text-muted fw-normal">(optional)</span></label>
+                                    <select name="category" id="category" class="form-select">
+                                        <option value="">No category</option>
+                                        @foreach (\App\Models\CustomOrder::CATEGORIES as $key => $label)
+                                            <option value="{{ $key }}" {{ old('category', $saved['category'] ?? '') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
                                     <label for="delivery_method" class="form-label">Delivery Method <span class="text-danger">*</span></label>
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
@@ -67,6 +76,22 @@
                                     </select>
                                 </div>
                                 <div class="col-12 delivery-field">
+                                    <label for="delivery-location-select" class="form-label">Delivery Location <span class="text-danger">*</span></label>
+                                    <select name="delivery_location_id" id="delivery-location-select" class="form-select">
+                                        <option value="">-- Select your location --</option>
+                                        @foreach ($deliveryLocations as $loc)
+                                            <option value="{{ $loc->id }}"
+                                                    {{ old('delivery_location_id', $saved['delivery_location_id'] ?? '') == $loc->id ? 'selected' : '' }}>
+                                                {{ $loc->name }}{{ $loc->state ? ', ' . $loc->state : '' }}{{ isset($chargesByLocation[$loc->id]) ? ' - ₦' . number_format($chargesByLocation[$loc->id]['amount'], 2) : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div id="delivery-charge-display" class="alert alert-info py-2 mb-3 mt-2" style="display:none">
+                                        <i class="bi bi-truck me-1"></i> Delivery charge: <strong id="charge-amount"></strong>
+                                    </div>
+                                    <div id="delivery-unavailable" class="alert alert-warning py-2 mb-3 mt-2" style="display:none">
+                                        <i class="bi bi-exclamation-triangle me-1"></i> No delivery agent available for this location.
+                                    </div>
                                     <label for="delivery_address" class="form-label">Delivery Address <span class="text-danger">*</span></label>
                                     <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2" maxlength="500">{{ old('delivery_address', $saved['delivery_address'] ?? '') }}</textarea>
                                 </div>
@@ -277,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const deliveryRadio = document.getElementById('delivery_home');
     if (deliveryRadio && deliveryRadio.checked) {
         document.getElementById('delivery_address').required = true;
+        document.getElementById('delivery-location-select').required = true;
     }
 
     document.querySelectorAll('input[name="delivery_method"]').forEach(r => {
@@ -285,9 +311,38 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('.pickup-field').style.display = isPickup ? 'block' : 'none';
             document.querySelector('.delivery-field').style.display = isPickup ? 'none' : 'block';
             document.getElementById('delivery_address').required = !isPickup;
+            document.getElementById('delivery-location-select').required = !isPickup;
             document.getElementById('pickup_station_id').required = isPickup;
+            updateChargeDisplay();
         });
     });
+
+    // Delivery charge display (mirrors checkout)
+    const chargesData = @json($deliveryCharges);
+    const locationSelect = document.getElementById('delivery-location-select');
+    const chargeDisplay = document.getElementById('delivery-charge-display');
+    const chargeAmount = document.getElementById('charge-amount');
+    const deliveryUnavailable = document.getElementById('delivery-unavailable');
+
+    function updateChargeDisplay() {
+        const locId = parseInt(locationSelect.value);
+        const charge = chargesData.find(c => c.location_id === locId);
+
+        if (charge) {
+            chargeAmount.textContent = '\u20A6' + charge.amount.toLocaleString(undefined, {minimumFractionDigits: 2});
+            chargeDisplay.style.display = '';
+            deliveryUnavailable.style.display = 'none';
+        } else if (locId) {
+            chargeDisplay.style.display = 'none';
+            deliveryUnavailable.style.display = '';
+        } else {
+            chargeDisplay.style.display = 'none';
+            deliveryUnavailable.style.display = 'none';
+        }
+    }
+
+    locationSelect.addEventListener('change', updateChargeDisplay);
+    updateChargeDisplay();
 
     // Colour swatches
     document.querySelectorAll('.colour-swatch').forEach(swatch => {

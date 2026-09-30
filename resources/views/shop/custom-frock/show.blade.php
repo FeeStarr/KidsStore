@@ -38,6 +38,9 @@
                         <div class="col-sm-4"><strong>Age:</strong> {{ $customOrder->child_age ? $customOrder->child_age . ' years' : '-' }}</div>
                         <div class="col-sm-4"><strong>Gender:</strong> {{ ucfirst($customOrder->child_gender ?: '-') }}</div>
                     </div>
+                    <div class="row mt-2">
+                        <div class="col-sm-4"><strong>Category:</strong> {{ $customOrder->category_label ?: '-' }}</div>
+                    </div>
                 </div>
             </div>
 
@@ -220,8 +223,14 @@
                         <p class="mb-1"><strong>Station:</strong> {{ $customOrder->pickupStation->name }}</p>
                         <p class="small text-muted">{{ $customOrder->pickupStation->address }}</p>
                     @endif
+                    @if ($customOrder->deliveryLocation)
+                        <p class="mb-1"><strong>Location:</strong> {{ $customOrder->deliveryLocation->name }}{{ $customOrder->deliveryLocation->state ? ', ' . $customOrder->deliveryLocation->state : '' }}</p>
+                    @endif
                     @if ($customOrder->delivery_address)
-                        <p class="mb-0"><strong>Address:</strong> {{ $customOrder->delivery_address }}</p>
+                        <p class="mb-1"><strong>Address:</strong> {{ $customOrder->delivery_address }}</p>
+                    @endif
+                    @if ($customOrder->delivery_method === 'delivery' && $customOrder->delivery_fee > 0)
+                        <p class="mb-0"><strong>Estimated delivery charge:</strong> &#8358;{{ number_format($customOrder->delivery_fee, 2) }}</p>
                     @endif
                 </div>
             </div>
