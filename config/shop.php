@@ -6,4 +6,6 @@ return [
 
     // Backup settings
     'backup_rclone_remote' => env('BACKUP_RCLONE_REMOTE', 'GD_FeeStore'),
+    // Days to keep backup bundles on server disk (Drive keeps everything).
+    'backup_keep_days' => env('BACKUP_KEEP_DAYS', 14),
 ];

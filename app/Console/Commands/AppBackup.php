@@ -58,7 +58,7 @@ class AppBackup extends Command
         
         // If it's just a filename, assume it's in the backups folder on remote
         $remotePath = "{$remote}:backups/" . basename($filename);
-        $localPath = storage_path('app/' . basename($filename));
+        $localPath = storage_path('app/backups/' . basename($filename));
 
         $rcloneBinary = 'rclone';
         if (PHP_OS_FAMILY === 'Windows') {
@@ -68,7 +68,11 @@ class AppBackup extends Command
             }
         }
 
-        $process = new SymfonyProcess([$rcloneBinary, 'copy', $remotePath, storage_path('app/'), '--progress']);
+        if (! is_dir(dirname($localPath))) {
+            mkdir(dirname($localPath), 0755, true);
+        }
+
+        $process = new SymfonyProcess([$rcloneBinary, 'copy', $remotePath, dirname($localPath), '--progress']);
         $process->setTimeout(3600);
         $process->run();
 
