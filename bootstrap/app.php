@@ -21,7 +21,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('deals:sync-status')->everyFiveMinutes();
         $schedule->command('custom-quotes:check-expiry')->daily();
         $schedule->command('refunds:check-status')->hourly();
-        $schedule->command('app:backup --db-only')->dailyAt('03:30')->withoutOverlapping();
+        $schedule->command(sprintf(
+            'app:backup --db-only --rclone --keep-days=%d',
+            (int) config('shop.backup_keep_days', 14)
+        ))->dailyAt('03:30')->withoutOverlapping();
+
+        foreach ($schedule->events() as $event) {
+            $event->appendOutputTo(storage_path('logs/scheduler.log'));
+            $event->before(function () use ($event) {
+                @file_put_contents(
+                    storage_path('logs/scheduler.log'),
+                    '[' . now()->toDateTimeString() . '] ' . $event->getSummaryForDisplay() . PHP_EOL,
+                    FILE_APPEND
+                );
+            });
+        }
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\LogUserActivity::class);
