@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Services\Contracts\InventoryServiceInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Encapsulates purchase business logic. Inventory updates are delegated
@@ -131,6 +132,154 @@ class PurchaseService
             $this->recalculateTotals($purchase);
 
             return $purchase->fresh('items.product');
+        });
+    }
+
+    /**
+     * Correct quantities and selling prices on a received purchase.
+     *
+     * Quantity deltas are reconciled against stock: increases are recorded as
+     * purchase movements, decreases as stock adjustments, and a correction
+     * that would drive stock below zero is rejected before anything is
+     * written. Selling prices above zero are pushed to the linked variant
+     * and product. Cost fields are never touched.
+     *
+     * @param array<int, array{id: int, quantity: int, selling_price?: float|null}> $rows
+     * @return array{updated: int, increased: int, decreased: int}
+     */
+    public function updatePrices(Purchase $purchase, array $rows): array
+    {
+        if ($purchase->status !== 'received') {
+            throw new \RuntimeException('Only received purchases can have prices and quantities corrected.');
+        }
+
+        $items   = $purchase->items()->with('variant')->get()->keyBy('id');
+        $changes = [];
+        $errors  = [];
+        $seen    = [];
+
+        foreach ($rows as $row) {
+            $id = (int) ($row['id'] ?? 0);
+
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+
+            if (! $items->has($id)) {
+                $errors["items"][] = "Line #{$id} does not belong to this purchase.";
+                continue;
+            }
+
+            $item   = $items->get($id);
+            $newQty = (int) ($row['quantity'] ?? $item->quantity);
+            $delta  = $newQty - (int) $item->quantity;
+
+            if ($delta !== 0 && ! $item->variant) {
+                $errors["items.{$id}.quantity"][] = 'This line has no linked variant, so its quantity cannot be adjusted.';
+                continue;
+            }
+
+            $changes[$id] = [
+                'item'  => $item,
+                'delta' => $delta,
+                'qty'   => $newQty,
+                'row'   => $row,
+            ];
+        }
+
+        // Pre-flight: a net decrease must never push stock below zero.
+        $netByVariant = [];
+        foreach ($changes as $change) {
+            if ($change['delta'] !== 0) {
+                $variantId = $change['item']->product_variant_id;
+                $netByVariant[$variantId] = ($netByVariant[$variantId] ?? 0) + $change['delta'];
+            }
+        }
+
+        $variants = ProductVariant::whereIn('id', array_keys($netByVariant))->with('inventory')->get()->keyBy('id');
+        foreach ($netByVariant as $variantId => $net) {
+            if ($net >= 0) {
+                continue;
+            }
+            $variant = $variants->get($variantId);
+            $current = $this->inventory->currentQuantity($variant);
+            if ($current + $net < 0) {
+                $errors['items'][] = sprintf(
+                    'Cannot reduce quantity for "%s": only %d unit(s) left in stock, but the correction removes %d. '
+                    . 'Units were likely already sold — investigate sales/returns before correcting.',
+                    $variant->display_label,
+                    $current,
+                    abs($net)
+                );
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return DB::transaction(function () use ($purchase, $changes) {
+            $increased = 0;
+            $decreased = 0;
+            $updated   = 0;
+
+            // Apply increases first so a variant with both + and - lines
+            // never fails on a stale intermediate balance.
+            uasort($changes, fn ($a, $b) => ($b['delta'] > 0) <=> ($a['delta'] > 0));
+
+            foreach ($changes as $change) {
+                $item  = $change['item'];
+                $delta = $change['delta'];
+                $qty   = $change['qty'];
+
+                if ($delta > 0) {
+                    $this->inventory->increaseFromPurchase(
+                        $item->variant,
+                        $delta,
+                        Purchase::class,
+                        $purchase->id,
+                        "Quantity correction on {$purchase->display_number}"
+                    );
+                    $increased += $delta;
+                } elseif ($delta < 0) {
+                    $this->inventory->adjustStock(
+                        $item->variant,
+                        $delta,
+                        'purchase_qty_correction',
+                        "Quantity correction on {$purchase->display_number}"
+                    );
+                    $decreased += abs($delta);
+                }
+
+                $itemData = ['quantity' => $qty];
+
+                if (array_key_exists('selling_price', $change['row']) && $change['row']['selling_price'] !== null) {
+                    $itemData['selling_price'] = (float) $change['row']['selling_price'];
+                }
+
+                $unitCost = (float) $item->cost_price
+                    + (float) $item->shipping_fee
+                    + (float) $item->packaging_cost
+                    + (float) $item->other_costs;
+                $itemData['line_total'] = ($unitCost - $unitCost * ((float) $item->discount / 100)) * $qty;
+
+                $item->update($itemData);
+                $updated++;
+
+                if ((float) $item->selling_price > 0) {
+                    if ($item->variant) {
+                        $item->variant->update(['selling_price' => $item->selling_price]);
+                    }
+                    if ($product = $item->variant?->product) {
+                        $product->update(['selling_price' => (float) $item->selling_price]);
+                    }
+                }
+            }
+
+            $this->recalculateTotals($purchase);
+
+            return compact('updated', 'increased', 'decreased');
         });
     }
 
