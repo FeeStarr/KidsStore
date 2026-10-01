@@ -171,14 +171,29 @@
                 @foreach($refundRequest->order->items as $it)
                     <tr class="{{ $refundRequest->orderItem && $refundRequest->order_item_id == $it->id ? 'table-warning fw-semibold' : '' }}">
                         <td class="small">
-                            {{ $it->product?->name }}
-                            @if($it->variant?->options_label) <span class="text-muted">- {{ $it->variant->options_label }}</span>@endif
-                            @if($refundRequest->order_item_id == $it->id)
-                                <span class="badge bg-warning text-dark ms-1">Return item</span>
-                            @endif
-                            @if($it->product && !$it->product->is_returnable)
-                                <span class="badge bg-secondary ms-1" style="font-size:10px;">Non-returnable</span>
-                            @endif
+                            @php $thumb = $it->product?->primaryImage?->url ?? $it->product?->catalog_image; @endphp
+                            <div class="d-flex align-items-center gap-2">
+                                @if($thumb)
+                                    <img src="{{ $thumb }}" alt="{{ $it->product?->name }}"
+                                         style="width:44px;height:44px;object-fit:cover;border-radius:.35rem;flex:0 0 auto;"
+                                         loading="lazy" decoding="async">
+                                @else
+                                    <div class="bg-body-secondary d-flex align-items-center justify-content-center text-muted"
+                                         style="width:44px;height:44px;border-radius:.35rem;flex:0 0 auto;">
+                                        <i class="bi bi-image"></i>
+                                    </div>
+                                @endif
+                                <div>
+                                    {{ $it->product?->name }}
+                                    @if($it->variant?->options_label) <span class="text-muted">- {{ $it->variant->options_label }}</span>@endif
+                                    @if($refundRequest->order_item_id == $it->id)
+                                        <span class="badge bg-warning text-dark ms-1">Return item</span>
+                                    @endif
+                                    @if($it->product && !$it->product->is_returnable)
+                                        <span class="badge bg-secondary ms-1" style="font-size:10px;">Non-returnable</span>
+                                    @endif
+                                </div>
+                            </div>
                         </td>
                         <td>{{ $it->quantity }}</td>
                         <td class="text-end">₦{{ number_format($it->line_total, 2) }}</td>
