@@ -58,7 +58,7 @@
                 <p class="text-muted">
                     Your order number is <strong class="text-dark">{{ $order->reference }}</strong>.
                     @if($order->payment_method === 'pay_on_delivery')
-                        We'll review and confirm your order shortly.
+                        We'll review and confirm your order shortly. Please note: the delivery agent or pickup station will release your items only after payment.
                     @endif
                 </p>
             </div>
