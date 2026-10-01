@@ -228,7 +228,7 @@
                            id="pm_pay_on_delivery" {{ old('payment_method', $pendingData['payment_method'] ?? '') === 'pay_on_delivery' ? 'checked' : '' }}>
                     <label class="form-check-label fw-semibold" for="pm_pay_on_delivery">
                         <i class="bi bi-cash-stack me-1"></i> Pay on Delivery
-                        <div class="small text-muted fw-normal mt-1">Pay via Paystack when your order arrives.</div>
+                        <div class="small text-muted fw-normal mt-1">Pay via Paystack when your order arrives. <strong class="text-dark">Items will only be released to you by the delivery agent or at the pickup station after payment.</strong></div>
                     </label>
                 </div>
                 @error('payment_method')<div class="text-danger small mt-1">{{ $message }}</div>@enderror

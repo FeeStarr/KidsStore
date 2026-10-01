@@ -165,6 +165,9 @@
                     When your order arrives, please complete your payment via your order details page.
                     <a href="{{ route('shop.order.track', $order->lookup_token) }}" style="color:#2563eb;">Open Order Details</a>
                 </p>
+                <p style="margin:8px 0 0;font-size:13px;color:#92400e;">
+                    Items will only be released to you by the delivery agent or at the pickup station after payment.
+                </p>
             </div>
         </td>
     </tr>

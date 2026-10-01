@@ -167,7 +167,7 @@
             <div class="alert alert-info d-flex align-items-center mb-4">
                 <i class="bi bi-cash-stack fs-4 me-3"></i>
                 <div>
-                    <strong>Pay at Door</strong> - Please have <strong>&#8358;{{ number_format($order->grand_total, 2) }}</strong> ready for payment when your order arrives.
+                    <strong>Pay at Door</strong> - Please have <strong>&#8358;{{ number_format($order->grand_total, 2) }}</strong> ready for payment when your order arrives. Your items will only be handed over to you after payment &mdash; by the delivery agent or at the pickup station.
                 </div>
             </div>
         @endif
