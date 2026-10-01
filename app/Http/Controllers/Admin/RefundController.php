@@ -39,6 +39,7 @@ class RefundController extends Controller
         $refundRequest->load([
             'order.customer',
             'order.items.product',
+            'order.items.product.primaryImage',
             'order.items.variant',
             'orderItem.product',
             'orderItem.variant',
