@@ -260,13 +260,15 @@
         ->toArray();
     $allItemsRequested = count($returnableItemIds) > 0
         && count(array_diff($returnableItemIds, $requestedReturnItemIds)) === 0;
+    // Any item the customer can actually request a return for
+    $hasEligibleItems = count($returnableItemIds) > 0;
 @endphp
 
-@if($canRefund)
+@if($canRefund && ($hasEligibleItems || $existingRequests->isNotEmpty()))
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
-        @if(! $fullOrderReturnActive && ! $allItemsRequested)
+        @if(! $fullOrderReturnActive && ! $allItemsRequested && $hasEligibleItems)
             <button class="btn btn-sm btn-outline-warning" type="button"
                     data-bs-toggle="collapse" data-bs-target="#refund-form">
                 Request a Refund
@@ -344,7 +346,7 @@
     </div>
     @endif
 
-    @if(! $fullOrderReturnActive && ! $allItemsRequested)
+    @if(! $fullOrderReturnActive && ! $allItemsRequested && $hasEligibleItems)
     <div class="collapse" id="refund-form">
         <div class="card-body">
             <form method="post" action="{{ route('shop.refund.store', $order) }}"
@@ -353,16 +355,9 @@
 
                 @php
                     $returnableItems = $order->items->filter(fn ($i) => $i->product && $i->product->is_returnable);
-                    $allNonReturnable = $returnableItems->isEmpty() && $order->items->isNotEmpty();
                     $hasReturnable = $returnableItems->isNotEmpty();
                 @endphp
 
-                @if($allNonReturnable)
-                    <div class="alert alert-warning mb-0">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        None of the items in this order are eligible for returns or refunds.
-                    </div>
-                @else
                 {{-- Scope --}}
                 <div class="mb-3">
                     <label class="form-label">What would you like to refund? *</label>
@@ -399,7 +394,6 @@
                         </div>
                     @endforeach
                 </div>
-                @endif
 
                 {{-- Hidden item fields, shown when item radio selected --}}
                 <div id="item-fields" style="display:none" class="mb-3 ms-4 row g-2">
