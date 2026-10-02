@@ -71,7 +71,8 @@
                     <h6 class="text-uppercase text-muted small">Sort by</h6>
                     <select name="sort" class="form-select form-select-sm mb-2" onchange="this.form.submit()">
                         @php($sort = request('sort'))
-                        <option value="" @selected(!$sort)>Newest</option>
+                        <option value="" @selected(!$sort)>Random</option>
+                        <option value="newest" @selected($sort==='newest')>Newest</option>
                         <option value="name" @selected($sort==='name')>Name (A-Z)</option>
                         <option value="price_asc"  @selected($sort==='price_asc')>Price: Low to High</option>
                         <option value="price_desc" @selected($sort==='price_desc')>Price: High to Low</option>

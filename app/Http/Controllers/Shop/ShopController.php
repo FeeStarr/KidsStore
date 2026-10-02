@@ -69,7 +69,9 @@ class ShopController extends Controller
             'price_asc'  => $query->orderBy('selling_price'),
             'price_desc' => $query->orderByDesc('selling_price'),
             'name'       => $query->orderBy('name'),
-            default      => $query->latest(),
+            'newest'     => $query->latest(),
+            // Seeded random: same order for the whole session so pagination stays stable.
+            default      => $query->inRandomOrder($this->shuffleSeed()),
         };
 
         $products   = $query->paginate(12)->withQueryString();
@@ -94,6 +96,22 @@ class ShopController extends Controller
         $cartQtys = $this->cart->qtysByVariant();
 
         return view('shop.products.index', compact('products', 'categories', 'activeCategory', 'ageRanges', 'matchingCategories', 'cartQtys'));
+    }
+
+    /**
+     * Stable random order seed, stored per visitor session so that
+     * pagination (page=2, 3...) keeps the same shuffled order.
+     */
+    private function shuffleSeed(): int
+    {
+        $seed = session()->get('shop_shuffle_seed');
+
+        if (! is_numeric($seed)) {
+            $seed = random_int(1, 999999);
+            session()->put('shop_shuffle_seed', $seed);
+        }
+
+        return (int) $seed;
     }
 
     public function show(Product $product)
