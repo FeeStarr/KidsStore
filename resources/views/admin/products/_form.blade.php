@@ -145,11 +145,6 @@
                                 </div>
                             @endforeach
                         </div>
-                        @foreach($product->images as $img)
-                            @if(!$img->is_primary)
-                                <form id="primary-{{ $img->id }}" action="{{ route('admin.products.images.primary', [$product, $img->id]) }}" method="post" class="d-none">@csrf</form>
-                            @endif
-                        @endforeach
                     @endif
                 </div>
             </div>
@@ -195,6 +190,14 @@
         </div>
     </div>
 </form>
+
+@if($isEdit && $product->images->count())
+    @foreach($product->images as $img)
+        @if(!$img->is_primary)
+            <form id="primary-{{ $img->id }}" action="{{ route('admin.products.images.primary', [$product, $img->id]) }}" method="post" class="d-none">@csrf</form>
+        @endif
+    @endforeach
+@endif
 
 @if($isEdit)
     @include('admin.products._variants', ['product' => $product])
