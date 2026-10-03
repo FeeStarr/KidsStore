@@ -17,13 +17,7 @@
 @endphp
 
 @if($policy)
-    <div class="card border-0 shadow-sm mb-4" style="border-radius:20px;">
-        <div class="card-body p-4 p-md-5">
-            <div class="return-policy-content" style="line-height:1.75; color:#3a2a4a;">
-                {!! nl2br(e($policy)) !!}
-            </div>
-        </div>
-    </div>
+    @include('shop.partials.policy-document', ['blocks' => $blocks, 'toc' => $toc])
 @else
     <div class="card border-0 shadow-sm mb-4" style="border-radius:20px;">
         <div class="card-body p-4 p-md-4">
@@ -76,3 +70,7 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+    @include('shop.partials.policy-document-styles')
+@endpush
