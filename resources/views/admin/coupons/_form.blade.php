@@ -153,9 +153,12 @@
                                 <input class="form-check-input coupon-product-check" type="checkbox" name="product_ids[]"
                                        value="{{ $p->id }}" id="cp-{{ $p->id }}" data-product="{{ $p->id }}"
                                        @checked(in_array((string) $p->id, $selectedProductIds, true))>
-                                <label class="form-check-label w-100" for="cp-{{ $p->id }}">
-                                    {{ $p->name }}
-                                    <small class="text-muted d-block">₦{{ number_format((float) ($p->defaultVariant?->selling_price ?? $p->selling_price), 2) }}</small>
+                                <label class="form-check-label w-100 d-flex align-items-center gap-2" for="cp-{{ $p->id }}">
+                                    @include('admin.partials.product-thumb', ['product' => $p])
+                                    <span class="flex-grow-1">
+                                        {{ $p->name }}
+                                        <small class="text-muted d-block">₦{{ number_format((float) ($p->defaultVariant?->selling_price ?? $p->selling_price), 2) }}</small>
+                                    </span>
                                 </label>
                             </div>
                             @foreach($p->variants as $v)
