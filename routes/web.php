@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DealController;
 use App\Http\Controllers\Admin\DeliveryAgentController;
 use App\Http\Controllers\Admin\DeliveryChargeController;
 use App\Http\Controllers\Admin\DeliveryLocationController;
+use App\Http\Controllers\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PasswordResetController as AdminPasswordResetController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\Shop\CustomOrderController;
 use App\Http\Controllers\Shop\CustomOrderFileController;
 use App\Http\Controllers\Shop\CustomCreationController;
 use App\Http\Controllers\Shop\DealController as ShopDealController;
+use App\Http\Controllers\Shop\HelpController as ShopHelpController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\PasswordResetController as ShopPasswordResetController;
 use App\Http\Controllers\Shop\PrivacyPolicyController as ShopPrivacyPolicyController;
@@ -71,6 +73,7 @@ Route::name('shop.')->group(function () {
     Route::get('/return-policy', [ShopReturnPolicyController::class, 'show'])->name('return-policy');
     Route::get('/privacy-policy', [ShopPrivacyPolicyController::class, 'show'])->name('privacy-policy');
     Route::get('/cookie-policy', [\App\Http\Controllers\Shop\CookiePolicyController::class, 'show'])->name('cookie-policy');
+    Route::get('/help', [ShopHelpController::class, 'show'])->name('help');
     Route::post('/contact', [ShopContactController::class, 'send'])->name('contact.send')->middleware('throttle:5,1');
 
     Route::get('/shop', [ShopController::class, 'index'])->name('products.index');
@@ -221,6 +224,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('privacy-policy', [AdminPrivacyPolicyController::class, 'edit'])->name('privacy-policy.edit');
         Route::put('privacy-policy', [AdminPrivacyPolicyController::class, 'update'])->name('privacy-policy.update');
+
+        Route::get('help', [AdminHelpController::class, 'edit'])->name('help.edit');
+        Route::put('help', [AdminHelpController::class, 'update'])->name('help.update');
 
         Route::resource('products', ProductController::class)->middleware('permission:manage_products');
         Route::post('products/{product}/images/{imageId}/primary', [ProductController::class, 'setPrimaryImage'])

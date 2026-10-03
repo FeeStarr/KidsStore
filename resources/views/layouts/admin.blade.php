@@ -121,7 +121,7 @@
     @endif
 </div>
 
-@php($contentActive = str_starts_with($r ?? '', 'admin.about') || str_starts_with($r ?? '', 'admin.contact') || str_starts_with($r ?? '', 'admin.return-policy') || str_starts_with($r ?? '', 'admin.privacy-policy'))
+@php($contentActive = str_starts_with($r ?? '', 'admin.about') || str_starts_with($r ?? '', 'admin.contact') || str_starts_with($r ?? '', 'admin.return-policy') || str_starts_with($r ?? '', 'admin.privacy-policy') || str_starts_with($r ?? '', 'admin.help'))
 <a href="#menu-content" data-bs-toggle="collapse" role="button" aria-expanded="{{ $contentActive ? 'true' : 'false' }}" class="{{ $contentActive ? 'active' : '' }}">
     <i class="bi bi-layout-text-window"></i> Store Pages <i class="bi bi-chevron-down chevron"></i>
 </a>
@@ -136,6 +136,7 @@
     </a>
     <a href="{{ route('admin.return-policy.edit') }}" class="sub {{ $r==='admin.return-policy.edit' ? 'active':'' }}"><i class="bi bi-arrow-counterclockwise"></i> Return Policy</a>
     <a href="{{ route('admin.privacy-policy.edit') }}" class="sub {{ $r==='admin.privacy-policy.edit' ? 'active':'' }}"><i class="bi bi-shield-lock"></i> Privacy Policy</a>
+    <a href="{{ route('admin.help.edit') }}" class="sub {{ $r==='admin.help.edit' ? 'active':'' }}"><i class="bi bi-question-circle"></i> Help &amp; Guide</a>
 </div>
 
 @php($settingsActive = str_starts_with($r ?? '', 'admin.settings') || str_starts_with($r ?? '', 'admin.bank-accounts') || str_starts_with($r ?? '', 'admin.payment-methods'))

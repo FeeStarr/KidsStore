@@ -44,6 +44,7 @@ TXT;
             '/custom-creations'  => ['changefreq' => 'weekly', 'priority' => '0.7'],
             '/about'             => ['changefreq' => 'monthly', 'priority' => '0.5'],
             '/contact'           => ['changefreq' => 'monthly', 'priority' => '0.5'],
+            '/help'              => ['changefreq' => 'monthly', 'priority' => '0.6'],
             '/return-policy'     => ['changefreq' => 'yearly',  'priority' => '0.3'],
             '/privacy-policy'    => ['changefreq' => 'yearly',  'priority' => '0.3'],
             '/cookie-policy'     => ['changefreq' => 'yearly',  'priority' => '0.3'],

@@ -240,11 +240,12 @@
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.deals.*') ? 'active' : '' }}" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.custom-creations.*') ? 'active' : '' }}" href="{{ route('shop.custom-creations.index') }}"><i class="bi bi-stars me-1"></i>Custom Creations</a></li>
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {{ request()->routeIs('shop.about', 'shop.contact', 'shop.order.*', 'shop.custom-frock.create') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">More</a>
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('shop.about', 'shop.contact', 'shop.order.*', 'shop.custom-frock.create', 'shop.help') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">More</a>
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item {{ request()->routeIs('shop.about') ? 'active' : '' }}" href="{{ route('shop.about') }}">About</a></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.contact') ? 'active' : '' }}" href="{{ route('shop.contact') }}">Contact</a></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.order.*') ? 'active' : '' }}" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.help') ? 'active' : '' }}" href="{{ route('shop.help') }}"><i class="bi bi-question-circle me-1"></i>Help &amp; Guide</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.create') ? 'active' : '' }}" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                 </ul>
@@ -319,6 +320,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span>&copy; {{ date('Y') }} {{ $appName }}. All prices in &#8358; (NGN).</span>
             <div class="d-flex gap-3">
+                <a href="{{ route('shop.help') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.help') ? 'active' : '' }}">Help &amp; Guide</a>
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.contact') ? 'active' : '' }}">Contact Us</a>
                 <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.return-policy') ? 'active' : '' }}">Return Policy</a>
                 <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.privacy-policy') ? 'active' : '' }}">Privacy Policy</a>
