@@ -92,7 +92,7 @@ class CustomCreationsGalleryTest extends TestCase
 
     // ── Category Filtering ───────────────────────────────────────
 
-    public function test_category_filter_works(): void
+    public function test_category_filter_is_not_available_without_categories(): void
     {
         $this->createCreation(['category' => 'birthday']);
         $this->createCreation(['title' => 'Elegant Red Gown', 'category' => 'party']);
@@ -100,7 +100,8 @@ class CustomCreationsGalleryTest extends TestCase
         $response = $this->get(route('shop.custom-creations.index', ['category' => 'birthday']));
         $response->assertOk();
         $response->assertSee('Birthday Princess Frock');
-        $response->assertDontSee('Elegant Red Gown');
+        $response->assertSee('Elegant Red Gown');
+        $response->assertDontSee('category=');
     }
 
     public function test_invalid_category_shows_all(): void
@@ -142,13 +143,14 @@ class CustomCreationsGalleryTest extends TestCase
             ->assertSee('From');
     }
 
-    public function test_detail_page_shows_category_badge(): void
+    public function test_detail_page_hides_category_badge_without_categories(): void
     {
         $creation = $this->createCreation(['category' => 'princess']);
 
         $this->get(route('shop.custom-creations.show', $creation->id))
             ->assertOk()
-            ->assertSee('Princess Dresses');
+            ->assertSee('Birthday Princess Frock')
+            ->assertDontSee('badge bg-primary mb-3');
     }
 
     public function test_detail_page_shows_start_custom_order_cta(): void
@@ -195,7 +197,6 @@ class CustomCreationsGalleryTest extends TestCase
                 'image' => $file,
                 'price' => 45000,
                 'is_price_from' => true,
-                'category' => 'ankara',
                 'description' => 'Beautiful ankara design.',
                 'is_active' => true,
                 'sort_order' => 0,
@@ -203,7 +204,7 @@ class CustomCreationsGalleryTest extends TestCase
 
         $creation = CustomCreation::where('title', 'Elegant Ankara Frock')->first();
         $this->assertNotNull($creation);
-        $this->assertEquals('ankara', $creation->category);
+        $this->assertNull($creation->category);
         $this->assertTrue($creation->is_price_from);
         $this->assertTrue($creation->is_active);
         $this->assertStringContainsString('custom-creations/', $creation->image_path);
@@ -231,7 +232,6 @@ class CustomCreationsGalleryTest extends TestCase
             ->put(route('admin.custom-creations.update', $creation), [
                 'title' => 'Updated Princess Frock',
                 'price' => 50000,
-                'category' => 'princess',
                 'is_active' => true,
                 'sort_order' => 5,
             ]);
@@ -239,7 +239,8 @@ class CustomCreationsGalleryTest extends TestCase
         $creation->refresh();
         $this->assertEquals('Updated Princess Frock', $creation->title);
         $this->assertEquals(50000, $creation->price);
-        $this->assertEquals('princess', $creation->category);
+        $this->assertEquals(5, $creation->sort_order);
+        $this->assertEquals('birthday', $creation->category);
     }
 
     public function test_admin_can_update_with_new_image(): void

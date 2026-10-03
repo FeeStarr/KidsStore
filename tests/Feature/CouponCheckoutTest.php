@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Coupon;
+use App\Models\DeliveryLocation;
 use App\Models\Inventory;
-use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -61,6 +61,15 @@ class CouponCheckoutTest extends TestCase
             'ends_at'       => now()->addDays(2),
             'status'        => Coupon::STATUS_ACTIVE,
         ], $overrides));
+    }
+
+    private function makeDeliveryLocation(): DeliveryLocation
+    {
+        return DeliveryLocation::create([
+            'name'      => 'Ikeja',
+            'state'     => 'Lagos',
+            'is_active' => true,
+        ]);
     }
 
     public function test_guest_cart_coupon_apply_and_remove(): void
@@ -127,23 +136,26 @@ class CouponCheckoutTest extends TestCase
         [$product, $variant] = $this->makeProduct(2000);
         $coupon = $this->makeCoupon(['discount_value' => 10]);
         $user = User::factory()->create();
+        $location = $this->makeDeliveryLocation();
 
         $this->actingAs($user);
         app(CartService::class)->add($variant->id, 1);
         app(CartService::class)->applyCoupon('SAVE10');
 
         $response = $this->post(route('shop.checkout.place'), [
-            'delivery_method' => 'delivery',
-            'phone'           => '08012345678',
-            'address'         => '12 Test Street',
-            'note'            => null,
+            'delivery_method'      => 'delivery',
+            'phone'                => '08012345678',
+            'address'              => '12 Test Street',
+            'delivery_location_id' => $location->id,
+            'payment_method'       => 'pay_on_delivery',
+            'note'                 => null,
         ]);
 
         $response->assertSessionHas('success');
 
         $order = $user->orders()->latest('id')->first();
         $this->assertNotNull($order);
-        $this->assertEquals('confirmed', $order->status);
+        $this->assertEquals('pending confirmation', $order->status);
 
         $item = $order->items()->first();
         $this->assertNotNull($item);
@@ -151,7 +163,9 @@ class CouponCheckoutTest extends TestCase
         $this->assertEquals(200.00, (float) $item->coupon_discount);
         $this->assertEquals(1800.00, (float) $order->grand_total);
 
+        // Pay-on-delivery orders are committed at placement, so usage counts now.
         $this->assertEquals(1, $coupon->fresh()->usage_count);
+        $this->assertEquals(1, $coupon->usages()->where('order_id', $order->id)->count());
 
         // Coupon and cart cleared after order placement.
         $this->assertNull(app(CartService::class)->couponId());
@@ -163,17 +177,18 @@ class CouponCheckoutTest extends TestCase
         [$product, $variant] = $this->makeProduct(2000);
         $coupon = $this->makeCoupon(['discount_value' => 10]);
         $user = User::factory()->create();
-        PaymentMethod::create(['key' => 'instant_bank_transfer', 'label' => 'Instant Bank Transfer', 'is_active' => true]);
+        $location = $this->makeDeliveryLocation();
 
         $this->actingAs($user);
         app(CartService::class)->add($variant->id, 1);
         app(CartService::class)->applyCoupon('SAVE10');
 
         $this->post(route('shop.checkout.place'), [
-            'delivery_method' => 'delivery',
-            'phone'           => '08012345678',
-            'address'         => '12 Test Street',
-            'payment_method'  => 'instant_bank_transfer',
+            'delivery_method'      => 'delivery',
+            'phone'                => '08012345678',
+            'address'              => '12 Test Street',
+            'delivery_location_id' => $location->id,
+            'payment_method'       => 'pay_now',
         ])->assertSessionHas('success');
 
         $order = $user->orders()->latest('id')->first();
