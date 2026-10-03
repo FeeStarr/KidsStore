@@ -222,9 +222,6 @@
 </div>
 
 @php
-    $maxReturnHours = \App\Models\RefundRequest::maxTimeLimitHours();
-    $canRefund       = $order->status === 'delivered'
-                       && $order->updated_at->diffInHours(now()) <= $maxReturnHours;
     $existingRequests = $order->refundRequests ?? collect();
     // Items that already have any return request (active or completed - prevents duplicate requests)
     $requestedReturnItemIds = $existingRequests
@@ -263,20 +260,18 @@
     // Any item the customer can actually request a return for
     $hasEligibleItems = count($returnableItemIds) > 0;
 
-    // Whether the customer can start a new return right now
-    $canRequestReturn = $canRefund && $hasEligibleItems
+    // Whether the customer can start a new return right now: the order just
+    // needs a returnable item that isn't already covered by a request.
+    // Delivery status and the return window are enforced server-side on submit.
+    $canRequestReturn = $hasEligibleItems
         && ! $fullOrderReturnActive && ! $allItemsRequested;
 
     // Why the button is greyed out
     $returnDisabledReason = ! $hasEligibleItems
         ? 'No items in this order are eligible for a return.'
-        : ($order->status !== 'delivered'
-            ? 'Returns can only be requested for delivered orders.'
-            : ((float) $order->updated_at->diffInHours(now()) > $maxReturnHours
-                ? 'The return window for this order has expired.'
-                : ($fullOrderReturnActive
-                    ? 'A return for this order is already in progress.'
-                    : 'All returnable items already have a return request.')));
+        : ($fullOrderReturnActive
+            ? 'A return for this order is already in progress.'
+            : 'All returnable items already have a return request.');
 @endphp
 
 <div class="card border-0 shadow-sm mt-3">
