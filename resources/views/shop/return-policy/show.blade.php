@@ -10,6 +10,12 @@
     </div>
 </div>
 
+@php
+    $limits = \App\Models\RefundRequest::reasonTimeLimits();
+    $fmt    = fn (int $hours) => \App\Models\RefundRequest::formatWindowHours($hours);
+    $defaultWindow = \App\Models\RefundRequest::defaultWindowHours();
+@endphp
+
 @if($policy)
     <div class="card border-0 shadow-sm mb-4" style="border-radius:20px;">
         <div class="card-body p-4 p-md-5">
@@ -30,13 +36,13 @@
                 <div class="col-md-6">
                     <div class="p-3 rounded-4 h-100" style="background:#f6ecff; border:1px solid #e9d5ff;">
                         <div class="fw-bold" style="color:#7b2d8b;"><i class="bi bi-clock-history me-1"></i> General window</div>
-                        <div class="small text-muted">Up to <strong>7 days</strong> after delivery for eligible items.</div>
+                        <div class="small text-muted">Up to <strong>{{ $fmt($defaultWindow) }}</strong> after delivery for eligible items.</div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="p-3 rounded-4 h-100" style="background:#fff6e0; border:1px solid #ffe8a3;">
                         <div class="fw-bold" style="color:#7a4a00;"><i class="bi bi-lightning me-1"></i> Quick cases</div>
-                        <div class="small text-muted"><strong>Damaged</strong> 48h • <strong>Missing item</strong> 24h • <strong>Changed mind</strong> 72h</div>
+                        <div class="small text-muted"><strong>Damaged</strong> {{ $fmt($limits['damaged']) }} &bull; <strong>Missing item</strong> {{ $fmt($limits['missing_item']) }} &bull; <strong>Changed mind</strong> {{ $fmt($limits['changed_mind']) }}</div>
                     </div>
                 </div>
             </div>
@@ -49,7 +55,14 @@
     <div class="card-body p-4 p-md-4">
         <h5 class="fw-bold mb-3"><i class="bi bi-stopwatch me-1" style="color:#7b68ee;"></i> Return windows at a glance</h5>
         <div class="row g-2 small">
-            @php $rows = [['Wrong item / size / color','5 days'],['Incomplete / not as described','5 days'],['Damaged','48 hours'],['Missing item','24 hours'],['Changed mind','3 days'],['Everything else','7 days']]; @endphp
+            @php $rows = [
+                ['Wrong item / size / color', $fmt($limits['wrong_item'])],
+                ['Incomplete / not as described', $fmt($limits['incomplete_order'])],
+                ['Damaged', $fmt($limits['damaged'])],
+                ['Missing item', $fmt($limits['missing_item'])],
+                ['Changed mind', $fmt($limits['changed_mind'])],
+                ['Everything else', $fmt($defaultWindow)],
+            ]; @endphp
             @foreach($rows as [$label,$window])
                 <div class="col-12 d-flex justify-content-between align-items-center p-2 px-3 rounded-3" style="background:#f8f7ff; border:1px solid #eee8ff;">
                     <span>{{ $label }}</span><span class="badge rounded-pill" style="background:#7b68ee;">{{ $window }}</span>

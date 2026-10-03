@@ -222,7 +222,7 @@
 </div>
 
 @php
-    $maxReturnHours = max(array_values(\App\Models\RefundRequest::REASON_TIME_LIMITS));
+    $maxReturnHours = \App\Models\RefundRequest::maxTimeLimitHours();
     $canRefund       = $order->status === 'delivered'
                        && $order->updated_at->diffInHours(now()) <= $maxReturnHours;
     $existingRequests = $order->refundRequests ?? collect();
@@ -262,15 +262,35 @@
         && count(array_diff($returnableItemIds, $requestedReturnItemIds)) === 0;
     // Any item the customer can actually request a return for
     $hasEligibleItems = count($returnableItemIds) > 0;
+
+    // Whether the customer can start a new return right now
+    $canRequestReturn = $canRefund && $hasEligibleItems
+        && ! $fullOrderReturnActive && ! $allItemsRequested;
+
+    // Why the button is greyed out
+    $returnDisabledReason = ! $hasEligibleItems
+        ? 'No items in this order are eligible for a return.'
+        : ($order->status !== 'delivered'
+            ? 'Returns can only be requested for delivered orders.'
+            : ((float) $order->updated_at->diffInHours(now()) > $maxReturnHours
+                ? 'The return window for this order has expired.'
+                : ($fullOrderReturnActive
+                    ? 'A return for this order is already in progress.'
+                    : 'All returnable items already have a return request.')));
 @endphp
 
-@if($canRefund && ($hasEligibleItems || $existingRequests->isNotEmpty()))
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
-        @if(! $fullOrderReturnActive && ! $allItemsRequested && $hasEligibleItems)
+        @if($canRequestReturn)
             <button class="btn btn-sm btn-outline-warning" type="button"
                     data-bs-toggle="collapse" data-bs-target="#refund-form">
+                Request a Refund
+            </button>
+        @else
+            <button class="btn btn-sm btn-outline-warning" type="button" disabled
+                    style="opacity:.5; cursor:not-allowed;"
+                    title="{{ $returnDisabledReason }}">
                 Request a Refund
             </button>
         @endif
@@ -346,7 +366,7 @@
     </div>
     @endif
 
-    @if(! $fullOrderReturnActive && ! $allItemsRequested && $hasEligibleItems)
+    @if($canRequestReturn)
     <div class="collapse" id="refund-form">
         <div class="card-body">
             <form method="post" action="{{ route('shop.refund.store', $order) }}"
@@ -472,7 +492,6 @@
     </div>
     @endif
 </div>
-@endif
 
 @push('scripts')
 <script src="https://js.paystack.co/v1/inline.js"></script>

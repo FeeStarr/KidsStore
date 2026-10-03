@@ -47,7 +47,7 @@ class RefundEligibilityVisibilityTest extends TestCase
         return User::factory()->create(['role' => User::ROLE_CUSTOMER]);
     }
 
-    public function test_order_with_no_returnable_items_hides_refund_feature_entirely(): void
+    public function test_order_with_no_returnable_items_greys_out_refund_button(): void
     {
         $customer = $this->customer();
         $order = $this->deliveredOrderFor($customer);
@@ -61,10 +61,42 @@ class RefundEligibilityVisibilityTest extends TestCase
         $this->actingAs($customer)
             ->get(route('shop.account.orders.show', $order))
             ->assertOk()
-            ->assertDontSee('Return Request')
-            ->assertDontSee('Request a Refund')
+            ->assertSee('Return Request')
+            ->assertSee('No items in this order are eligible for a return.')
+            ->assertSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false)
+            ->assertDontSee('data-bs-target="#refund-form"', false)
             ->assertDontSee('What would you like to refund?')
             ->assertDontSee('None of the items in this order are eligible');
+    }
+
+    public function test_order_not_yet_delivered_greys_out_refund_button(): void
+    {
+        $customer = $this->customer();
+        $order = Order::create([
+            'reference'        => 'ORD-REFVIZ-' . uniqid(),
+            'order_date'       => now()->toDateString(),
+            'customer_id'      => $customer->id,
+            'status'           => 'confirmed',
+            'delivery_method'  => 'delivery',
+            'delivery_address' => '12 Test Street, Lagos',
+            'total_amount'     => 1000,
+            'grand_total'      => 1000,
+            'amount_paid'      => 1000,
+        ]);
+        $this->addItem($order, [
+            'sku'  => 'RET-' . uniqid(),
+            'name' => 'Returnable Toy',
+            'slug' => 'returnable-toy-' . uniqid(),
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('shop.account.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Return Request')
+            ->assertSee('Returns can only be requested for delivered orders.')
+            ->assertSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false)
+            ->assertDontSee('data-bs-target="#refund-form"', false)
+            ->assertDontSee('What would you like to refund?');
     }
 
     public function test_mixed_order_shows_refund_feature_with_disabled_non_returnable_item(): void
