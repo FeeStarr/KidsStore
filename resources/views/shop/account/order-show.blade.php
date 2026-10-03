@@ -265,9 +265,11 @@
     // Any item the customer can actually request a return for
     $hasEligibleItems = count($returnableItemIds) > 0;
 
-    // Whether the customer can start a new return right now: the order just
-    // needs a returnable item that isn't already covered by a request.
-    // Delivery status and the return window are enforced server-side on submit.
+    // The return section only renders for delivered orders (gated below).
+    // Within that, the customer just needs a returnable item that isn't
+    // already covered by a request. The return window is enforced server-side.
+    $delivered = $order->status === \App\Models\Order::STATUS_DELIVERED;
+
     $canRequestReturn = $hasEligibleItems
         && ! $fullOrderReturnActive && ! $allItemsRequested;
 
@@ -279,6 +281,7 @@
             : 'All returnable items already have a return request.');
 @endphp
 
+@if($delivered)
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-arrow-counterclockwise me-1"></i>Return Request</span>
@@ -501,6 +504,7 @@
     </div>
     @endif
 </div>
+@endif
 
 @push('scripts')
 <script src="https://js.paystack.co/v1/inline.js"></script>
