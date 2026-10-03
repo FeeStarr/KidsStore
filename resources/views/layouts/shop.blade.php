@@ -78,6 +78,43 @@
         .floaty { animation: float 4s ease-in-out infinite; display:inline-block; }
         @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
+        .app-launch-banner {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(120deg, #241553 0%, #3b2280 55%, #1d4ed8 100%);
+            color: #fff;
+            border-radius: 1.5rem;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 16px 34px rgba(36,21,83,.3);
+        }
+        .app-launch-banner::after {
+            content: ""; position: absolute; right: -50px; top: -50px;
+            width: 170px; height: 170px; border-radius: 50%;
+            background: var(--kid-yellow); opacity: .2;
+        }
+        .app-launch-icon {
+            width: 62px; height: 62px; flex: 0 0 62px; border-radius: 18px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.75rem; color: var(--kid-yellow);
+            background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+            z-index: 1;
+        }
+        .app-launch-eyebrow {
+            font-size: .74rem; font-weight: 700; letter-spacing: 1.5px;
+            text-transform: uppercase; color: var(--kid-yellow);
+        }
+        .app-launch-title { font-family: 'Fredoka', sans-serif; font-size: 1.35rem; font-weight: 700; }
+        .app-launch-chip {
+            background: var(--kid-yellow); color: #4a3400; border-radius: 50px;
+            font-weight: 700; font-size: .85rem; padding: .5rem 1.1rem;
+            white-space: nowrap; box-shadow: 0 8px 18px rgba(0,0,0,.2); z-index: 1;
+        }
+        @media (max-width: 767.98px) {
+            .app-launch-banner { text-align: center; }
+            .app-launch-icon { margin: 0 auto .25rem; }
+            .app-launch-chip { align-self: center; }
+        }
+
 
         .kid-tile {
             border: 0; border-radius: 1.25rem; padding: 1.5rem 1rem; text-align:center;
