@@ -67,7 +67,7 @@
                 <span class="badge bg-warning text-dark fw-semibold" style="font-size:10px;"><i class="bi bi-exclamation-triangle me-1"></i>Non-returnable</span>
             @endif
             @if($reviewsCount > 0 && $avgRating > 0)
-                <div class="small text-muted mb-1">&#9733; {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
+                <div class="small text-muted mb-1"><span class="stars">&#9733;</span> {{ number_format($avgRating, 1) }} ({{ $reviewsCount }})</div>
             @endif
             <div>
                 @if($deal)
