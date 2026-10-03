@@ -211,6 +211,11 @@
                 @if($it->selected_age_group)
                     <div class="small text-muted">Age: {{ $it->selected_age_group }}</div>
                 @endif
+                @if($it->product && ! $it->product->is_returnable)
+                    <span class="badge bg-secondary" style="font-size:10px;">Non-returnable</span>
+                @elseif(! $it->product)
+                    <span class="badge bg-light text-muted border" style="font-size:10px;">Unavailable</span>
+                @endif
             </td>
             <td>{{ $it->quantity }}</td>
             <td class="text-end">&#8358;{{ number_format($it->unit_price, 2) }}</td>
@@ -268,7 +273,7 @@
 
     // Why the button is greyed out
     $returnDisabledReason = ! $hasEligibleItems
-        ? 'No items in this order are eligible for a return.'
+        ? "This order can't be returned - none of its items are returnable."
         : ($fullOrderReturnActive
             ? 'A return for this order is already in progress.'
             : 'All returnable items already have a return request.');
@@ -290,6 +295,15 @@
             </button>
         @endif
     </div>
+
+    @unless($canRequestReturn)
+        <div class="py-2 px-3 border-bottom" style="background:#f8f7ff;">
+            <div class="small d-flex align-items-start gap-2" style="color:#5b3fa8;">
+                <i class="bi bi-info-circle mt-1"></i>
+                <span>{{ $returnDisabledReason }}</span>
+            </div>
+        </div>
+    @endunless
 
     @if($existingRequests->isNotEmpty())
     <div class="card-body border-bottom">
