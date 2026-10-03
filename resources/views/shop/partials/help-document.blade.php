@@ -31,14 +31,16 @@
                                     <span class="pp-heading-num">{{ $block['num'] }}</span>
                                     <span>{{ $block['title'] }}</span>
                                 </h3>
-                                @isset($block['image'])
-                                    <figure class="pp-figure">
-                                        <img src="{{ asset('images/help/' . rawurlencode($block['image'])) }}"
-                                             alt="{{ $block['title'] }}"
-                                             loading="lazy"
-                                             decoding="async">
-                                        <figcaption>{{ $block['title'] }}</figcaption>
-                                    </figure>
+                                @isset($block['images'])
+                                    @foreach($block['images'] as $image)
+                                        <figure class="pp-figure">
+                                            <img src="{{ asset('images/help/' . rawurlencode($image)) }}"
+                                                 alt="{{ $block['title'] }}"
+                                                 loading="lazy"
+                                                 decoding="async">
+                                            <figcaption>{{ $block['title'] }}</figcaption>
+                                        </figure>
+                                    @endforeach
                                 @endisset
                                 @break
                             @case('subheading')

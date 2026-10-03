@@ -28,8 +28,9 @@ class HelpPageTest extends TestCase
             ->assertSee('How to use this site')
             ->assertSee('On this page')
             ->assertSee('policy-section-1')
-            ->assertSee('Create Your Account')
-            ->assertSee('Explore Custom Creations');
+            ->assertSee('Sign Up')
+            ->assertSee('Custom Frock Pages')
+            ->assertSee('Track Order Page');
     }
 
     public function test_help_page_has_nav_and_footer_links_active(): void
@@ -48,7 +49,7 @@ class HelpPageTest extends TestCase
             ->assertOk()
             ->assertSee('First Step')
             ->assertSee('This is my own text.')
-            ->assertDontSee('Create Your Account');
+            ->assertDontSee('Email Verification');
     }
 
     public function test_screenshot_attaches_to_section_by_number(): void
@@ -89,6 +90,49 @@ class HelpPageTest extends TestCase
             ->assertSee('No Image Section')
             ->assertSee('Body text with no picture.')
             ->assertDontSee('images/help/98');
+    }
+
+    public function test_several_screenshots_attach_to_one_section_by_prefix(): void
+    {
+        Setting::set('help_guide', "HELP\n96. Sample Gallery\nBody text for the gallery section.");
+        $this->putScreenshot('sample-gallery-one.png');
+        $this->putScreenshot('sample gallery two.png');
+
+        try {
+            $this->get(route('shop.help'))
+                ->assertOk()
+                ->assertSee('images/help/sample-gallery-one.png', false)
+                ->assertSee('images/help/sample%20gallery%20two.png', false);
+        } finally {
+            $this->deleteScreenshot('sample-gallery-one.png');
+            $this->deleteScreenshot('sample gallery two.png');
+        }
+    }
+
+    public function test_all_committed_screenshots_attach_to_their_sections(): void
+    {
+        $expected = [
+            'Sign up page.png',
+            'sign up button.png',
+            'Email verification.png',
+            'Profile page.png',
+            'Shop page.png',
+            'Cart page.png',
+            'Check out page.png',
+            'Checkout payment page.png',
+            'Custom frock pages 1.png',
+            'Custom frock pages 2.png',
+            'Custom frock pages 3.png',
+            'Contact page.png',
+            'Track order.png',
+            'Track order page.png',
+        ];
+
+        $response = $this->get(route('shop.help'))->assertOk();
+
+        foreach ($expected as $file) {
+            $response->assertSee('images/help/' . rawurlencode($file), false, "Missing: {$file}");
+        }
     }
 
     public function test_help_page_is_in_sitemap(): void

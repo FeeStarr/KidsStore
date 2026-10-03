@@ -14,43 +14,42 @@ class HelpController extends Controller
      * Used when an admin has not saved custom help content yet.
      * Screenshots in public/images/help/ attach automatically: a section
      * numbered "N" picks up N.png (or N-anything.png), and a section titled
-     * "Track Your Order" picks up track-your-order.png.
+     * "Sign Up" picks up sign-up.png / sign-up-page.png / sign up button.png
+     * (several screenshots per section are allowed).
      */
     public const DEFAULT_TEXT = <<<'TXT'
 HELP & GUIDE
-1. Create Your Account
-Tap Sign up at the top right, enter your name, email and password, then confirm with the 6-digit code we email you. An account keeps your orders, addresses and refunds in one place.
-2. Browse and Search Products
-Use the Shop link in the menu or the search bar to find dresses, shoes, bags and more. Filter by category, price or age from the shop page.
-• Menu > Shop opens the full catalogue
-• The search bar matches product names
-• The Deals page lists everything on promo
-3. Product Page, Sizes and Stock
-Open a product to see photos, the price and every available variant. Pick a size or colour, check the stock badge, then press Add to cart. Greyed-out options are out of stock.
-4. Your Cart and Coupon Codes
-Click the bag icon to review your items and change quantities. Have a coupon? Type the code in the coupon box and press Apply - the discount shows straight away.
-5. Checkout: Delivery or Pickup
-Press Checkout and choose Delivery or Pickup. For delivery, select your location and type your full address; for pickup, choose a station near you. Your location decides the delivery fee.
-6. Payment: Pay Now or Pay on Delivery
-Pay Now completes payment instantly with Paystack and your order is confirmed right away. Pay on Delivery lets the agent collect payment when your parcel arrives - items are released only after you pay.
-7. Understanding Order Status
-• Pending payment - a Pay Now order waiting for payment
-• Pending confirmation - our team is reviewing your order
-• Confirmed and Processing - paid and being prepared
-• Shipped and Out for delivery - on the way to you
-• Delivered - handed over; you can now request a return
-8. Track Your Order
-From the menu choose Track Order, enter your order reference and email, then type the 6-digit code we send you. The tracking page shows live status and delivery details.
-9. My Orders and Profile
-Click your name, then My Orders for history, invoices, payment options and refund requests. My Profile stores your phone number, addresses and password.
-10. Request a Return
-On a delivered order press Request Return, choose the reason, add photos when asked and submit. Windows depend on the reason and are listed on the Return Policy page.
-11. Place a Custom Frock Order
-Menu > Custom Orders > New Order. Upload your measurements with the guide, pick fabric and style, then send it for a quote. Approve the quote to start production.
-12. Explore Custom Creations
-Menu > Custom Creations shows ready designs we can replicate. Open one and press Start Custom Order to begin.
+1. Sign Up
+Tap Sign up at the top right of any page, enter your name, email and password, then create your profile. A free account keeps your orders, addresses and returns in one place.
+• The Sign up button sits beside Login in the menu
+• Use an email you can open right away - we send a code to it
+• Signing up takes less than a minute
+2. Email Verification
+After signing up we email you a 6-digit verification code. Enter it on the verification screen to activate your account. The code expires quickly - press Resend if you need a new one.
+3. Login
+Tap Login, enter your email and password, and you are back in. Two-factor accounts also enter a 6-digit code, and the same screen lets you reset a forgotten password.
+4. Profile Page
+Click your name, then My Profile, to update your phone number, change your password and manage delivery addresses. Set a default address so checkout fills it in automatically.
+5. Shop Page
+Open the Shop from the menu to browse everything. Filter by category, pick an age range, sort by price or use the search bar to find a specific item.
+• Categories narrow the list to dresses, shoes, bags and more
+• Age range shows sizes that fit your child
+• The search bar matches product names instantly
+• Press Add to cart on a product page to keep an item for checkout
+6. Cart Page
+Click the bag icon to review what you picked. Change quantities, remove items and watch the subtotal update. Have a coupon? Type the code in the coupon box and press Apply - the discount shows straight away.
+7. Checkout
+Press Checkout and choose Delivery or Pickup. For delivery, select your location and type your full address; for pickup, choose a station near you. Your location decides the delivery fee, then pick Pay Now or Pay on Delivery.
+8. My Orders Page
+Click your name, then My Orders, for the full history of your orders. Open an order to see its items, status, payment options and the Request Return button once it is delivered.
+9. Custom Frock Pages
+Menu > Custom Orders shows every custom request you have made. Start a new order, upload your measurements with the guide, pick fabric and style, then approve the quote to begin production. Follow each order on its status timeline.
+10. Contact Page
+Menu > Contact sends a message straight to our team - we reply within one business day. Include your order reference if your question is about an existing order.
+11. Track Order Page
+From the menu choose Track Order, enter your order reference and email, then type the 6-digit code we send you. The tracking page shows live status and delivery details without needing an account.
 Need More Help
-Contact our team from the Contact page - we reply within one business day.
+This guide covers everyday shopping with us. If something is still unclear, contact our team from the Contact page.
 TXT;
 
     public function show(): View
@@ -63,9 +62,9 @@ TXT;
 
         foreach ($doc['blocks'] as &$block) {
             if (($block['type'] ?? null) === 'heading') {
-                $file = $this->matchScreenshot($photos, (string) $block['num'], (string) $block['title']);
-                if ($file !== null) {
-                    $block['image'] = $file;
+                $images = $this->matchScreenshots($photos, (string) $block['num'], (string) $block['title']);
+                if ($images !== []) {
+                    $block['images'] = $images;
                 }
             }
         }
@@ -77,8 +76,8 @@ TXT;
     /**
      * Screenshots dropped into public/images/help, keyed by the slugified
      * filename (spaces, capitals and stray extensions all normalised):
-     * "Sign up page.png" -> "sign-up-page", "show sign up button.jpg.png"
-     * -> "show-sign-up-button".
+     * "Sign up page.png" -> "sign-up-page", "sign up button.png"
+     * -> "sign-up-button".
      *
      * @return array<string, string>
      */
@@ -107,27 +106,59 @@ TXT;
     }
 
     /**
-     * Number first ("1", "1-any"), then the heading slug ("track-your-order").
+     * Number first ("1", "1-anything"), then the heading slug. A section may
+     * claim several screenshots (e.g. "Sign Up" owns both sign-up-page.png
+     * and sign up button.png); matches come back in filename order.
      *
      * @param  array<string, string>  $photos
+     * @return array<int, string>
      */
-    private function matchScreenshot(array $photos, string $num, string $title): ?string
+    private function matchScreenshots(array $photos, string $num, string $title): array
     {
-        foreach ([$num, Str::slug($title)] as $candidate) {
-            if ($candidate === '') {
-                continue;
-            }
+        foreach (array_values(array_filter([$num, Str::slug($title)])) as $candidate) {
+            $found = [];
 
             foreach ($photos as $base => $file) {
                 // PHP casts numeric array keys to int; compare as strings.
-                $base = (string) $base;
-
-                if ($base === $candidate || str_starts_with($base, $candidate . '-')) {
-                    return $file;
+                if ($this->screenshotMatches((string) $base, $candidate)) {
+                    $found[(string) $base] = $file;
                 }
+            }
+
+            if ($found !== []) {
+                ksort($found);
+
+                return array_values($found);
             }
         }
 
-        return null;
+        return [];
+    }
+
+    /**
+     * "Sign Up" claims sign-up.png, sign-up-page.png and "sign up button.png";
+     * "Checkout" claims "Check out page.png" too. Several per section, in
+     * filename order.
+     */
+    private function screenshotMatches(string $base, string $candidate): bool
+    {
+        if (
+            $base === $candidate
+            || str_starts_with($base, $candidate . '-')
+            || str_starts_with($candidate, $base . '-')
+        ) {
+            return true;
+        }
+
+        // Ignore hyphen placement: "check-out-page" vs "checkout".
+        $flatBase     = str_replace('-', '', $base);
+        $flatCandidate = str_replace('-', '', $candidate);
+
+        if ($flatBase === $flatCandidate) {
+            return true;
+        }
+
+        return strlen($flatCandidate) >= 4
+            && (str_starts_with($flatBase, $flatCandidate) || str_starts_with($flatCandidate, $flatBase));
     }
 }
