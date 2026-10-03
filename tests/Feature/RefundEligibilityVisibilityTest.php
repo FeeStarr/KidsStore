@@ -69,7 +69,7 @@ class RefundEligibilityVisibilityTest extends TestCase
             ->assertDontSee('None of the items in this order are eligible');
     }
 
-    public function test_order_not_yet_delivered_greys_out_refund_button(): void
+    public function test_order_not_yet_delivered_with_returnable_items_can_request_return(): void
     {
         $customer = $this->customer();
         $order = Order::create([
@@ -93,10 +93,57 @@ class RefundEligibilityVisibilityTest extends TestCase
             ->get(route('shop.account.orders.show', $order))
             ->assertOk()
             ->assertSee('Return Request')
-            ->assertSee('Returns can only be requested for delivered orders.')
+            ->assertSee('Request a Refund')
+            ->assertSee('data-bs-target="#refund-form"', false)
+            ->assertSee('What would you like to refund?')
+            ->assertDontSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false);
+    }
+
+    public function test_order_outside_return_window_can_still_request_return(): void
+    {
+        $customer = $this->customer();
+        $order = $this->deliveredOrderFor($customer);
+        $this->addItem($order, [
+            'sku'  => 'RET-' . uniqid(),
+            'name' => 'Returnable Toy',
+            'slug' => 'returnable-toy-' . uniqid(),
+        ]);
+        Order::whereKey($order->id)->update(['updated_at' => now()->subDays(60)]);
+
+        $this->actingAs($customer)
+            ->get(route('shop.account.orders.show', $order->fresh()))
+            ->assertOk()
+            ->assertSee('Request a Refund')
+            ->assertSee('data-bs-target="#refund-form"', false)
+            ->assertDontSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false);
+    }
+
+    public function test_order_with_open_return_request_greys_out_refund_button(): void
+    {
+        $customer = $this->customer();
+        $order = $this->deliveredOrderFor($customer);
+        $this->addItem($order, [
+            'sku'  => 'RET-' . uniqid(),
+            'name' => 'Returnable Toy',
+            'slug' => 'returnable-toy-' . uniqid(),
+        ]);
+        \App\Models\RefundRequest::create([
+            'order_id'      => $order->id,
+            'order_item_id' => $order->items()->first()->id,
+            'status'        => 'requested',
+            'reason'        => 'damaged',
+            'details'       => 'Item arrived damaged.',
+            'quantity'      => 1,
+            'amount'        => 100,
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('shop.account.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Return Request')
+            ->assertSee('All returnable items already have a return request.')
             ->assertSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false)
-            ->assertDontSee('data-bs-target="#refund-form"', false)
-            ->assertDontSee('What would you like to refund?');
+            ->assertDontSee('data-bs-target="#refund-form"', false);
     }
 
     public function test_mixed_order_shows_refund_feature_with_disabled_non_returnable_item(): void
