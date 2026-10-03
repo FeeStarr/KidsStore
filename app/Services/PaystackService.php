@@ -646,23 +646,31 @@ class PaystackService
         $payloadStored['last_webhook'] = $payload;
 
         if ($status === 'processed' || $isSuccess) {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored) {
-                $refund->update([
+            // Atomic claim of the refund_completed transition: the webhook and
+            // the admin "check status" sync can race, and only the first one
+            // may flip the status and email the customer.
+            $claimed = \App\Models\RefundRequest::whereKey($refund->id)
+                ->where('status', '!=', \App\Models\RefundRequest::STATUS_REFUNDED)
+                ->update([
                     'status'       => \App\Models\RefundRequest::STATUS_REFUNDED,
                     'processed_at' => now(),
                     'opay_payload' => $payloadStored,
                 ]);
-                if (! $refund->order_item_id) {
-                    $refund->order?->update(['payment_status' => 'refunded']);
-                }
-                \App\Models\ReturnAuditLog::create([
-                    'refund_request_id' => $refund->id,
-                    'action'            => 'refund_completed',
-                    'details'           => 'Refund confirmed via Paystack webhook',
-                    'metadata'          => $payloadStored,
-                ]);
-            });
-            try { $refund->order?->customer?->notify(new \App\Notifications\RefundStatusNotification($refund->fresh())); } catch (\Throwable $e) { Log::error('Refund webhook notify failed', ['id' => $refund->id]); }
+
+            if ($claimed) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored) {
+                    if (! $refund->order_item_id) {
+                        $refund->order?->update(['payment_status' => 'refunded']);
+                    }
+                    \App\Models\ReturnAuditLog::create([
+                        'refund_request_id' => $refund->id,
+                        'action'            => 'refund_completed',
+                        'details'           => 'Refund confirmed via Paystack webhook',
+                        'metadata'          => $payloadStored,
+                    ]);
+                });
+                try { $refund->order?->customer?->notify(new \App\Notifications\RefundStatusNotification($refund->fresh())); } catch (\Throwable $e) { Log::error('Refund webhook notify failed', ['id' => $refund->id]); }
+            }
         } elseif ($status === 'failed' || $isFailed) {
             $failureReason = $data['message'] ?? 'Refund failed via webhook';
             \Illuminate\Support\Facades\DB::transaction(function () use ($refund, $payloadStored, $failureReason) {
