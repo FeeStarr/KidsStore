@@ -70,7 +70,7 @@
         </div>
         <div class="feat fill-tile px-2">
             <i style="background:var(--kid-green);"><i class="bi bi-arrow-repeat"></i></i>
-            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy and approval</small></div>
+            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy &amp; approval</small></div>
         </div>
         <div class="feat fill-tile px-2">
             <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
