@@ -216,6 +216,10 @@
         .fill-row { display:flex; flex-wrap:wrap; }
         .fill-tile { flex:1 1 0; min-width:150px; }
 
+        .navbar .nav-link.active { color: var(--kid-pink) !important; font-weight: 600; }
+        .navbar .dropdown-item.active { background: rgba(255,111,163,.15); color: var(--kid-pink) !important; font-weight: 600; }
+        footer a.active { color: #fff !important; font-weight: 600; text-decoration: underline; }
+
         footer { background: linear-gradient(135deg,#1f2d3d,#3a1f5d); color:#e2d5f5; padding:2.5rem 0; margin-top:3rem; }
     </style>
     @stack('styles')
@@ -231,18 +235,18 @@
 <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
      <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav me-auto">
-            <li class="nav-item"><a class="nav-link" href="{{ route('shop.home') }}">Home</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ route('shop.products.index') }}">Shop</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.home') ? 'active' : '' }}" href="{{ route('shop.home') }}">Home</a></li>
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.products.*') ? 'active' : '' }}" href="{{ route('shop.products.index') }}">Shop</a></li>
+            <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.deals.*') ? 'active' : '' }}" href="{{ route('shop.deals.index') }}"><i class="bi bi-fire me-1"></i>Deals</a></li>
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.custom-creations.*') ? 'active' : '' }}" href="{{ route('shop.custom-creations.index') }}"><i class="bi bi-stars me-1"></i>Custom Creations</a></li>
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">More</a>
+                <a class="nav-link dropdown-toggle {{ request()->routeIs('shop.about', 'shop.contact', 'shop.order.*', 'shop.custom-frock.create') ? 'active' : '' }}" href="#" data-bs-toggle="dropdown">More</a>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ route('shop.about') }}">About</a></li>
-                    <li><a class="dropdown-item" href="{{ route('shop.contact') }}">Contact</a></li>
-                    <li><a class="dropdown-item" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.about') ? 'active' : '' }}" href="{{ route('shop.about') }}">About</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.contact') ? 'active' : '' }}" href="{{ route('shop.contact') }}">Contact</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.order.*') ? 'active' : '' }}" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.create') ? 'active' : '' }}" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
                 </ul>
             </li>
         </ul>
@@ -251,7 +255,7 @@
         </form>
         <ul class="navbar-nav align-items-lg-center">
             <li class="nav-item">
-                <a class="nav-link position-relative" href="{{ route('shop.cart.index') }}">
+                <a class="nav-link position-relative {{ request()->routeIs('shop.cart.*') ? 'active' : '' }}" href="{{ route('shop.cart.index') }}">
                     <i class="bi bi-bag fs-5"></i>
                     @if(($cartCount ?? 0) > 0)
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $cartCount }}</span>
@@ -260,7 +264,7 @@
             </li>
             @auth
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                    <a class="nav-link dropdown-toggle {{ request()->routeIs('shop.account.*') ? 'active' : '' }}" data-bs-toggle="dropdown" href="#">
                         <i class="bi bi-person-circle"></i> {{ $user->name }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -268,9 +272,9 @@
                             <li><a class="dropdown-item" href="{{ route('admin.dashboard') }}">Admin Panel</a></li>
                             <li><hr class="dropdown-divider"></li>
                         @endif
-                        <li><a class="dropdown-item" href="{{ route('shop.account.profile') }}">My Profile</a></li>
-                        <li><a class="dropdown-item" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
-                        <li><a class="dropdown-item" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Orders</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.account.profile') ? 'active' : '' }}" href="{{ route('shop.account.profile') }}">My Profile</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.account.orders.*') ? 'active' : '' }}" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.index') ? 'active' : '' }}" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Orders</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf
@@ -280,8 +284,8 @@
                     </ul>
                 </li>
             @else
-                <li class="nav-item"><a class="nav-link" href="{{ route('shop.login') }}">Login</a></li>
-                <li class="nav-item"><a class="btn btn-sm btn-primary ms-2" href="{{ route('shop.register') }}">Sign up</a></li>
+                <li class="nav-item"><a class="nav-link {{ request()->routeIs('shop.login', 'shop.2fa.*') ? 'active' : '' }}" href="{{ route('shop.login') }}">Login</a></li>
+                <li class="nav-item"><a class="btn btn-sm btn-primary ms-2 {{ request()->routeIs('shop.register') ? 'active' : '' }}" href="{{ route('shop.register') }}">Sign up</a></li>
             @endauth
         </ul>
     </div>
@@ -315,10 +319,10 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span>&copy; {{ date('Y') }} {{ $appName }}. All prices in &#8358; (NGN).</span>
             <div class="d-flex gap-3">
-                <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50">Contact Us</a>
-                <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50">Return Policy</a>
-                <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50">Privacy Policy</a>
-                <a href="/cookie-policy" class="text-decoration-none text-white-50" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
+                <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.contact') ? 'active' : '' }}">Contact Us</a>
+                <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.return-policy') ? 'active' : '' }}">Return Policy</a>
+                <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.privacy-policy') ? 'active' : '' }}">Privacy Policy</a>
+                <a href="/cookie-policy" class="text-decoration-none text-white-50 {{ request()->is('cookie-policy') ? 'active' : '' }}" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
             </div>
         </div>
     </div>
