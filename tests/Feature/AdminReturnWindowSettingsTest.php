@@ -23,7 +23,7 @@ class AdminReturnWindowSettingsTest extends TestCase
             ->assertSee('return_window_wrong_item')
             ->assertSee('return_window_wrong_color')
             ->assertSee('return_window_incomplete')
-            ->assertSee('return_window_not_as_described')
+            ->assertDontSee('return_window_not_as_described')
             ->assertSee('return_window_damaged')
             ->assertDontSee('return_window_changed_mind')
             ->assertDontSee('return_window_default');

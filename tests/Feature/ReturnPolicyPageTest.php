@@ -74,7 +74,7 @@ TXT;
             ->assertSee('Wrong item')
             ->assertSee('Wrong color')
             ->assertSee('Incomplete')
-            ->assertSee('Not as described')
+            ->assertDontSee('Not as described')
             ->assertSee('Damaged')
             ->assertSee('Missing item')
             ->assertDontSee('Changed mind')
