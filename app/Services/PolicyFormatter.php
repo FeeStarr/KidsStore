@@ -3,11 +3,11 @@
 namespace App\Services;
 
 /**
- * Turns the admin's plain-text privacy policy (title, "Last Updated:",
- * numbered sections, bulleted lines, paragraphs) into renderable blocks so the
- * shop page can style it instead of dumping one wall of text.
+ * Turns an admin-entered plain-text policy (privacy, returns, ...): title,
+ * "Last Updated:", numbered sections, bulleted lines, paragraphs - into
+ * renderable blocks so the shop page can style it instead of one wall of text.
  */
-class PrivacyPolicyFormatter
+class PolicyFormatter
 {
     /**
      * @return array{blocks: array<int, array<string, mixed>>, toc: array<int, array{num: string, title: string, id: string}>}
