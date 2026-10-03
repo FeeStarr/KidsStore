@@ -101,6 +101,15 @@ class ShopNavActiveStateTest extends TestCase
             ->assertSee('<a class="dropdown-item " href="' . route('shop.account.profile') . '">My Profile</a>', false);
     }
 
+    public function test_help_link_is_active_on_help_page(): void
+    {
+        $this->get(route('shop.help'))
+            ->assertOk()
+            ->assertSee('<a class="nav-link dropdown-toggle active" href="#" data-bs-toggle="dropdown">More</a>', false)
+            ->assertSee('<a class="dropdown-item active" href="' . route('shop.help') . '"><i class="bi bi-question-circle me-1"></i>Help &amp; Guide</a>', false)
+            ->assertSee('<a href="' . route('shop.help') . '" class="text-decoration-none text-white-50 active">Help &amp; Guide</a>', false);
+    }
+
     public function test_custom_creations_link_is_active_on_gallery_pages(): void
     {
         $this->get(route('shop.custom-creations.index'))
