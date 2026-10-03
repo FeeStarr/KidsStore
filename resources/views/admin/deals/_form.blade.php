@@ -126,11 +126,14 @@
                             <input class="form-check-input deal-product-check" type="checkbox" name="product_ids[]"
                                    value="{{ $p->id }}" id="dp-{{ $p->id }}"
                                    @checked(in_array((string) $p->id, $selectedIds, true))>
-                            <label class="form-check-label w-100" for="dp-{{ $p->id }}">
-                                {{ $p->name }}
-                                <small class="text-muted d-block">
+                            <label class="form-check-label w-100 d-flex align-items-center gap-2" for="dp-{{ $p->id }}">
+                                @include('admin.partials.product-thumb', ['product' => $p])
+                                <span class="flex-grow-1">
+                                    {{ $p->name }}
+                                    <small class="text-muted d-block">
                                     ₦{{ number_format((float) ($p->defaultVariant?->selling_price ?? $p->selling_price), 2) }}
-                                </small>
+                                    </small>
+                                </span>
                             </label>
                         </div>
                     </div>
