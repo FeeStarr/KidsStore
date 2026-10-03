@@ -64,9 +64,9 @@ class ReturnReasonOptionsTest extends TestCase
             ->assertSee('<option value="not_as_described">Not as described</option>', false)
             ->assertSee('<option value="damaged">Damaged</option>', false)
             ->assertSee('<option value="missing_item">Missing item</option>', false)
-            ->assertSee('<option value="changed_mind">Changed mind</option>', false)
             ->assertDontSee('value="wrong_size"')
             ->assertDontSee('Wrong size')
+            ->assertDontSee('value="changed_mind"')
             ->assertDontSee('value="order_cancelled"');
     }
 
@@ -89,6 +89,14 @@ class ReturnReasonOptionsTest extends TestCase
             ->post(route('shop.refund.store', $order), [
                 'scope'        => 'full',
                 'reason'       => 'order_cancelled',
+                'request_type' => 'refund',
+            ])
+            ->assertSessionHasErrors('reason');
+
+        $this->actingAs($customer)
+            ->post(route('shop.refund.store', $order), [
+                'scope'        => 'full',
+                'reason'       => 'changed_mind',
                 'request_type' => 'refund',
             ])
             ->assertSessionHasErrors('reason');

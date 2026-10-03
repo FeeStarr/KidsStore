@@ -22,7 +22,6 @@ class RefundRequest extends Model
         'missing_item'     => 24,       // 24 hours
         'incomplete_order' => 5 * 24,   // 5 business days
         'not_as_described' => 5 * 24,   // 5 business days
-        'changed_mind'     => 3 * 24,   // 3 business days
     ];
 
     /**
@@ -36,7 +35,6 @@ class RefundRequest extends Model
         'return_window_not_as_described' => 'Not as described',
         'return_window_damaged'          => 'Damaged',
         'return_window_missing'          => 'Missing item',
-        'return_window_changed_mind'     => 'Changed mind',
     ];
 
     /**
@@ -50,7 +48,6 @@ class RefundRequest extends Model
         'not_as_described' => 'return_window_not_as_described',
         'damaged'          => 'return_window_damaged',
         'missing_item'     => 'return_window_missing',
-        'changed_mind'     => 'return_window_changed_mind',
     ];
 
     // ── Statuses ──────────────────────────────────────────────────────────────
@@ -110,7 +107,6 @@ class RefundRequest extends Model
         'missing_item'         => 'Missing item',
         'incomplete_order'     => 'Incomplete',
         'not_as_described'     => 'Not as described',
-        'changed_mind'         => 'Changed mind',
     ];
 
     public const INTERNAL_REASON_ORDER_CANCELLED = 'order_cancelled';
@@ -128,7 +124,6 @@ class RefundRequest extends Model
         'missing_item'         => ['photos' => 'optional',  'video' => 'no',        'comments' => 'required'],
         'incomplete_order'     => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'not_as_described'     => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
-        'changed_mind'         => ['photos' => 'no',        'video' => 'no',        'comments' => 'required'],
     ];
 
     // Reasons that qualify for shipping fee refund
