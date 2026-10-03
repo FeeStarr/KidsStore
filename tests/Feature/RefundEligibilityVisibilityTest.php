@@ -70,7 +70,7 @@ class RefundEligibilityVisibilityTest extends TestCase
             ->assertDontSee('None of the items in this order are eligible');
     }
 
-    public function test_order_not_yet_delivered_with_returnable_items_can_request_return(): void
+    public function test_order_not_yet_delivered_hides_return_request_section(): void
     {
         $customer = $this->customer();
         $order = Order::create([
@@ -93,11 +93,10 @@ class RefundEligibilityVisibilityTest extends TestCase
         $this->actingAs($customer)
             ->get(route('shop.account.orders.show', $order))
             ->assertOk()
-            ->assertSee('Return Request')
-            ->assertSee('Request a Refund')
-            ->assertSee('data-bs-target="#refund-form"', false)
-            ->assertSee('What would you like to refund?')
-            ->assertDontSee('<button class="btn btn-sm btn-outline-warning" type="button" disabled', false);
+            ->assertDontSee('Return Request')
+            ->assertDontSee('Request a Refund')
+            ->assertDontSee('data-bs-target="#refund-form"', false)
+            ->assertDontSee('What would you like to refund?');
     }
 
     public function test_order_outside_return_window_can_still_request_return(): void
