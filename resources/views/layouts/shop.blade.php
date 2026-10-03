@@ -58,7 +58,7 @@
         .product-card .img-wrap img { width:100%; height:100%; object-fit:cover; transition: transform .3s ease; }
         .product-card:hover .img-wrap img { transform: scale(1.05); }
         .price-old { text-decoration: line-through; color:#aaa; font-size:.9rem; }
-        .stars { color:#f5b301; letter-spacing:1px; }
+        .stars { color:#ff8c42; letter-spacing:1px; }
         .hero {
             background: linear-gradient(120deg, var(--kid-pink), var(--kid-purple) 50%, var(--kid-blue));
             border-radius: 1.5rem;
