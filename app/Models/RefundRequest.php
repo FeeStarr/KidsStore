@@ -17,7 +17,6 @@ class RefundRequest extends Model
      */
     public const REASON_TIME_LIMITS = [
         'wrong_item'       => 5 * 24,   // 5 business days ≈ 5 calendar days
-        'wrong_size'       => 5 * 24,   // 5 business days
         'wrong_color'      => 5 * 24,   // 5 business days
         'damaged'          => 48,       // 48 hours
         'missing_item'     => 24,       // 24 hours
@@ -31,12 +30,13 @@ class RefundRequest extends Model
      * Each setting key governs the reasons mapped in REASON_WINDOW_SETTINGS.
      */
     public const WINDOW_SETTINGS = [
-        'return_window_wrong_item'   => 'Wrong item / size / color',
-        'return_window_incomplete'   => 'Incomplete / not as described',
-        'return_window_damaged'      => 'Damaged',
-        'return_window_missing'      => 'Missing item',
-        'return_window_changed_mind' => 'Changed mind',
-        'return_window_default'      => 'Everything else (default window)',
+        'return_window_wrong_item'       => 'Wrong item',
+        'return_window_wrong_color'      => 'Wrong color',
+        'return_window_incomplete'       => 'Incomplete',
+        'return_window_not_as_described' => 'Not as described',
+        'return_window_damaged'          => 'Damaged',
+        'return_window_missing'          => 'Missing item',
+        'return_window_changed_mind'     => 'Changed mind',
     ];
 
     /**
@@ -45,10 +45,9 @@ class RefundRequest extends Model
      */
     public const REASON_WINDOW_SETTINGS = [
         'wrong_item'       => 'return_window_wrong_item',
-        'wrong_size'       => 'return_window_wrong_item',
-        'wrong_color'      => 'return_window_wrong_item',
+        'wrong_color'      => 'return_window_wrong_color',
         'incomplete_order' => 'return_window_incomplete',
-        'not_as_described' => 'return_window_incomplete',
+        'not_as_described' => 'return_window_not_as_described',
         'damaged'          => 'return_window_damaged',
         'missing_item'     => 'return_window_missing',
         'changed_mind'     => 'return_window_changed_mind',
@@ -105,16 +104,16 @@ class RefundRequest extends Model
 
     // ── Return Reasons ────────────────────────────────────────────────────────
     public const REASONS = [
-        'wrong_item'           => 'Wrong item received',
-        'wrong_size'           => 'Wrong size',
+        'wrong_item'           => 'Wrong item',
         'wrong_color'          => 'Wrong color',
-        'damaged'              => 'Item arrived damaged',
+        'damaged'              => 'Damaged',
         'missing_item'         => 'Missing item',
-        'incomplete_order'     => 'Incomplete order',
-        'not_as_described'     => 'Product not as described',
-        'changed_mind'         => 'Changed my mind',
-        'order_cancelled'      => 'Order cancelled',
+        'incomplete_order'     => 'Incomplete',
+        'not_as_described'     => 'Not as described',
+        'changed_mind'         => 'Changed mind',
     ];
+
+    public const INTERNAL_REASON_ORDER_CANCELLED = 'order_cancelled';
 
     /**
      * Evidence requirements per reason.
@@ -124,7 +123,6 @@ class RefundRequest extends Model
      */
     public const EVIDENCE_RULES = [
         'wrong_item'           => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
-        'wrong_size'           => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'wrong_color'          => ['photos' => 'required',  'video' => 'optional',  'comments' => 'required'],
         'damaged'              => ['photos' => 'required',  'video' => 'recommended', 'comments' => 'required'],
         'missing_item'         => ['photos' => 'optional',  'video' => 'no',        'comments' => 'required'],
@@ -135,7 +133,7 @@ class RefundRequest extends Model
 
     // Reasons that qualify for shipping fee refund
     public const SHIPPING_REFUND_REASONS = [
-        'wrong_item', 'wrong_size', 'wrong_color', 'damaged',
+        'wrong_item', 'wrong_color', 'damaged',
         'missing_item', 'incomplete_order', 'not_as_described',
     ];
 
@@ -350,9 +348,12 @@ class RefundRequest extends Model
      */
     public static function defaultWindowHours(): int
     {
-        $settings = self::windowSettings();
+        $stored = Setting::get('return_window_default');
+        $days   = is_numeric($stored) && (float) $stored > 0
+            ? (float) $stored
+            : (float) self::REFUND_WINDOW_DAYS;
 
-        return (int) round($settings['return_window_default']['days'] * 24);
+        return (int) round($days * 24);
     }
 
     /**

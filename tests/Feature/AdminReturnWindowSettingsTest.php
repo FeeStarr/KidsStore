@@ -21,8 +21,12 @@ class AdminReturnWindowSettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Return Windows')
             ->assertSee('return_window_wrong_item')
+            ->assertSee('return_window_wrong_color')
+            ->assertSee('return_window_incomplete')
+            ->assertSee('return_window_not_as_described')
             ->assertSee('return_window_damaged')
-            ->assertSee('return_window_default');
+            ->assertSee('return_window_changed_mind')
+            ->assertDontSee('return_window_default');
     }
 
     public function test_updating_return_windows_saves_and_applies_everywhere(): void
