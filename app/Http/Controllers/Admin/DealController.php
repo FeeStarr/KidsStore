@@ -32,15 +32,7 @@ class DealController extends Controller
 
     public function create()
     {
-        $products = Product::with('primaryImage', 'defaultVariant')
-            ->where(function ($q) {
-                $q->where('status', 'active')
-                    ->orWhere(function ($legacy) {
-                        $legacy->whereNull('status')->where('is_active', true);
-                    });
-            })
-            ->orderBy('name')
-            ->get();
+        $products = $this->dealProductList();
 
         return view('admin.deals.create', compact('products'));
     }
@@ -67,15 +59,7 @@ class DealController extends Controller
 
     public function edit(Deal $deal)
     {
-        $products = Product::with('primaryImage', 'defaultVariant')
-            ->where(function ($q) {
-                $q->where('status', 'active')
-                    ->orWhere(function ($legacy) {
-                        $legacy->whereNull('status')->where('is_active', true);
-                    });
-            })
-            ->orderBy('name')
-            ->get();
+        $products = $this->dealProductList($deal);
         $deal->load('products');
 
         return view('admin.deals.edit', compact('deal', 'products'));
@@ -113,6 +97,26 @@ class DealController extends Controller
         $this->deals->delete($deal);
 
         return redirect()->route('admin.deals.index')->with('success', 'Deal deleted. Historical order pricing is unchanged.');
+    }
+
+    private function dealProductList(?Deal $deal = null)
+    {
+        return Product::with('primaryImage', 'defaultVariant')
+            ->where(function ($eligible) {
+                $eligible->whereHas('orderItems')
+                    ->where('stock_quantity', '>', 0)
+                    ->where(function ($active) {
+                        $active->where('status', 'active')
+                            ->orWhere(function ($legacy) {
+                                $legacy->whereNull('status')->where('is_active', true);
+                            });
+                    });
+            })
+            ->when($deal !== null, function ($query) use ($deal) {
+                $query->orWhereIn('id', $deal->products()->pluck('products.id'));
+            })
+            ->orderBy('name')
+            ->get();
     }
 
     private function normalize(DealRequest $request, ?Deal $deal = null): array
