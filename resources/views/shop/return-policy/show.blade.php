@@ -36,7 +36,7 @@
                 <div class="col-md-6">
                     <div class="p-3 rounded-4 h-100" style="background:#fff6e0; border:1px solid #ffe8a3;">
                         <div class="fw-bold" style="color:#7a4a00;"><i class="bi bi-lightning me-1"></i> Quick cases</div>
-                        <div class="small text-muted"><strong>Damaged</strong> {{ $fmt($limits['damaged']) }} &bull; <strong>Missing item</strong> {{ $fmt($limits['missing_item']) }} &bull; <strong>Changed mind</strong> {{ $fmt($limits['changed_mind']) }}</div>
+                        <div class="small text-muted"><strong>Damaged</strong> {{ $fmt($limits['damaged']) }} &bull; <strong>Missing item</strong> {{ $fmt($limits['missing_item']) }}</div>
                     </div>
                 </div>
             </div>

@@ -25,7 +25,7 @@ class AdminReturnWindowSettingsTest extends TestCase
             ->assertSee('return_window_incomplete')
             ->assertSee('return_window_not_as_described')
             ->assertSee('return_window_damaged')
-            ->assertSee('return_window_changed_mind')
+            ->assertDontSee('return_window_changed_mind')
             ->assertDontSee('return_window_default');
     }
 
@@ -35,15 +35,15 @@ class AdminReturnWindowSettingsTest extends TestCase
             ->put(route('admin.return-policy.update'), [
                 'return_policy'          => 'Our return policy text.',
                 'return_window_damaged'  => 1,
-                'return_window_changed_mind' => 4,
+                'return_window_incomplete' => 4,
             ])
             ->assertSessionHas('success');
 
         $this->assertEquals(1.0, (float) Setting::get('return_window_damaged'));
-        $this->assertEquals(4.0, (float) Setting::get('return_window_changed_mind'));
+        $this->assertEquals(4.0, (float) Setting::get('return_window_incomplete'));
 
         $this->assertSame(24, RefundRequest::timeLimitHours('damaged'));
-        $this->assertSame(96, RefundRequest::timeLimitHours('changed_mind'));
+        $this->assertSame(96, RefundRequest::timeLimitHours('incomplete_order'));
         // Untouched reasons keep their defaults.
         $this->assertSame(24, RefundRequest::timeLimitHours('missing_item'));
         $this->assertSame(168, RefundRequest::defaultWindowHours());
