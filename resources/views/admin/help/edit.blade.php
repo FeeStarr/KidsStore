@@ -41,9 +41,11 @@
                     <div class="p-3 rounded-3 h-100" style="background:#fff6e0; border:1px solid #ffe8a3;">
                         <div class="fw-bold mb-2" style="color:#7a4a00;"><i class="bi bi-image me-1"></i> Screenshots</div>
                         <div class="small text-muted">
-                            Drop images into <code>public/images/help/</code>. A section numbered <strong>3</strong> picks up
-                            <code>3.png</code>; a section titled <strong>Track Your Order</strong> picks up
-                            <code>track-your-order.png</code>. Sections without an image simply show text.
+                            Drop images into <code>public/images/help/</code> named after the section title.
+                            Section <strong>3</strong> picks up <code>3.png</code>; section <strong>Sign Up</strong> picks up
+                            <code>sign-up.png</code>, <code>sign-up-page.png</code> or <code>Sign up page.png</code>.
+                            Several screenshots per section are allowed (they show in filename order); sections without a
+                            matching image simply show text.
                         </div>
                     </div>
                 </div>
