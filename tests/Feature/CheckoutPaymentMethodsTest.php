@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -13,7 +12,7 @@ class CheckoutPaymentMethodsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_checkout_shows_active_payment_methods_and_help_text()
+    public function test_checkout_shows_payment_options_and_help_text()
     {
         // Create user and authenticate
         $user = User::factory()->create();
@@ -38,13 +37,14 @@ class CheckoutPaymentMethodsTest extends TestCase
         // Add variant to cart via service (session-backed)
         $this->app->make(\App\Services\CartService::class)->add($variant->id, 1);
 
-        // Ensure payment method 'transfer' is active
-        PaymentMethod::query()->create(['key' => 'transfer', 'label' => 'Bank transfer', 'is_active' => true]);
-
         $response = $this->get(route('shop.checkout.show'));
 
         $response->assertStatus(200);
-        $response->assertSee('Bank transfer');
-        $response->assertSee('Pay on delivery is by bank transfer');
+        $response->assertSee('value="pay_now"', false);
+        $response->assertSee('value="pay_on_delivery"', false);
+        $response->assertSee('Pay Now');
+        $response->assertSee('Pay on Delivery');
+        $response->assertSee('Pay securely via Paystack now');
+        $response->assertSee('Items will only be released to you by the delivery agent or at the pickup station after payment.');
     }
 }
