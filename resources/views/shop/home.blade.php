@@ -12,7 +12,7 @@
             <a href="{{ route('shop.products.index') }}" class="btn btn-light btn-lg me-2">
                 <i class="bi bi-bag-heart-fill"></i> Shop now
             </a>
-            <a href="{{ route('shop.products.index', ['sort' => 'price_asc']) }}" class="btn btn-outline-light btn-lg" style="border-radius:50px;">
+            <a href="{{ route('shop.deals.index') }}" class="btn btn-outline-light btn-lg" style="border-radius:50px;">
                 <i class="bi bi-tag-fill"></i> See deals
             </a>
         </div>
