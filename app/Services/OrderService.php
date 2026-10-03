@@ -106,11 +106,13 @@ class OrderService
             return $order->fresh('items.product');
         });
 
-        // Orders created straight through to confirmed (pay-at-pickup, pay-on-
-        // delivery, admin-created) never pass through confirm(), so the
-        // "order placed" email fires here. Pending-payment orders are notified
-        // when their payment is verified later in confirm().
-        if (in_array($order->status, ['confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
+        // Orders created straight through to a live status never pass through
+        // confirm(), so the "order placed" email fires here: pay-on-delivery is
+        // "pending confirmation", pay-at-pickup/admin-created orders are
+        // "confirmed". Pending-payment orders are notified when their payment is
+        // verified later in confirm(). notifyOrderPlaced() only ever sends once
+        // per order, so a later confirm() cannot duplicate it.
+        if (in_array($order->status, ['pending confirmation', 'confirmed', 'processing', 'shipping to station', 'out for delivery', 'ready for pick up', 'delivered'], true)) {
             $this->notifyOrderPlaced($order);
         }
 
@@ -712,6 +714,16 @@ class OrderService
     private function notifyOrderPlaced(Order $order): void
     {
         try {
+            // Atomically claim the single "order placed" send for this order so
+            // placement + a later confirm() can never email the customer twice.
+            $claimed = Order::whereKey($order->id)
+                ->whereNull('placed_notified_at')
+                ->update(['placed_notified_at' => now()]);
+
+            if (! $claimed) {
+                return;
+            }
+
             \App\Jobs\SendOrderPlacedNotifications::dispatch($order->id);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('OrderPlaced notification dispatch failed', ['error' => $e->getMessage(), 'order' => $order->reference]);
