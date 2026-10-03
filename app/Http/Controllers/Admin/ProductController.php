@@ -158,4 +158,18 @@ class ProductController extends Controller
 
         return back()->with('success', $message);
     }
+
+    /**
+     * Allow customers to request returns for this product (or stop it).
+     */
+    public function toggleReturnable(Product $product): RedirectResponse
+    {
+        $product->update(['is_returnable' => ! $product->is_returnable]);
+
+        $message = $product->is_returnable
+            ? 'Returns enabled for this product.'
+            : 'Returns disabled for this product.';
+
+        return back()->with('success', $message);
+    }
 }

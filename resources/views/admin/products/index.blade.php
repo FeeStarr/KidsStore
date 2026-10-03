@@ -34,7 +34,10 @@
             <td>{{ $p->sku }}</td>
             <td>{{ $p->name }}</td>
             <td>{{ $p->category?->name ?? '-' }}</td>
-            <td><span class="badge {{ ($p->status ?? 'inactive') === 'active' ? 'text-bg-success' : 'text-bg-danger' }}">{{ $p->status ?? (($p->is_active ?? false) ? 'active' : 'inactive') }}</span></td>
+            <td>
+                <span class="badge {{ ($p->status ?? 'inactive') === 'active' ? 'text-bg-success' : 'text-bg-danger' }}">{{ $p->status ?? (($p->is_active ?? false) ? 'active' : 'inactive') }}</span>
+                <span class="badge border {{ $p->is_returnable ? 'border-success text-success' : 'border-secondary text-secondary' }}" title="{{ $p->is_returnable ? 'Customers can request returns for this product' : 'Customers cannot request returns for this product' }}">{{ $p->is_returnable ? 'Returnable' : 'Non-returnable' }}</span>
+            </td>
             <td class="text-end">{{ number_format($p->selling_price, 2) }}</td>
             <td class="text-end">{{ number_format($p->discount, 2) }}</td>
             <td class="text-end">{{ $p->stock_quantity }}</td>
@@ -52,6 +55,14 @@
                         <button class="btn btn-sm btn-success" title="Activate" onclick="return confirm('Activate this product?')"><i class="bi bi-check-circle"></i></button>
                     </form>
                 @endif
+                <form action="{{ route('admin.products.toggle-returnable', $p) }}" method="post" class="d-inline">
+                    @csrf
+                    <button class="btn btn-sm {{ $p->is_returnable ? 'btn-outline-danger' : 'btn-outline-success' }}"
+                            title="{{ $p->is_returnable ? 'Disable returns' : 'Enable returns' }}"
+                            onclick="return confirm('{{ $p->is_returnable ? 'Disable returns' : 'Enable returns' }} for this product?')">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </form>
                 <form action="{{ route('admin.products.destroy', $p) }}" method="post" class="d-inline"
                       data-confirm="This product will be permanently deleted." data-confirm-title="Delete Product?"
                       data-confirm-yes="Yes, delete">
