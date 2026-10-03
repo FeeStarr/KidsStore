@@ -51,10 +51,10 @@ class RefundService
         }
 
         // Policy: within return window (per-reason time limits)
-        $limitHours = RefundRequest::REASON_TIME_LIMITS[$reason] ?? (RefundRequest::REFUND_WINDOW_DAYS * 24);
+        $limitHours = RefundRequest::timeLimitHours($reason);
         if ($order->updated_at->diffInHours(now()) > $limitHours) {
-            $limitDays = round($limitHours / 24, 1);
-            throw new \RuntimeException("Return window of {$limitDays} days for this reason has passed.");
+            $limitLabel = RefundRequest::formatWindowHours($limitHours);
+            throw new \RuntimeException("Return window of {$limitLabel} for this reason has passed.");
         }
 
         // Policy: non-returnable items cannot be refunded

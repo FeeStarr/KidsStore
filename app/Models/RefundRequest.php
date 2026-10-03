@@ -26,6 +26,34 @@ class RefundRequest extends Model
         'changed_mind'     => 3 * 24,   // 3 business days
     ];
 
+    /**
+     * Admin-editable return windows (value = number of days).
+     * Each setting key governs the reasons mapped in REASON_WINDOW_SETTINGS.
+     */
+    public const WINDOW_SETTINGS = [
+        'return_window_wrong_item'   => 'Wrong item / size / color',
+        'return_window_incomplete'   => 'Incomplete / not as described',
+        'return_window_damaged'      => 'Damaged',
+        'return_window_missing'      => 'Missing item',
+        'return_window_changed_mind' => 'Changed mind',
+        'return_window_default'      => 'Everything else (default window)',
+    ];
+
+    /**
+     * Which window setting governs each reason.
+     * Reasons without an entry fall back to the default window.
+     */
+    public const REASON_WINDOW_SETTINGS = [
+        'wrong_item'       => 'return_window_wrong_item',
+        'wrong_size'       => 'return_window_wrong_item',
+        'wrong_color'      => 'return_window_wrong_item',
+        'incomplete_order' => 'return_window_incomplete',
+        'not_as_described' => 'return_window_incomplete',
+        'damaged'          => 'return_window_damaged',
+        'missing_item'     => 'return_window_missing',
+        'changed_mind'     => 'return_window_changed_mind',
+    ];
+
     // ── Statuses ──────────────────────────────────────────────────────────────
     public const STATUS_REFUND_REQUIRED      = 'refund_required';
     public const STATUS_REQUESTED            = 'requested';
@@ -242,7 +270,121 @@ class RefundRequest extends Model
      */
     public function getTimeLimitHours(): int
     {
-        return self::REASON_TIME_LIMITS[$this->reason] ?? (self::REFUND_WINDOW_DAYS * 24);
+        return self::timeLimitHours($this->reason);
+    }
+
+    // ── Return windows (editable from the admin panel) ───────────────────────
+
+    /**
+     * Default number of days for a window setting key.
+     */
+    public static function defaultWindowDays(string $key): float
+    {
+        if ($key === 'return_window_default') {
+            return (float) self::REFUND_WINDOW_DAYS;
+        }
+
+        foreach (self::REASON_WINDOW_SETTINGS as $reason => $settingKey) {
+            if ($settingKey === $key) {
+                return (self::REASON_TIME_LIMITS[$reason] ?? self::REFUND_WINDOW_DAYS * 24) / 24;
+            }
+        }
+
+        return (float) self::REFUND_WINDOW_DAYS;
+    }
+
+    /**
+     * Stored (or default) window values in days, keyed by setting key.
+     */
+    public static function windowSettings(): array
+    {
+        $stored = [];
+
+        try {
+            $stored = Setting::whereIn('key', array_keys(self::WINDOW_SETTINGS))
+                ->pluck('value', 'key')
+                ->all();
+        } catch (\Throwable $e) {
+            $stored = [];
+        }
+
+        $settings = [];
+        foreach (self::WINDOW_SETTINGS as $key => $label) {
+            $value = $stored[$key] ?? null;
+            $days  = is_numeric($value) ? (float) $value : self::defaultWindowDays($key);
+
+            $settings[$key] = [
+                'label'   => $label,
+                'days'    => $days > 0 ? $days : self::defaultWindowDays($key),
+                'default' => self::defaultWindowDays($key),
+            ];
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Effective per-reason return limits (in hours), including admin overrides.
+     */
+    public static function reasonTimeLimits(): array
+    {
+        $settings = self::windowSettings();
+        $limits   = [];
+
+        foreach (self::REASON_TIME_LIMITS as $reason => $defaultHours) {
+            $settingKey = self::REASON_WINDOW_SETTINGS[$reason] ?? null;
+            $days       = $settingKey !== null
+                ? ($settings[$settingKey]['days'] ?? null)
+                : null;
+
+            $limits[$reason] = $days !== null
+                ? (int) round($days * 24)
+                : (int) $defaultHours;
+        }
+
+        return $limits;
+    }
+
+    /**
+     * Effective default window (hours) for reasons without a dedicated limit.
+     */
+    public static function defaultWindowHours(): int
+    {
+        $settings = self::windowSettings();
+
+        return (int) round($settings['return_window_default']['days'] * 24);
+    }
+
+    /**
+     * Effective limit (hours) for a reason, falling back to the default window.
+     */
+    public static function timeLimitHours(?string $reason): int
+    {
+        $limits = self::reasonTimeLimits();
+
+        return $limits[$reason] ?? self::defaultWindowHours();
+    }
+
+    /**
+     * Longest return window currently offered (hours).
+     */
+    public static function maxTimeLimitHours(): int
+    {
+        return max(array_merge(array_values(self::reasonTimeLimits()), [self::defaultWindowHours()]));
+    }
+
+    /**
+     * Human-readable window label, e.g. "5 days", "48 hours".
+     */
+    public static function formatWindowHours(int $hours): string
+    {
+        if ($hours > 0 && $hours % 24 === 0) {
+            $days = intdiv($hours, 24);
+
+            return $days . ' day' . ($days === 1 ? '' : 's');
+        }
+
+        return $hours . ' hour' . ($hours === 1 ? '' : 's');
     }
 
     /**

@@ -124,7 +124,7 @@
         <td style="padding:20px 30px 0;">
             <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:14px 18px;">
                 <p style="margin:0;font-size:13px;color:#1e40af;">
-                    <strong>Need to return an item?</strong> You can request a return within 7 days of delivery from your order page.
+                    <strong>Need to return an item?</strong> You can request a return within {{ \App\Models\RefundRequest::formatWindowHours(\App\Models\RefundRequest::maxTimeLimitHours()) }} of delivery from your order page.
                 </p>
             </div>
         </td>
