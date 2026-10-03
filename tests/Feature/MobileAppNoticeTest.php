@@ -10,7 +10,9 @@ class MobileAppNoticeTest extends TestCase
     {
         $this->get(route('shop.home'))
             ->assertOk()
-            ->assertSee('Mobile app in progress');
+            ->assertSee('app-launch-banner')
+            ->assertSee('Mobile app in progress')
+            ->assertSee('Launching soon');
     }
 
     public function test_footer_shows_mobile_app_notice_on_all_pages(): void

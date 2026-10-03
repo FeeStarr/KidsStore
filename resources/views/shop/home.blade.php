@@ -7,9 +7,6 @@
             <span class="badge bg-white text-dark mb-3 px-3 py-2" style="border-radius:50px;">
                 <i class="bi bi-stars text-warning"></i> Fun for every age
             </span>
-            <span class="badge bg-white text-dark mb-3 ms-1 px-3 py-2" style="border-radius:50px;">
-                <i class="bi bi-phone text-primary"></i> Mobile app in progress
-            </span>
             <h1 class="fw-bold mb-3">Where little dreams<br><span style="color:var(--kid-yellow);">come to play!</span></h1>
             <p class="lead mb-4 opacity-90">Clothes, shoes & more - handpicked for happy kids and delivered to your door.</p>
             <a href="{{ route('shop.products.index') }}" class="btn btn-light btn-lg me-2">
@@ -25,6 +22,17 @@
     </div>
 </div>
 
+{{-- Mobile app launch announcement --}}
+<div class="app-launch-banner mb-4 d-flex flex-column flex-md-row align-items-center gap-3">
+    <span class="app-launch-icon floaty"><i class="bi bi-phone"></i></span>
+    <div class="flex-grow-1 text-center text-md-start" style="z-index:1;">
+        <div class="app-launch-eyebrow"><i class="bi bi-stars"></i> Coming soon</div>
+        <div class="app-launch-title">Mobile app in progress</div>
+        <div class="small opacity-75 mb-0">We're building a faster way to shop for your little ones - heading to the App Store &amp; Google Play.</div>
+    </div>
+    <span class="app-launch-chip"><i class="bi bi-hourglass-split"></i> Launching soon</span>
+</div>
+
 <div class="feature-strip p-3 p-md-4 mb-5">
     <div class="fill-row gap-3 text-center">
         <div class="feat fill-tile px-2">
@@ -37,7 +45,7 @@
         </div>
         <div class="feat fill-tile px-2">
             <i style="background:var(--kid-green);"><i class="bi bi-arrow-repeat"></i></i>
-            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy</small></div>
+            <div class="mt-2"><strong>Returns Available</strong><br><small class="text-muted">Subject to our return policy and approval</small></div>
         </div>
         <div class="feat fill-tile px-2">
             <i style="background:var(--kid-purple);"><i class="bi bi-emoji-smile"></i></i>
