@@ -22,6 +22,16 @@
                 </div>
                 <button class="btn btn-primary w-100">Create account</button>
             </form>
+            @if(config('services.google.client_id'))
+                <div class="d-flex align-items-center my-3">
+                    <hr class="flex-grow-1">
+                    <span class="mx-3 small text-muted">or</span>
+                    <hr class="flex-grow-1">
+                </div>
+                <a href="{{ route('shop.login.google') }}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-google me-1"></i> Sign up with Google
+                </a>
+            @endif
             <div class="text-center mt-3 small">
                 Already have an account? <a href="{{ route('shop.login') }}">Log in</a>
             </div>

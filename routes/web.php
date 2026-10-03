@@ -42,6 +42,7 @@ use App\Http\Controllers\Shop\CustomOrderController;
 use App\Http\Controllers\Shop\CustomOrderFileController;
 use App\Http\Controllers\Shop\CustomCreationController;
 use App\Http\Controllers\Shop\DealController as ShopDealController;
+use App\Http\Controllers\Shop\GoogleAuthController;
 use App\Http\Controllers\Shop\HelpController as ShopHelpController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\PasswordResetController as ShopPasswordResetController;
@@ -100,6 +101,10 @@ Route::name('shop.')->group(function () {
         Route::post('/register', [ShopAuthController::class, 'register'])->middleware('throttle:3,1');
         Route::get('/login/2fa', [ShopAuthController::class, 'show2FA'])->name('2fa.show');
         Route::post('/login/2fa', [ShopAuthController::class, 'verify2FA'])->name('2fa.verify')->middleware('throttle:10,1');
+
+        // Google sign-in
+        Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('login.google')->middleware('throttle:10,1');
+        Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('login.google.callback');
 
         // Password reset
         Route::get('/forgot-password', [ShopPasswordResetController::class, 'showForgotForm'])->name('password.request');
