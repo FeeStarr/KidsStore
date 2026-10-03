@@ -226,6 +226,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('products.images.primary')->middleware('permission:manage_products');
         Route::post('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])
             ->name('products.toggle-status')->middleware('permission:manage_products');
+        Route::post('products/{product}/toggle-returnable', [ProductController::class, 'toggleReturnable'])
+            ->name('products.toggle-returnable')->middleware('permission:manage_products');
 
         // Product variants (nested store; shallow update/delete by variant id)
         Route::post('products/{product}/variants', [ProductVariantController::class, 'store'])
