@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\PickupPayoutController;
 use App\Http\Controllers\Admin\PickupStationController;
 use App\Http\Controllers\Admin\PrivacyPolicyController as AdminPrivacyPolicyController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductReviewController;
 use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\ProfitReportController;
 use App\Http\Controllers\Admin\PurchaseController;
@@ -228,6 +229,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('products.toggle-status')->middleware('permission:manage_products');
         Route::post('products/{product}/toggle-returnable', [ProductController::class, 'toggleReturnable'])
             ->name('products.toggle-returnable')->middleware('permission:manage_products');
+        Route::get('product-reviews', [ProductReviewController::class, 'index'])
+            ->name('product-reviews.index')->middleware('permission:manage_products');
 
         // Product variants (nested store; shallow update/delete by variant id)
         Route::post('products/{product}/variants', [ProductVariantController::class, 'store'])

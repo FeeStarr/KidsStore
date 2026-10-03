@@ -50,12 +50,13 @@
 
 <a href="{{ route('admin.dashboard') }}" class="{{ $r==='admin.dashboard' ? 'active':'' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
 
-@php($catalogActive = str_starts_with($r ?? '', 'admin.products') || str_starts_with($r ?? '', 'admin.categories') || str_starts_with($r ?? '', 'admin.deals') || str_starts_with($r ?? '', 'admin.coupons'))
+@php($catalogActive = str_starts_with($r ?? '', 'admin.products') || str_starts_with($r ?? '', 'admin.product-reviews') || str_starts_with($r ?? '', 'admin.categories') || str_starts_with($r ?? '', 'admin.deals') || str_starts_with($r ?? '', 'admin.coupons'))
 <a href="#menu-catalog" data-bs-toggle="collapse" role="button" aria-expanded="{{ $catalogActive ? 'true' : 'false' }}" class="{{ $catalogActive ? 'active' : '' }}">
     <i class="bi bi-box-seam"></i> Catalog <i class="bi bi-chevron-down chevron"></i>
 </a>
 <div class="collapse {{ $catalogActive ? 'show' : '' }}" id="menu-catalog">
     <a href="{{ route('admin.products.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.products') ? 'active':'' }}"><i class="bi bi-box-seam"></i> Products</a>
+    <a href="{{ route('admin.product-reviews.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.product-reviews') ? 'active':'' }}"><i class="bi bi-star"></i> Product Reviews</a>
     <a href="{{ route('admin.categories.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.categories') ? 'active':'' }}"><i class="bi bi-tags"></i> Categories</a>
     @if(auth()->guard('admin')->user()->hasPermission('manage_deals'))
         <a href="{{ route('admin.deals.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.deals') ? 'active':'' }}"><i class="bi bi-fire"></i> Deals</a>
