@@ -49,14 +49,15 @@
     <div class="card-body p-4 p-md-4">
         <h5 class="fw-bold mb-3"><i class="bi bi-stopwatch me-1" style="color:#7b68ee;"></i> Return windows at a glance</h5>
         <div class="row g-2 small">
-            @php $rows = [
-                ['Wrong item / size / color', $fmt($limits['wrong_item'])],
-                ['Incomplete / not as described', $fmt($limits['incomplete_order'])],
-                ['Damaged', $fmt($limits['damaged'])],
-                ['Missing item', $fmt($limits['missing_item'])],
-                ['Changed mind', $fmt($limits['changed_mind'])],
-                ['Everything else', $fmt($defaultWindow)],
-            ]; @endphp
+            @php
+                $rows = collect(\App\Models\RefundRequest::windowSettings())
+                    ->map(fn (array $window) => [
+                        $window['label'],
+                        $fmt((int) round($window['days'] * 24)),
+                    ])
+                    ->values()
+                    ->all();
+            @endphp
             @foreach($rows as [$label,$window])
                 <div class="col-12 d-flex justify-content-between align-items-center p-2 px-3 rounded-3" style="background:#f8f7ff; border:1px solid #eee8ff;">
                     <span>{{ $label }}</span><span class="badge rounded-pill" style="background:#7b68ee;">{{ $window }}</span>

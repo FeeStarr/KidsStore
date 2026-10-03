@@ -65,4 +65,21 @@ TXT;
             ->assertSee('Return windows at a glance')
             ->assertDontSee('On this page');
     }
+
+    public function test_windows_at_a_glance_lists_each_reason_without_everything_else(): void
+    {
+        $this->get(route('shop.return-policy'))
+            ->assertOk()
+            ->assertSee('Return windows at a glance')
+            ->assertSee('Wrong item')
+            ->assertSee('Wrong color')
+            ->assertSee('Incomplete')
+            ->assertSee('Not as described')
+            ->assertSee('Damaged')
+            ->assertSee('Missing item')
+            ->assertSee('Changed mind')
+            ->assertDontSee('Everything else')
+            ->assertDontSee('Wrong item / size / color')
+            ->assertDontSee('Incomplete / not as described');
+    }
 }
