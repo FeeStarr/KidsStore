@@ -12,8 +12,8 @@
         \App\Models\RefundRequest::STATUS_APPROVED          => "Your return request has been <strong>approved</strong>. Please ship the item back to us. Once we receive and inspect it, your <strong>{$amount}</strong> refund will be processed within 5–7 working days.",
         \App\Models\RefundRequest::STATUS_REJECTED          => "Unfortunately, your return request has been <strong>declined</strong>.",
         \App\Models\RefundRequest::STATUS_RECEIVED          => "We've received your returned item. Our team is inspecting <strong>{$scope}</strong>. You'll receive an update once the inspection is complete.",
-        \App\Models\RefundRequest::STATUS_REFUND_APPROVED,
-        \App\Models\RefundRequest::STATUS_REFUND_PROCESSING => "Your refund has been approved and is being processed. <strong>{$amount}</strong> for <strong>{$scope}</strong> will be credited to your original payment method within 5–7 working days.",
+        \App\Models\RefundRequest::STATUS_REFUND_APPROVED   => "Your refund has been <strong>approved</strong>. <strong>{$amount}</strong> for <strong>{$scope}</strong> will be credited to your original payment method within 5–7 working days.",
+        \App\Models\RefundRequest::STATUS_REFUND_PROCESSING => "We're processing your refund now. <strong>{$amount}</strong> for <strong>{$scope}</strong> is on its way to your original payment method and should arrive within 5–7 working days.",
         \App\Models\RefundRequest::STATUS_REFUNDED          => "Your refund has been <strong>processed successfully</strong>. <strong>{$amount}</strong> for <strong>{$scope}</strong> has been returned to your original payment method. It may take 1–3 business days to appear.",
         \App\Models\RefundRequest::STATUS_REPLACEMENT_APPROVED => $exchangeLabel
             ? "Your exchange request has been <strong>approved</strong>. A replacement (<strong>{$exchangeLabel}</strong>) for <strong>{$scope}</strong> will be shipped to you shortly."
@@ -45,8 +45,8 @@
         \App\Models\RefundRequest::STATUS_APPROVED          => 'Return Approved',
         \App\Models\RefundRequest::STATUS_REJECTED          => 'Return Declined',
         \App\Models\RefundRequest::STATUS_RECEIVED          => 'Item Received',
-        \App\Models\RefundRequest::STATUS_REFUND_APPROVED,
-        \App\Models\RefundRequest::STATUS_REFUND_PROCESSING => 'Refund Approved',
+        \App\Models\RefundRequest::STATUS_REFUND_APPROVED   => 'Refund Approved',
+        \App\Models\RefundRequest::STATUS_REFUND_PROCESSING => 'Refund Processing',
         \App\Models\RefundRequest::STATUS_REFUNDED          => 'Refund Completed',
         \App\Models\RefundRequest::STATUS_REPLACEMENT_APPROVED => 'Replacement Approved',
         \App\Models\RefundRequest::STATUS_REPLACEMENT_SHIPPED  => 'Replacement Shipped',

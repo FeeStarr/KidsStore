@@ -649,10 +649,17 @@ class RefundService
 
     public function applyRefundSuccess(RefundRequest $refundRequest): RefundRequest
     {
-        if ($refundRequest->status === RefundRequest::STATUS_REFUNDED) {
-            return $refundRequest;
+        // Atomically claim the refund_completed transition: the Paystack webhook
+        // and the admin "check status" sync can fire together, and only the
+        // first one may flip the status and notify the customer.
+        $claimed = RefundRequest::whereKey($refundRequest->id)
+            ->where('status', '!=', RefundRequest::STATUS_REFUNDED)
+            ->update(['status' => RefundRequest::STATUS_REFUNDED, 'processed_at' => now()]);
+
+        if (! $claimed) {
+            return $refundRequest->refresh();
         }
-        $refundRequest->update(['status' => RefundRequest::STATUS_REFUNDED, 'processed_at' => now()]);
+
         if (! $refundRequest->order_item_id) {
             $refundRequest->order->update(['payment_status' => 'refunded']);
         }
