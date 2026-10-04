@@ -141,9 +141,38 @@ class CustomOrderDeliveryLocationTest extends TestCase
         $this->assertEquals(0, (float) $order->delivery_fee);
     }
 
-    public function test_delivery_without_charge_stores_zero_fee(): void
+    public function test_delivery_without_available_agent_is_rejected(): void
     {
         $location = $this->makeLocation('Ikeja');
+
+        $this->actingAs($this->customer())
+            ->from(route('shop.custom-frock.create'))
+            ->post(route('shop.custom-frock.store'), $this->storePayload(['delivery_location_id' => $location->id]))
+            ->assertRedirect(route('shop.custom-frock.create'))
+            ->assertSessionHasErrors('delivery_location_id');
+
+        $this->assertDatabaseCount('custom_orders', 0);
+    }
+
+    public function test_delivery_with_inactive_agent_is_rejected(): void
+    {
+        $location = $this->makeLocation('Ikeja');
+        $charge = $this->makeCharge($location);
+        $charge->agent->update(['is_active' => false]);
+
+        $this->actingAs($this->customer())
+            ->from(route('shop.custom-frock.create'))
+            ->post(route('shop.custom-frock.store'), $this->storePayload(['delivery_location_id' => $location->id]))
+            ->assertRedirect(route('shop.custom-frock.create'))
+            ->assertSessionHasErrors('delivery_location_id');
+
+        $this->assertDatabaseCount('custom_orders', 0);
+    }
+
+    public function test_delivery_with_available_agent_stores_fee(): void
+    {
+        $location = $this->makeLocation('Ikeja');
+        $this->makeCharge($location, 3000);
 
         $this->actingAs($this->customer())
             ->post(route('shop.custom-frock.store'), $this->storePayload(['delivery_location_id' => $location->id]))
@@ -151,6 +180,6 @@ class CustomOrderDeliveryLocationTest extends TestCase
 
         $order = CustomOrder::where('child_name', 'Test Child')->firstOrFail();
         $this->assertEquals($location->id, $order->delivery_location_id);
-        $this->assertEquals(0, (float) $order->delivery_fee);
+        $this->assertEquals(3000, (float) $order->delivery_fee);
     }
 }

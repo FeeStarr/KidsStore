@@ -124,6 +124,13 @@ class CustomOrderController extends Controller
             'return_policy_acknowledged' => ['required', 'accepted'],
         ]);
 
+        if ($data['delivery_method'] === 'delivery'
+            && ! DeliveryCharge::activeWithAgentFor((int) ($data['delivery_location_id'] ?? 0))) {
+            return back()
+                ->withErrors(['delivery_location_id' => DeliveryCharge::UNAVAILABLE_MESSAGE])
+                ->withInput();
+        }
+
         $customizations = array_filter([
             'primary_colour' => $data['primary_colour'] ?? null,
             'secondary_colour' => $data['secondary_colour'] ?? null,
@@ -169,7 +176,7 @@ class CustomOrderController extends Controller
 
         $customOrder->load([
             'measurements', 'customizations', 'files', 'quotes',
-            'messages.sender', 'statusHistory.changer',
+            'messages.sender', 'messages.file', 'statusHistory.changer',
         ]);
 
         $latestQuote = $customOrder->latestQuote();
@@ -256,6 +263,39 @@ class CustomOrderController extends Controller
         return back()->with('success', 'Your custom order has been cancelled.');
     }
 
+    public function storeMessage(CustomOrder $customOrder, Request $request)
+    {
+        abort_unless($customOrder->user_id === Auth::id(), 403);
+
+        $data = $request->validate([
+            'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+        ]);
+
+        $file = null;
+        if ($request->hasFile('attachment')) {
+            $file = $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id());
+        }
+
+        $text = trim($data['message'] ?? '');
+
+        $customOrder->messages()->create([
+            'sender_type' => 'customer',
+            'sender_id' => Auth::id(),
+            'message' => $text,
+            'is_customer_visible' => true,
+            'custom_order_file_id' => $file?->id,
+            'created_at' => now(),
+        ]);
+
+        Notification::send(
+            NotificationRecipients::adminUsers(),
+            new CustomOrderMessageReceived($customOrder, $text !== '' ? $text : 'Sent an attachment')
+        );
+
+        return back()->with('success', 'Message sent.');
+    }
+
     private function uploadFiles(CustomOrder $order, array $data, int $userId): void
     {
         if (! empty($data['reference_files'])) {
@@ -281,16 +321,9 @@ class CustomOrderController extends Controller
             return 0.0;
         }
 
-        $charge = DeliveryCharge::where('delivery_location_id', (int) $data['delivery_location_id'])
-            ->where('is_active', true)
-            ->with('agent')
-            ->first();
+        $charge = DeliveryCharge::activeWithAgentFor((int) $data['delivery_location_id']);
 
-        if ($charge && $charge->agent && $charge->agent->is_active) {
-            return (float) $charge->amount;
-        }
-
-        return 0.0;
+        return $charge ? (float) $charge->amount : 0.0;
     }
 
     private function getFormOptions(): array

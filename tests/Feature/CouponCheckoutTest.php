@@ -65,11 +65,27 @@ class CouponCheckoutTest extends TestCase
 
     private function makeDeliveryLocation(): DeliveryLocation
     {
-        return DeliveryLocation::create([
+        $location = DeliveryLocation::create([
             'name'      => 'Ikeja',
             'state'     => 'Lagos',
             'is_active' => true,
         ]);
+
+        $agent = \App\Models\DeliveryAgent::create([
+            'name'           => 'Test Agent',
+            'account_number' => 'AG' . rand(10000, 99999),
+            'phone'          => '08012345678',
+            'is_active'      => true,
+        ]);
+
+        \App\Models\DeliveryCharge::create([
+            'delivery_agent_id'    => $agent->id,
+            'delivery_location_id' => $location->id,
+            'amount'               => 0,
+            'is_active'            => true,
+        ]);
+
+        return $location;
     }
 
     public function test_guest_cart_coupon_apply_and_remove(): void

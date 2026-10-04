@@ -170,22 +170,48 @@
             @endif
 
             {{-- Messages --}}
-            @if ($customOrder->messages->isNotEmpty())
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header"><h6 class="mb-0">Messages</h6></div>
-                    <div class="card-body">
-                        @foreach ($customOrder->messages->sortByDesc('created_at') as $msg)
-                            <div class="mb-3 {{ $msg->sender_type === 'customer' ? 'text-end' : '' }}">
-                                <div class="d-inline-block text-start {{ $msg->sender_type === 'customer' ? 'bg-primary text-white' : 'bg-light' }} rounded p-3" style="max-width:80%">
-                                    <small class="d-block mb-1 fw-bold">{{ $msg->sender_type === 'customer' ? 'You' : 'KidsFlairr' }}</small>
-                                    {{ $msg->message }}
-                                    <small class="d-block mt-1 opacity-75">{{ $msg->created_at->diffForHumans() }}</small>
-                                </div>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><h6 class="mb-0">Messages</h6></div>
+                <div class="card-body">
+                    @forelse ($customOrder->messages->sortByDesc('created_at') as $msg)
+                        <div class="mb-3 {{ $msg->sender_type === 'customer' ? 'text-end' : '' }}">
+                            <div class="d-inline-block text-start {{ $msg->sender_type === 'customer' ? 'bg-primary text-white' : 'bg-light' }} rounded p-3" style="max-width:80%">
+                                <small class="d-block mb-1 fw-bold">{{ $msg->sender_type === 'customer' ? 'You' : 'KidsFlairr' }}</small>
+                                @if ($msg->message !== '')
+                                    <div>{{ $msg->message }}</div>
+                                @endif
+                                @if ($msg->file)
+                                    @if (str_starts_with($msg->file->mime_type ?? '', 'image/'))
+                                        <a href="{{ route('shop.custom-frock.file', [$customOrder, $msg->file]) }}" target="_blank" class="d-inline-block mt-1">
+                                            <img src="{{ route('shop.custom-frock.file', [$customOrder, $msg->file]) }}" alt="Attachment" class="img-thumbnail" style="max-height:120px;" loading="lazy">
+                                        </a>
+                                    @else
+                                        <a href="{{ route('shop.custom-frock.file', [$customOrder, $msg->file]) }}" target="_blank"
+                                           class="btn btn-sm {{ $msg->sender_type === 'customer' ? 'btn-light text-dark' : 'btn-outline-secondary' }} mt-1">
+                                            <i class="bi bi-paperclip me-1"></i>{{ $msg->file->original_filename ?: 'Attachment' }}
+                                        </a>
+                                    @endif
+                                @endif
+                                <small class="d-block mt-1 opacity-75">{{ $msg->created_at->diffForHumans() }}</small>
                             </div>
-                        @endforeach
-                    </div>
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0">No messages yet. Ask us anything about your order &mdash; we'll reply here.</p>
+                    @endforelse
+
+                    <form method="POST" action="{{ route('shop.custom-frock.messages', $customOrder) }}" enctype="multipart/form-data" class="mt-3">
+                        @csrf
+                        <div class="mb-2">
+                            <textarea name="message" class="form-control" rows="2" maxlength="1000" placeholder="Write a reply...">{{ old('message') }}</textarea>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <input type="file" name="attachment" class="form-control form-control-sm" style="max-width:60%;" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                            <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"><i class="bi bi-send me-1"></i>Send</button>
+                        </div>
+                        <small class="text-muted d-block mt-1">jpg, png, webp or pdf (max {{ \App\Models\Setting::get('custom_order_max_file_size_mb', 10) }}MB)</small>
+                    </form>
                 </div>
-            @endif
+            </div>
         </div>
 
         {{-- Sidebar --}}

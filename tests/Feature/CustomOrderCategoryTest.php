@@ -40,6 +40,22 @@ class CustomOrderCategoryTest extends TestCase
             ['state' => 'Lagos', 'is_active' => true]
         );
 
+        if (! \App\Models\DeliveryCharge::where('delivery_location_id', $location->id)->exists()) {
+            $agent = \App\Models\DeliveryAgent::create([
+                'name'           => 'Test Agent',
+                'account_number' => 'AG' . rand(10000, 99999),
+                'phone'          => '08012345678',
+                'is_active'      => true,
+            ]);
+
+            \App\Models\DeliveryCharge::create([
+                'delivery_agent_id'    => $agent->id,
+                'delivery_location_id' => $location->id,
+                'amount'               => 1500,
+                'is_active'            => true,
+            ]);
+        }
+
         return array_merge([
             'child_name' => 'Test Child',
             'delivery_method' => 'delivery',

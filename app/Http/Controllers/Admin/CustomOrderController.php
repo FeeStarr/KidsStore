@@ -69,7 +69,7 @@ class CustomOrderController extends Controller
         $customOrder->load([
             'user', 'baseProduct', 'pickupStation',
             'measurements', 'customizations', 'files',
-            'quotes.creator', 'messages.sender', 'statusHistory.changer',
+            'quotes.creator', 'messages.sender', 'messages.file', 'statusHistory.changer',
             'qcChecks.checker', 'order',
         ]);
 
@@ -213,19 +213,27 @@ class CustomOrderController extends Controller
 
     public function sendMessage(CustomOrder $customOrder, Request $request)
     {
-        $request->validate(['message' => 'required|string|max:1000']);
+        $request->validate([
+            'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+        ]);
 
-        $message = $request->input('message');
+        $text = trim($request->input('message', ''));
+
+        $file = $request->hasFile('attachment')
+            ? $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id())
+            : null;
 
         $customOrder->messages()->create([
             'sender_type' => 'admin',
             'sender_id' => Auth::id(),
-            'message' => $message,
+            'message' => $text,
             'is_customer_visible' => true,
+            'custom_order_file_id' => $file?->id,
             'created_at' => now(),
         ]);
 
-        $customOrder->user->notify(new CustomOrderMessageReceived($customOrder, $message));
+        $customOrder->user->notify(new CustomOrderMessageReceived($customOrder, $text !== '' ? $text : 'Sent an attachment'));
 
         return back()->with('success', 'Message sent.');
     }

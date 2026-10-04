@@ -231,6 +231,13 @@ class CheckoutController extends Controller
 
         $data = $request->validate($rules);
 
+        if ($data['delivery_method'] === 'delivery'
+            && ! DeliveryCharge::activeWithAgentFor((int) ($data['delivery_location_id'] ?? 0))) {
+            return redirect()->route('shop.checkout.show')
+                ->withInput()
+                ->with('error', DeliveryCharge::UNAVAILABLE_MESSAGE);
+        }
+
         // Guest: verify email before creating order
         if ($isGuest) {
             $email = strtolower(trim($data['email']));
@@ -299,18 +306,21 @@ class CheckoutController extends Controller
         $deliveryAgentId = null;
         $deliveryLocationId = null;
 
-        if ($data['delivery_method'] === 'delivery' && ! empty($data['delivery_location_id'])) {
-            $deliveryLocationId = (int) $data['delivery_location_id'];
-            $charge = DeliveryCharge::where('delivery_location_id', $deliveryLocationId)
-                ->where('is_active', true)
-                ->with('agent')
-                ->first();
+        if ($data['delivery_method'] === 'delivery') {
+            $charge = ! empty($data['delivery_location_id'])
+                ? DeliveryCharge::activeWithAgentFor((int) $data['delivery_location_id'])
+                : null;
 
-            if ($charge && $charge->agent && $charge->agent->is_active) {
-                $shippingFee = (float) $charge->amount;
-                $deliveryChargeAmount = $shippingFee;
-                $deliveryAgentId = $charge->delivery_agent_id;
+            if (! $charge) {
+                return redirect()->route('shop.checkout.show')
+                    ->withInput()
+                    ->with('error', DeliveryCharge::UNAVAILABLE_MESSAGE);
             }
+
+            $deliveryLocationId = (int) $data['delivery_location_id'];
+            $shippingFee = (float) $charge->amount;
+            $deliveryChargeAmount = $shippingFee;
+            $deliveryAgentId = $charge->delivery_agent_id;
         }
 
         if ($shippingFee === 0) {

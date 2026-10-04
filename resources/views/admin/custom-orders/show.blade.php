@@ -249,7 +249,21 @@
                     <div class="mb-3 {{ $msg->sender_type === 'admin' ? 'text-end' : '' }}">
                         <div class="d-inline-block text-start {{ $msg->sender_type === 'admin' ? 'bg-primary text-white' : 'bg-light' }} rounded p-3" style="max-width:80%">
                             <small class="d-block mb-1 fw-bold">{{ $msg->sender_type === 'admin' ? 'Admin' : ($msg->sender?->name ?: 'Customer') }}</small>
-                            {{ $msg->message }}
+                            @if ($msg->message !== '')
+                                <div>{{ $msg->message }}</div>
+                            @endif
+                            @if ($msg->file)
+                                @if (str_starts_with($msg->file->mime_type ?? '', 'image/'))
+                                    <a href="{{ route('admin.custom-orders.file', [$customOrder, $msg->file]) }}" target="_blank" class="d-inline-block mt-1">
+                                        <img src="{{ route('admin.custom-orders.file', [$customOrder, $msg->file]) }}" alt="Attachment" class="img-thumbnail" style="max-height:120px;" loading="lazy">
+                                    </a>
+                                @else
+                                    <a href="{{ route('admin.custom-orders.file', [$customOrder, $msg->file]) }}" target="_blank"
+                                       class="btn btn-sm {{ $msg->sender_type === 'admin' ? 'btn-light text-dark' : 'btn-outline-secondary' }} mt-1">
+                                        <i class="bi bi-paperclip me-1"></i>{{ $msg->file->original_filename ?: 'Attachment' }}
+                                    </a>
+                                @endif
+                            @endif
                             <small class="d-block mt-1 opacity-75">{{ $msg->created_at->diffForHumans() }}</small>
                         </div>
                     </div>
@@ -257,11 +271,14 @@
                     <p class="text-muted mb-3">No messages yet.</p>
                 @endforelse
 
-                <form method="POST" action="{{ route('admin.custom-orders.message', $customOrder) }}" class="mt-3">
+                <form method="POST" action="{{ route('admin.custom-orders.message', $customOrder) }}" enctype="multipart/form-data" class="mt-3">
                     @csrf
-                    <div class="input-group">
-                        <input type="text" name="message" class="form-control" placeholder="Type a message..." required maxlength="1000">
-                        <button type="submit" class="btn btn-primary">Send</button>
+                    <div class="mb-2">
+                        <input type="text" name="message" class="form-control" placeholder="Type a message..." maxlength="1000" value="{{ old('message') }}">
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <input type="file" name="attachment" class="form-control form-control-sm" style="max-width:60%;" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                        <button type="submit" class="btn btn-primary flex-shrink-0"><i class="bi bi-send me-1"></i>Send</button>
                     </div>
                 </form>
             </div>

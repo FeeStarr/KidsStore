@@ -175,7 +175,8 @@ Route::get('/custom-frock/{customOrder}', [CustomOrderController::class, 'show']
 Route::post('/custom-frock/{customOrder}/approve-quote', [CustomOrderController::class, 'approveQuote'])->name('shop.custom-frock.approve-quote')->middleware(['auth', 'throttle:5,1']);
 Route::get('/custom-frock/{customOrder}/payment', [CustomOrderController::class, 'payment'])->name('shop.custom-frock.payment')->middleware('auth');
 Route::post('/custom-frock/{customOrder}/request-changes', [CustomOrderController::class, 'requestChanges'])->name('shop.custom-frock.request-changes')->middleware(['auth', 'throttle:10,1']);
-Route::post('/custom-frock/{customOrder}/cancel', [CustomOrderController::class, 'cancel'])->name('shop.custom-frock.cancel')->middleware('auth');
+    Route::post('/custom-frock/{customOrder}/cancel', [CustomOrderController::class, 'cancel'])->name('shop.custom-frock.cancel')->middleware('auth');
+    Route::post('/custom-frock/{customOrder}/messages', [CustomOrderController::class, 'storeMessage'])->name('shop.custom-frock.messages')->middleware(['auth', 'throttle:10,1']);
 Route::get('/custom-frock/{customOrder}/files/{file}', [CustomOrderFileController::class, 'show'])->name('shop.custom-frock.file')->middleware('auth');
 
 // Guest Paystack payment - uses order lookup token for guest access

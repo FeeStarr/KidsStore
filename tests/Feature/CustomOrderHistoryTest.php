@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderCustomization;
 use App\Models\CustomOrderFile;
+use App\Models\DeliveryAgent;
+use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -361,6 +363,8 @@ class CustomOrderHistoryTest extends TestCase
     {
         $user = $this->customer();
         $location = DeliveryLocation::create(['name' => 'Test City', 'state' => 'Lagos', 'is_active' => true]);
+        $agent = DeliveryAgent::create(['name' => 'Test Agent', 'account_number' => 'AG' . rand(10000, 99999), 'phone' => '08012345678', 'is_active' => true]);
+        DeliveryCharge::create(['delivery_agent_id' => $agent->id, 'delivery_location_id' => $location->id, 'amount' => 1500, 'is_active' => true]);
 
         $response = $this->actingAs($user)->post(route('shop.custom-frock.store'), [
             'child_name' => 'Test Child',

@@ -14,7 +14,7 @@ class CustomOrderMessage extends Model
     const SENDER_STAFF = 'staff';
 
     protected $fillable = [
-        'custom_order_id', 'sender_type', 'sender_id', 'message',
+        'custom_order_id', 'sender_type', 'sender_id', 'message', 'custom_order_file_id',
         'is_customer_visible', 'created_at', 'read_at',
     ];
 
@@ -32,6 +32,11 @@ class CustomOrderMessage extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    public function file(): BelongsTo
+    {
+        return $this->belongsTo(CustomOrderFile::class, 'custom_order_file_id');
     }
 
     public function markRead(): void

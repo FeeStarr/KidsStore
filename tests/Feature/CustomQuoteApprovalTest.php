@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQuote;
+use App\Models\DeliveryAgent;
+use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
 use App\Models\User;
 use App\Notifications\CustomOrderCancelled;
@@ -136,6 +138,22 @@ class CustomQuoteApprovalTest extends TestCase
             ['name' => 'Test City'],
             ['state' => 'Lagos', 'is_active' => true]
         );
+
+        if (! DeliveryCharge::where('delivery_location_id', $location->id)->exists()) {
+            $agent = DeliveryAgent::create([
+                'name' => 'Test Agent',
+                'account_number' => 'AG' . rand(10000, 99999),
+                'phone' => '08012345678',
+                'is_active' => true,
+            ]);
+
+            DeliveryCharge::create([
+                'delivery_agent_id' => $agent->id,
+                'delivery_location_id' => $location->id,
+                'amount' => 1500,
+                'is_active' => true,
+            ]);
+        }
 
         $this->actingAs($customer, 'web')
             ->post(route('shop.custom-frock.store'), [

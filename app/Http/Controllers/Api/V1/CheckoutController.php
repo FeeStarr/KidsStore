@@ -43,6 +43,11 @@ class CheckoutController extends BaseController
 
         $data = $request->validate($rules);
 
+        if ($data['delivery_method'] === 'delivery'
+            && ! DeliveryCharge::activeWithAgentFor((int) ($data['delivery_location_id'] ?? 0))) {
+            return $this->errorResponse(DeliveryCharge::UNAVAILABLE_MESSAGE, 422);
+        }
+
         $customer = $request->user();
         $customer->fill(['phone' => $data['phone']])->save();
 
@@ -64,16 +69,11 @@ class CheckoutController extends BaseController
 
         if ($data['delivery_method'] === 'delivery' && ! empty($data['delivery_location_id'])) {
             $deliveryLocationId = (int) $data['delivery_location_id'];
-            $charge = DeliveryCharge::where('delivery_location_id', $deliveryLocationId)
-                ->where('is_active', true)
-                ->with('agent')
-                ->first();
+            $charge = DeliveryCharge::activeWithAgentFor($deliveryLocationId);
 
-            if ($charge && $charge->agent && $charge->agent->is_active) {
-                $shippingFee = (float) $charge->amount;
-                $deliveryChargeAmount = $shippingFee;
-                $deliveryAgentId = $charge->delivery_agent_id;
-            }
+            $shippingFee = (float) $charge->amount;
+            $deliveryChargeAmount = $shippingFee;
+            $deliveryAgentId = $charge->delivery_agent_id;
         }
 
         if ($shippingFee === 0 && $data['delivery_method'] === 'delivery') {
