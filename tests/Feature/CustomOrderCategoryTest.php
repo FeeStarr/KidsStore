@@ -113,6 +113,24 @@ class CustomOrderCategoryTest extends TestCase
             ->assertSee('Special Occasion');
     }
 
+    public function test_party_dress_option_is_removed_from_category_select(): void
+    {
+        $this->actingAsCustomer($this->customer());
+
+        $this->get(route('shop.custom-frock.create'))
+            ->assertOk()
+            ->assertDontSee('Party Dresses');
+    }
+
+    public function test_store_rejects_party_category(): void
+    {
+        $user = $this->customer();
+
+        $this->actingAs($user, 'web')
+            ->post(route('shop.custom-frock.store'), $this->storePayload(['category' => 'party']))
+            ->assertInvalid('category');
+    }
+
     public function test_admin_index_filters_by_category(): void
     {
         $princessOrder = $this->makeOrder($this->customer(), ['category' => 'princess']);

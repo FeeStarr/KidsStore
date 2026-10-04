@@ -21,7 +21,7 @@ class CustomPaymentService
                 'order_date' => now()->toDateTimeString(),
                 'status' => 'pending payment',
                 'delivery_method' => $order->delivery_method,
-                'payment_method' => 'paystack',
+                'payment_method' => 'pay_now',
                 'pickup_station_id' => $order->pickup_station_id,
                 'delivery_address' => $order->delivery_address,
                 'subtotal' => $order->total_amount,

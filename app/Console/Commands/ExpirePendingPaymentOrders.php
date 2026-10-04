@@ -26,6 +26,7 @@ class ExpirePendingPaymentOrders extends Command
         $cutoff = now()->subHours(24);
 
         $orders = Order::where('status', 'pending payment')
+            ->whereNull('custom_order_id')
             ->where('created_at', '<=', $cutoff)
             ->get();
 

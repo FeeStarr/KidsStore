@@ -25,22 +25,27 @@ class OrderObserver
 
         // When payment is confirmed, update custom order to paid status
         if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
-            if (in_array($customOrder->status, [
+            if (! in_array($customOrder->status, [
                 CustomOrder::STATUS_CUSTOMER_APPROVED,
                 CustomOrder::STATUS_PAYMENT_PENDING,
                 CustomOrder::STATUS_PAID,
-            ])) {
-                $this->customOrderService->transitionTo(
-                    $customOrder,
-                    CustomOrder::STATUS_PAID,
-                    null
-                );
-
-                $customOrder->update([
-                    'amount_paid' => $order->amount_paid,
-                    'payment_status' => 'paid',
-                ]);
+            ], true)) {
+                return;
             }
+
+            // Legacy orders may still sit on customer_approved - move through payment_pending first
+            if ($customOrder->status === CustomOrder::STATUS_CUSTOMER_APPROVED) {
+                $this->customOrderService->transitionTo($customOrder, CustomOrder::STATUS_PAYMENT_PENDING);
+            }
+
+            if ($customOrder->status !== CustomOrder::STATUS_PAID) {
+                $this->customOrderService->transitionTo($customOrder, CustomOrder::STATUS_PAID);
+            }
+
+            $customOrder->update([
+                'amount_paid' => $order->amount_paid,
+                'payment_status' => 'paid',
+            ]);
         }
     }
 }

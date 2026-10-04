@@ -67,7 +67,7 @@ class CustomQuoteApprovalTest extends TestCase
             ->assertRedirect(route('shop.account.orders.show', $order->order))
             ->assertSessionHas('success');
 
-        $this->assertSame(CustomOrder::STATUS_CUSTOMER_APPROVED, $order->fresh()->status);
+        $this->assertSame(CustomOrder::STATUS_PAYMENT_PENDING, $order->fresh()->status);
 
         $linked = $order->order;
         $this->assertNotNull($linked);

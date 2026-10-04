@@ -38,12 +38,12 @@ class CustomOrder extends Model
 
     const VALID_TRANSITIONS = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED],
-        self::STATUS_SUBMITTED => [self::STATUS_UNDER_REVIEW, self::STATUS_REJECTED],
+        self::STATUS_SUBMITTED => [self::STATUS_UNDER_REVIEW, self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTED, self::STATUS_REJECTED],
         self::STATUS_UNDER_REVIEW => [self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTE_PENDING, self::STATUS_REJECTED],
         self::STATUS_NEEDS_INFORMATION => [self::STATUS_UNDER_REVIEW, self::STATUS_CANCELLED],
         self::STATUS_QUOTE_PENDING => [self::STATUS_QUOTED],
         self::STATUS_QUOTED => [self::STATUS_CUSTOMER_APPROVED, self::STATUS_NEEDS_REVISION, self::STATUS_QUOTE_EXPIRED, self::STATUS_CANCELLED],
-        self::STATUS_NEEDS_REVISION => [self::STATUS_QUOTE_PENDING],
+        self::STATUS_NEEDS_REVISION => [self::STATUS_QUOTE_PENDING, self::STATUS_QUOTED],
         self::STATUS_CUSTOMER_APPROVED => [self::STATUS_PAYMENT_PENDING],
         self::STATUS_PAYMENT_PENDING => [self::STATUS_PAID, self::STATUS_CANCELLED],
         self::STATUS_PAID => [self::STATUS_PRODUCTION_PENDING],
@@ -82,7 +82,6 @@ class CustomOrder extends Model
 
     const CATEGORIES = [
         'birthday' => 'Birthday Dresses',
-        'party' => 'Party Dresses',
         'princess' => 'Princess Dresses',
         'ankara' => 'Ankara',
         'special_occasion' => 'Special Occasion',

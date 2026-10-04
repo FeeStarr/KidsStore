@@ -9,7 +9,9 @@
     @forelse($orders as $o)
         <tr>
             <td>{{ $loop->iteration }}</td>
-            <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
+            <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a>
+                @if($o->custom_order_id)<span class="badge text-bg-info ms-1">Custom</span>@endif
+            </td>
             <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
@@ -21,7 +23,12 @@
             } }}">{{ $o->getStatusLabel() }}</span></td>
             <td><span class="badge text-bg-light">{{ ucfirst($o->payment_status) }}</span></td>
             <td class="text-end">&#8358;{{ number_format($o->total_amount ?: $o->grand_total, 2) }}</td>
-            <td class="text-end"><a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+            <td class="text-end text-nowrap">
+                @if($o->isPayNowEligible())
+                    <a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-primary me-1"><i class="bi bi-credit-card me-1"></i>Pay Now</a>
+                @endif
+                <a href="{{ route('shop.account.orders.show', $o) }}" class="btn btn-sm btn-outline-secondary">View</a>
+            </td>
         </tr>
     @empty
         <tr><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>

@@ -96,29 +96,29 @@ class CustomOrderService
         return $order->fresh();
     }
 
-    public function review(CustomOrder $order): CustomOrder
+    public function review(CustomOrder $order, ?int $userId = null): CustomOrder
     {
-        $this->transitionTo($order, CustomOrder::STATUS_UNDER_REVIEW);
+        $this->transitionTo($order, CustomOrder::STATUS_UNDER_REVIEW, $userId);
         $order->user->notify(new CustomOrderReviewed($order));
         return $order->fresh();
     }
 
-    public function requestInfo(CustomOrder $order, string $message): CustomOrder
+    public function requestInfo(CustomOrder $order, string $message, ?int $userId = null): CustomOrder
     {
-        $this->transitionTo($order, CustomOrder::STATUS_NEEDS_INFORMATION);
+        $this->transitionTo($order, CustomOrder::STATUS_NEEDS_INFORMATION, $userId);
         $order->user->notify(new CustomOrderInfoRequested($order, $message));
         return $order->fresh();
     }
 
-    public function approveForQuote(CustomOrder $order): CustomOrder
+    public function approveForQuote(CustomOrder $order, ?int $userId = null): CustomOrder
     {
-        $this->transitionTo($order, CustomOrder::STATUS_QUOTE_PENDING);
+        $this->transitionTo($order, CustomOrder::STATUS_QUOTE_PENDING, $userId);
         return $order->fresh();
     }
 
-    public function reject(CustomOrder $order, string $reason): CustomOrder
+    public function reject(CustomOrder $order, string $reason, ?int $userId = null): CustomOrder
     {
-        $this->transitionTo($order, CustomOrder::STATUS_REJECTED, null, $reason);
+        $this->transitionTo($order, CustomOrder::STATUS_REJECTED, $userId, $reason);
         return $order->fresh();
     }
 

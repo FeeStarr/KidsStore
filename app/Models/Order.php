@@ -226,6 +226,10 @@ class Order extends Model
             if ($this->status !== self::STATUS_PENDING_PAYMENT) {
                 return false;
             }
+            // Custom orders reserve no stock - they never expire, so they can be paid anytime
+            if ($this->custom_order_id !== null) {
+                return true;
+            }
             return $this->created_at->diffInHours(now()) < 24;
         }
 

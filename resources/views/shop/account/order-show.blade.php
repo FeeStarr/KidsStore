@@ -44,6 +44,11 @@
         @else
             <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Complete Your Payment</h5>
             <p class="text-muted small mb-3">Click Pay Now. A secure payment window will open where you can pay with your preferred method.</p>
+            @if($order->custom_order_id)
+                <p class="small text-success mb-2"><i class="bi bi-infinity me-1"></i>Custom order &mdash; no payment deadline. Pay at your convenience.</p>
+            @elseif($order->payment_method === 'pay_now')
+                <p class="small text-warning mb-2"><i class="bi bi-clock-history me-1"></i>Payment required within 24 hours of placing your order &mdash; this order expires {{ $order->created_at->copy()->addHours(24)->format('M d, Y g:i A') }}.</p>
+            @endif
             <div class="mb-3">
                 <span class="fw-bold fs-5 text-primary">&#8358;{{ number_format($order->grand_total, 2) }}</span>
             </div>

@@ -205,6 +205,13 @@ class CustomOrderController extends Controller
         // Create linked order for payment processing
         $linkedOrder = $this->paymentService->createLinkedOrder($customOrder);
 
+        // Quote approved - now waiting for the customer to pay the linked order
+        $this->customOrderService->transitionTo(
+            $customOrder->fresh(),
+            CustomOrder::STATUS_PAYMENT_PENDING,
+            Auth::id()
+        );
+
         return redirect()->route('shop.account.orders.show', $linkedOrder)
             ->with('success', 'Quote approved! Please proceed to payment.');
     }

@@ -11,6 +11,7 @@
     <tr>
         <th>Reference</th>
         <th>Date</th>
+        <th>Type</th>
         <th>Customer</th>
         <th>Status</th>
         <th>Payment</th>
@@ -23,6 +24,7 @@
         <tr>
             <td>{{ $o->reference }}</td>
             <td>{{ $o->order_date->format('Y-m-d H:i') }}</td>
+            <td><span class="badge {{ $o->custom_order_id ? 'text-bg-info' : 'text-bg-secondary' }}">{{ $o->custom_order_id ? 'Custom' : 'Standard' }}</span></td>
             <td>{{ $o->customer?->name ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',

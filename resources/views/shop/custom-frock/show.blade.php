@@ -302,6 +302,12 @@
                                 {{ ucfirst($customOrder->payment_status) }}
                             </span>
                         </div>
+                        @php $linkedOrder = $customOrder->order; @endphp
+                        @if ($linkedOrder && $linkedOrder->isPayNowEligible())
+                            <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-primary w-100 mt-3">
+                                <i class="bi bi-credit-card me-1"></i>Complete Payment
+                            </a>
+                        @endif
                     </div>
                 </div>
             @endif
