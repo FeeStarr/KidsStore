@@ -105,7 +105,7 @@ class CustomOrderPaymentEligibilityTest extends TestCase
             ->get(route('shop.account.orders.show', $linked))
             ->assertOk()
             ->assertSee('id="pay-now-panel"', false)
-            ->assertSee('no payment deadline');
+            ->assertDontSee('no payment deadline');
     }
 
     public function test_custom_order_eligibility_ignores_24h_window(): void
