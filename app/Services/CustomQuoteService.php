@@ -170,11 +170,11 @@ class CustomQuoteService
     {
         $items = [];
         $labels = [
-            'base_price' => 'Base Frock',
-            'fabric_cost' => 'Fabric',
-            'customization_cost' => 'Customization',
-            'embellishment_cost' => 'Embellishment',
-            'measurement_fee' => 'Custom Measurement',
+            'base_price' => 'Frock — base garment',
+            'fabric_cost' => 'Fabric — selected fabric',
+            'customization_cost' => 'Design & Customization — modifications/special design requests',
+            'embellishment_cost' => 'Embellishments — decorative additions',
+            'measurement_fee' => 'Custom Measurements — made to the customer\'s measurements',
             'rush_fee' => 'Rush Fee',
             'delivery_fee' => 'Delivery',
             'discount' => 'Discount',

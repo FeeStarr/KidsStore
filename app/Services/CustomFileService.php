@@ -10,11 +10,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CustomFileService
 {
+    /** Max size for message attachments (images and PDFs), in MB. */
+    public const MESSAGE_MAX_MB = 3;
+
     private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
 
     private const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
-    public function upload(CustomOrder $order, UploadedFile $file, string $type, int $userId): CustomOrderFile
+    public function __construct(
+        private ImageOptimizationService $optimizer,
+    ) {}
+
+    public function messageMaxKilobytes(): int
+    {
+        return self::MESSAGE_MAX_MB * 1024;
+    }
+
+    public function upload(CustomOrder $order, UploadedFile $file, string $type, int $userId, bool $optimizeImages = false): CustomOrderFile
     {
         $ext = strtolower($file->getClientOriginalExtension());
 
@@ -37,6 +49,10 @@ class CustomFileService
             $filename,
             'custom_orders'
         );
+
+        if ($optimizeImages && str_starts_with($realMime, 'image/')) {
+            $this->optimizer->optimizeExisting($path, 'custom_orders');
+        }
 
         return CustomOrderFile::create([
             'custom_order_id' => $order->id,

@@ -29,6 +29,20 @@
                 </span>
             </div>
 
+            {{-- Needs Information: action card --}}
+            @if ($customOrder->status === 'needs_information')
+                <div class="alert alert-warning d-flex justify-content-between align-items-center gap-2 flex-wrap mb-4">
+                    <div>
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        <strong>Action needed:</strong> KidsFlairr requested more information about your order. Please reply in the Messages box below with the details.
+                    </div>
+                    <form method="POST" action="{{ route('shop.custom-frock.confirm-info', $customOrder) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-warning btn-sm flex-shrink-0">I've Provided the Requested Information</button>
+                    </form>
+                </div>
+            @endif
+
             {{-- Child Info --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header"><h6 class="mb-0">Child Information</h6></div>
@@ -134,7 +148,7 @@
                         <table class="table table-sm">
                             @foreach ($quote->breakdown ?? [] as $item)
                                 <tr>
-                                    <td>{{ $item['label'] }}</td>
+                                    <td>@include('partials.quote-line-label')</td>
                                     <td class="text-end {{ $item['amount'] < 0 ? 'text-success' : '' }}">
                                         {{ $item['amount'] < 0 ? '-' : '' }}₦{{ number_format(abs($item['amount']), 2) }}
                                     </td>
@@ -208,7 +222,7 @@
                             <input type="file" name="attachment" class="form-control form-control-sm" style="max-width:60%;" accept=".jpg,.jpeg,.png,.webp,.pdf">
                             <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"><i class="bi bi-send me-1"></i>Send</button>
                         </div>
-                        <small class="text-muted d-block mt-1">jpg, png, webp or pdf (max {{ \App\Models\Setting::get('custom_order_max_file_size_mb', 10) }}MB)</small>
+                        <small class="text-muted d-block mt-1">jpg, png, webp or pdf &mdash; max {{ \App\Services\CustomFileService::MESSAGE_MAX_MB }}MB</small>
                     </form>
                 </div>
             </div>
@@ -340,4 +354,25 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector('form[action*="/messages"] input[name="attachment"]');
+    if (!input) return;
+    input.addEventListener('change', function () {
+        const max = {{ \App\Services\CustomFileService::MESSAGE_MAX_MB }} * 1024 * 1024;
+        const file = this.files[0];
+        if (file && file.size > max) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Image too large',
+                    text: 'Maximum size is {{ \App\Services\CustomFileService::MESSAGE_MAX_MB }}MB. Please choose a smaller image.'
+                });
+            }
+            this.value = '';
+        }
+    });
+});
+</script>
 @endsection

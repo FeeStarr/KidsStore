@@ -184,4 +184,48 @@ class CustomOrderMessagingTest extends TestCase
 
         $this->assertDatabaseCount('custom_order_messages', 0);
     }
+
+    public function test_show_page_advertises_3mb_attachment_limit(): void
+    {
+        $order = $this->orderFor($this->customer());
+
+        $this->actingAs($order->user, 'web')
+            ->get(route('shop.custom-frock.show', $order))
+            ->assertOk()
+            ->assertSee('max 3MB');
+    }
+
+    public function test_customer_message_attachment_rejects_files_over_3mb(): void
+    {
+        Storage::fake('custom_orders');
+        Notification::fake();
+        $customer = $this->customer();
+        $order = $this->orderFor($customer);
+
+        $this->actingAs($customer, 'web')
+            ->post(route('shop.custom-frock.messages', $order), [
+                'message' => 'Here is the photo.',
+                'attachment' => UploadedFile::fake()->create('big.jpg', 4000, 'image/jpeg'),
+            ])
+            ->assertSessionHasErrors('attachment');
+
+        $this->assertDatabaseCount('custom_order_messages', 0);
+    }
+
+    public function test_admin_message_attachment_rejects_files_over_3mb(): void
+    {
+        Storage::fake('custom_orders');
+        Notification::fake();
+        $admin = $this->admin();
+        $order = $this->orderFor($this->customer());
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.custom-orders.message', $order), [
+                'message' => 'Here is the photo.',
+                'attachment' => UploadedFile::fake()->create('big.png', 4000, 'image/png'),
+            ])
+            ->assertSessionHasErrors('attachment');
+
+        $this->assertDatabaseCount('custom_order_messages', 0);
+    }
 }

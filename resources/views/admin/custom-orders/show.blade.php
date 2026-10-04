@@ -45,6 +45,12 @@
             <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="bi bi-x-lg me-1"></i> Reject</button>
         @endif
 
+        @if ($customOrder->status === 'needs_information')
+            <form method="POST" action="{{ route('admin.custom-orders.review', $customOrder) }}">@csrf
+                <button class="btn btn-info"><i class="bi bi-check2-circle me-1"></i> Info Received &mdash; Continue Review</button>
+            </form>
+        @endif
+
         @if (in_array($customOrder->status, ['quote_pending', 'needs_revision']))
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#quoteModal"><i class="bi bi-file-earmark-text me-1"></i> {{ $latestQuote ? 'Revise Quote' : 'Create Quote' }}</button>
         @endif
@@ -198,7 +204,7 @@
                     <table class="table table-sm">
                         @foreach ($latestQuote->breakdown ?? [] as $item)
                             <tr>
-                                <td>{{ $item['label'] }}</td>
+                                <td>@include('partials.quote-line-label')</td>
                                 <td class="text-end">₦{{ number_format($item['amount'], 2) }}</td>
                             </tr>
                         @endforeach
@@ -280,6 +286,7 @@
                         <input type="file" name="attachment" class="form-control form-control-sm" style="max-width:60%;" accept=".jpg,.jpeg,.png,.webp,.pdf">
                         <button type="submit" class="btn btn-primary flex-shrink-0"><i class="bi bi-send me-1"></i>Send</button>
                     </div>
+                    <small class="text-muted d-block mt-1">jpg, png, webp or pdf &mdash; max {{ \App\Services\CustomFileService::MESSAGE_MAX_MB }}MB</small>
                 </form>
             </div>
         </div>
@@ -392,23 +399,23 @@
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Base Frock Price</label>
+                            <label class="form-label">Frock &mdash; base garment</label>
                             <input type="number" name="base_price" class="form-control" step="0.01" min="0" value="{{ $latestQuote?->base_price ?? 12000 }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Fabric Cost</label>
+                            <label class="form-label">Fabric &mdash; selected fabric</label>
                             <input type="number" name="fabric_cost" class="form-control" step="0.01" min="0" value="{{ $latestQuote?->fabric_cost ?? 0 }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Customization Cost</label>
+                            <label class="form-label">Design &amp; Customization &mdash; modifications/special design requests</label>
                             <input type="number" name="customization_cost" class="form-control" step="0.01" min="0" value="{{ $latestQuote?->customization_cost ?? 0 }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Embellishment Cost</label>
+                            <label class="form-label">Embellishments &mdash; decorative additions</label>
                             <input type="number" name="embellishment_cost" class="form-control" step="0.01" min="0" value="{{ $latestQuote?->embellishment_cost ?? 0 }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Measurement Fee</label>
+                            <label class="form-label">Custom Measurements &mdash; made to the customer's measurements</label>
                             <input type="number" name="measurement_fee" class="form-control" step="0.01" min="0" value="{{ $latestQuote?->measurement_fee ?? 0 }}" required>
                         </div>
                         <div class="col-md-6">

@@ -17,7 +17,7 @@
                     <table class="table table-sm mt-3">
                         @foreach ($quote->breakdown ?? [] as $item)
                             <tr>
-                                <td>{{ $item['label'] }}</td>
+                                <td>@include('partials.quote-line-label')</td>
                                 <td class="text-end">₦{{ number_format($item['amount'], 2) }}</td>
                             </tr>
                         @endforeach

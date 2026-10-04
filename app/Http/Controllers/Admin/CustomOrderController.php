@@ -215,13 +215,15 @@ class CustomOrderController extends Controller
     {
         $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->messageMaxKilobytes()],
+        ], [
+            'attachment.max' => 'Image must be ' . CustomFileService::MESSAGE_MAX_MB . 'MB or smaller.',
         ]);
 
         $text = trim($request->input('message', ''));
 
         $file = $request->hasFile('attachment')
-            ? $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id())
+            ? $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id(), true)
             : null;
 
         $customOrder->messages()->create([

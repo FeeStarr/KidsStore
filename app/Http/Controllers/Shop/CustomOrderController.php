@@ -269,12 +269,14 @@ class CustomOrderController extends Controller
 
         $data = $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->getMaxFileSizeMb() * 1024],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->messageMaxKilobytes()],
+        ], [
+            'attachment.max' => 'Image must be ' . CustomFileService::MESSAGE_MAX_MB . 'MB or smaller.',
         ]);
 
         $file = null;
         if ($request->hasFile('attachment')) {
-            $file = $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id());
+            $file = $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id(), true);
         }
 
         $text = trim($data['message'] ?? '');
@@ -294,6 +296,24 @@ class CustomOrderController extends Controller
         );
 
         return back()->with('success', 'Message sent.');
+    }
+
+    public function confirmInfo(CustomOrder $customOrder)
+    {
+        abort_unless($customOrder->user_id === Auth::id(), 403);
+
+        if (! CustomOrder::canTransition($customOrder->status, CustomOrder::STATUS_UNDER_REVIEW)) {
+            return back()->with('error', 'This order is not waiting for your information.');
+        }
+
+        $this->customOrderService->transitionTo($customOrder, CustomOrder::STATUS_UNDER_REVIEW, Auth::id());
+
+        Notification::send(
+            NotificationRecipients::adminUsers(),
+            new CustomOrderMessageReceived($customOrder, 'The customer has provided the requested information.')
+        );
+
+        return back()->with('success', 'Thank you! Your information has been sent to our team.');
     }
 
     private function uploadFiles(CustomOrder $order, array $data, int $userId): void
