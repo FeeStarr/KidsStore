@@ -200,7 +200,7 @@
                 @if($it->product)
                     <a href="{{ route('shop.products.show', $it->product) }}">{{ $it->product->name }}</a>
                 @else
-                    {{ $it->product_id }}
+                    Custom Frock
                 @endif
                 @if($it->variant && $it->variant->options_label)
                     <div class="small text-muted">{{ $it->variant->options_label }}</div>
@@ -214,7 +214,7 @@
                 @if($it->product && ! $it->product->is_returnable)
                     <span class="badge bg-secondary" style="font-size:10px;">Non-returnable</span>
                 @elseif(! $it->product)
-                    <span class="badge bg-light text-muted border" style="font-size:10px;">Unavailable</span>
+                    <span class="badge bg-light text-muted border" style="font-size:10px;">Custom</span>
                 @endif
             </td>
             <td>{{ $it->quantity }}</td>

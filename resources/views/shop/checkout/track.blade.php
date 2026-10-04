@@ -185,7 +185,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    {{ $item->product->name }}
+                                    {{ $item->product?->name ?? 'Custom Frock' }}
                                     @if($item->variant)
                                         <small class="text-muted d-block">{{ $item->variant->options_label }}</small>
                                     @endif

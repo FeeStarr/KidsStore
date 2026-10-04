@@ -7,6 +7,7 @@ use App\Models\CustomOrderQuote;
 use App\Models\User;
 use App\Notifications\CustomQuoteReady;
 use App\Notifications\CustomQuoteApproved;
+use App\Notifications\NotificationRecipients;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -105,7 +106,7 @@ class CustomQuoteService
             );
 
             // Notify admins
-            $admins = User::role(['superadmin', 'admin'])->get();
+            $admins = NotificationRecipients::adminUsers();
             Notification::send($admins, new CustomQuoteApproved($order));
         });
     }

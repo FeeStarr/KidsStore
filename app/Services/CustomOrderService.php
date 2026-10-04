@@ -13,6 +13,7 @@ use App\Notifications\CustomOrderReceived;
 use App\Notifications\CustomOrderReviewed;
 use App\Notifications\CustomOrderInfoRequested;
 use App\Notifications\CustomOrderCancelled;
+use App\Notifications\NotificationRecipients;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
@@ -89,7 +90,7 @@ class CustomOrderService
         $order->user->notify(new CustomOrderReceived($order));
 
         // Notify admins
-        $admins = User::role(['superadmin', 'admin'])->get();
+            $admins = NotificationRecipients::adminUsers();
         Notification::send($admins, new CustomOrderReceived($order));
 
         return $order->fresh();
@@ -129,7 +130,7 @@ class CustomOrderService
         $order->user->notify(new CustomOrderCancelled($order));
 
         // Notify admins
-        $admins = User::role(['superadmin', 'admin'])->get();
+            $admins = NotificationRecipients::adminUsers();
         Notification::send($admins, new CustomOrderCancelled($order));
 
         return $order->fresh();

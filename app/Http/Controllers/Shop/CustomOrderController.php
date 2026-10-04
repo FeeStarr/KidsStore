@@ -11,6 +11,7 @@ use App\Models\PickupStation;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\CustomOrderMessageReceived;
+use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomPaymentService;
@@ -240,7 +241,7 @@ class CustomOrderController extends Controller
         ]);
 
         // Notify admins
-        $admins = User::role(['superadmin', 'admin'])->get();
+        $admins = NotificationRecipients::adminUsers();
         Notification::send($admins, new CustomOrderMessageReceived($customOrder, $message));
 
         return back()->with('success', 'Your feedback has been sent. We will revise the quote.');

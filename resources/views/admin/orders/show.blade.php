@@ -357,7 +357,7 @@
                         </div>
                     @endif
                     <div>
-                        {{ $it->product->name }}
+                        {{ $it->product?->name ?? 'Custom Frock' }}
                         @if($it->variant && $it->variant->options_label)
                             <small class="text-muted d-block">{{ $it->variant->options_label }}</small>
                         @endif

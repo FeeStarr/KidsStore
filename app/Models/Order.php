@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
@@ -34,7 +35,21 @@ class Order extends Model
     public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
     public const DELIVERY_STATUS_DELIVERED        = 'delivered';
     public const DELIVERY_STATUS_FAILED           = 'failed';
-    public const DELIVERY_STATUS_CANCELLED        = 'cancelled';
+    public const DELIVERY_STATUS_CANCELLED = 'cancelled';
+
+    /**
+     * Unique order reference, e.g. ORD-20261004-A1B2C3.
+     * Time + strong random avoids the max(id)+1 race that caused
+     * Paystack duplicate transaction references under concurrent checkout.
+     */
+    public static function generateReference(): string
+    {
+        do {
+            $ref = 'ORD-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+        } while (static::where('reference', $ref)->exists());
+
+        return $ref;
+    }
 
     protected $fillable = [
         'reference', 'customer_id', 'lookup_token', 'custom_order_id', 'order_date', 'status', 'delivery_method', 'payment_method', 'payment_status',
