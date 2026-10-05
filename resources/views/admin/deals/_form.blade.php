@@ -4,6 +4,9 @@
     $selectedIds = $isEdit
         ? $deal->products->pluck('id')->map(fn ($id) => (string) $id)->all()
         : array_map('strval', old('product_ids', []));
+    $selectedVariantIds = $isEdit
+        ? $deal->variants->pluck('id')->map(fn ($id) => (string) $id)->all()
+        : array_map('strval', old('variant_ids', []));
     $discountType = old('discount_type', $deal->discount_type ?? 'percentage');
     $discountValue = old('discount_value', $deal->discount_value ?? '');
     $startsAt = old('starts_at', $deal->starts_at ?? '');
@@ -114,34 +117,46 @@
     </div>
 
     <div class="card mb-3">
-        <div class="card-header">Products <span class="text-muted small">(required - the deal applies to all selected products)</span></div>
+        <div class="card-header">Target Products & Variants <span class="text-muted small">(required - select at least one product or variant)</span></div>
         <div class="card-body">
+            @error('product_ids')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+            @error('variant_ids')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
             <div class="mb-3">
                 <input type="search" id="dealProductSearch" class="form-control" placeholder="Search products...">
             </div>
             <div class="row g-2" id="dealProductList" style="max-height:420px;overflow-y:auto">
                 @foreach($products as $p)
                     <div class="col-md-4 deal-product-item" data-name="{{ strtolower($p->name) }}">
-                        <div class="form-check border rounded px-3 py-2 h-100">
-                            <input class="form-check-input deal-product-check" type="checkbox" name="product_ids[]"
-                                   value="{{ $p->id }}" id="dp-{{ $p->id }}"
-                                   @checked(in_array((string) $p->id, $selectedIds, true))>
-                            <label class="form-check-label w-100 d-flex align-items-center gap-2" for="dp-{{ $p->id }}">
-                                @include('admin.partials.product-thumb', ['product' => $p])
-                                <span class="flex-grow-1">
-                                    {{ $p->name }}
-                                    <small class="text-muted d-block">
-                                    ₦{{ number_format((float) ($p->defaultVariant?->selling_price ?? $p->selling_price), 2) }}
-                                    </small>
-                                </span>
-                            </label>
+                        <div class="border rounded px-3 py-2 h-100">
+                            <div class="form-check">
+                                <input class="form-check-input deal-product-check" type="checkbox" name="product_ids[]"
+                                       value="{{ $p->id }}" id="dp-{{ $p->id }}"
+                                       @checked(in_array((string) $p->id, $selectedIds, true))
+                                       data-product="{{ $p->id }}">
+                                <label class="form-check-label w-100 d-flex align-items-center gap-2" for="dp-{{ $p->id }}">
+                                    @include('admin.partials.product-thumb', ['product' => $p])
+                                    <span class="flex-grow-1">
+                                        {{ $p->name }}
+                                        <small class="text-muted d-block">₦{{ number_format((float) ($p->defaultVariant?->selling_price ?? $p->selling_price), 2) }}</small>
+                                    </span>
+                                </label>
+                            </div>
+                            @foreach($p->variants as $v)
+                                <div class="form-check ms-3 mt-1">
+                                    <input class="form-check-input deal-variant-check" type="checkbox" name="variant_ids[]"
+                                           value="{{ $v->id }}" id="dv-{{ $v->id }}"
+                                           @checked(in_array((string) $v->id, $selectedVariantIds, true))
+                                           data-variant="{{ $v->id }}" data-product="{{ $p->id }}">
+                                    <label class="form-check-label text-muted small" for="dv-{{ $v->id }}">
+                                        {{ $v->name ?: 'Default variant' }} - ₦{{ number_format((float) $v->selling_price, 2) }}
+                                    </label>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 @endforeach
             </div>
-            @error('product_ids')
-                <div class="text-danger small mt-2">{{ $message }}</div>
-            @enderror
+            <small class="text-muted d-block mt-2">Tip: a checked product applies the deal to all its variants. Check individual variants to scope more narrowly.</small>
         </div>
     </div>
 </form>

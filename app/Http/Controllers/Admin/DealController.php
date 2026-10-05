@@ -42,7 +42,7 @@ class DealController extends Controller
         $data = $this->normalize($request);
 
         try {
-            $deal = $this->deals->create($data, $request->input('product_ids', []));
+            $deal = $this->deals->create($data, $request->input('product_ids', []), $request->input('variant_ids', []));
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
@@ -60,7 +60,7 @@ class DealController extends Controller
     public function edit(Deal $deal)
     {
         $products = $this->dealProductList($deal);
-        $deal->load('products');
+        $deal->load('products', 'variants');
 
         return view('admin.deals.edit', compact('deal', 'products'));
     }
@@ -70,7 +70,7 @@ class DealController extends Controller
         $data = $this->normalize($request, $deal);
 
         try {
-            $this->deals->update($deal, $data, $request->input('product_ids', []));
+            $this->deals->update($deal, $data, $request->input('product_ids', []), $request->input('variant_ids', []));
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
@@ -101,7 +101,7 @@ class DealController extends Controller
 
     private function dealProductList(?Deal $deal = null)
     {
-        return Product::with('primaryImage', 'defaultVariant')
+        return Product::with('primaryImage', 'defaultVariant', 'variants')
             ->where(function ($eligible) {
                 $eligible->whereHas('orderItems')
                     ->where('stock_quantity', '>', 0)
@@ -113,7 +113,10 @@ class DealController extends Controller
                     });
             })
             ->when($deal !== null, function ($query) use ($deal) {
-                $query->orWhereIn('id', $deal->products()->pluck('products.id'));
+                $attachedProductIds = $deal->products()->pluck('products.id');
+                $attachedVariantProductIds = $deal->variants()->pluck('product_variants.product_id');
+
+                $query->orWhereIn('id', $attachedProductIds->merge($attachedVariantProductIds)->unique()->all());
             })
             ->orderBy('name')
             ->get();
@@ -122,7 +125,7 @@ class DealController extends Controller
     private function normalize(DealRequest $request, ?Deal $deal = null): array
     {
         $data = $request->validated();
-        unset($data['product_ids']);
+        unset($data['product_ids'], $data['variant_ids']);
 
         $data['slug'] = $data['slug'] ?? Str::slug($request->input('title')).'-'.Str::lower(Str::random(4));
 

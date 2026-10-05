@@ -30,8 +30,10 @@ class DealRequest extends FormRequest
             'max_uses'      => ['nullable', 'integer', 'min:1'],
             'banner_image'  => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
             'thumbnail_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
-            'product_ids'   => ['required', 'array', 'min:1'],
+            'product_ids'   => ['nullable', 'array'],
             'product_ids.*' => ['integer', 'exists:products,id'],
+            'variant_ids'   => ['nullable', 'array'],
+            'variant_ids.*' => ['integer', 'exists:product_variants,id'],
         ];
     }
 
@@ -43,6 +45,13 @@ class DealRequest extends FormRequest
         $validator->after(function ($validator) {
             if ($validator->errors()->isNotEmpty()) {
                 return;
+            }
+
+            $productIds = array_filter((array) $this->input('product_ids', []));
+            $variantIds = array_filter((array) $this->input('variant_ids', []));
+
+            if ($productIds === [] && $variantIds === []) {
+                $validator->errors()->add('product_ids', 'Select at least one product or variant for the deal.');
             }
 
             $type = $this->input('discount_type');
