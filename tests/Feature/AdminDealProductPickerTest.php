@@ -68,21 +68,17 @@ class AdminDealProductPickerTest extends TestCase
         ], $overrides));
     }
 
-    public function test_deal_product_picker_only_lists_purchased_and_in_stock_products(): void
+    public function test_deal_product_picker_lists_active_in_stock_products_including_never_sold(): void
     {
-        $bought  = $this->product('Bought Widget');
-        $this->markPurchased($bought);
-
+        $this->product('Bought Widget');
         $this->product('Never Bought Widget');
-
-        $stockOut = $this->product('Stockout Widget', ['stock_quantity' => 0]);
-        $this->markPurchased($stockOut);
+        $this->product('Stockout Widget', ['stock_quantity' => 0]);
 
         $this->actingAs($this->admin(), 'admin')
             ->get(route('admin.deals.create'))
             ->assertOk()
             ->assertSee('Bought Widget')
-            ->assertDontSee('Never Bought Widget')
+            ->assertSee('Never Bought Widget')
             ->assertDontSee('Stockout Widget');
     }
 
@@ -114,8 +110,8 @@ class AdminDealProductPickerTest extends TestCase
         $eligible = $this->product('Eligible Deal Widget');
         $this->markPurchased($eligible);
 
-        $legacy = $this->product('Legacy Deal Widget');
-        $absent = $this->product('Absent Deal Widget');
+        $legacy = $this->product('Legacy Deal Widget', ['stock_quantity' => 0]);
+        $absent = $this->product('Absent Deal Widget', ['stock_quantity' => 0]);
 
         $deal = $this->deal();
         $deal->products()->attach($legacy->id);

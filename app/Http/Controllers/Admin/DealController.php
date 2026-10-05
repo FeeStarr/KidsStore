@@ -103,8 +103,7 @@ class DealController extends Controller
     {
         return Product::with('primaryImage', 'defaultVariant', 'variants')
             ->where(function ($eligible) {
-                $eligible->whereHas('orderItems')
-                    ->where('stock_quantity', '>', 0)
+                $eligible->where('stock_quantity', '>', 0)
                     ->where(function ($active) {
                         $active->where('status', 'active')
                             ->orWhere(function ($legacy) {
