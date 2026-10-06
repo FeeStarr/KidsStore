@@ -17,6 +17,10 @@ class CustomCreationResource extends JsonResource
             'is_price_from'  => (bool) $this->is_price_from,
             'description'    => $this->description,
             'category'       => $this->category,
+            'age_range'      => $this->age_range,
+            'product_id'     => $this->product_id,
+            'availability'   => $this->availability,
+            'is_available'   => $this->is_available,
         ];
     }
 }

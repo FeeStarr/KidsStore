@@ -18,6 +18,8 @@ class CustomCreation extends Model
         'is_price_from',
         'description',
         'category',
+        'age_range',
+        'product_id',
         'is_active',
         'sort_order',
     ];
@@ -30,6 +32,13 @@ class CustomCreation extends Model
     ];
 
     const CATEGORIES = [];
+
+    // ── Relations ───────────────────────────────────────────────
+
+    public function product(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     // ── Scopes ──────────────────────────────────────────────────
 
@@ -47,6 +56,35 @@ class CustomCreation extends Model
         }
 
         return Storage::disk('public')->url($this->image_path);
+    }
+
+    /**
+     * Derived purchase state — never stored:
+     *  - available:    linked product visible on the shop and in stock
+     *  - out_of_stock: linked product visible on the shop but sold out
+     *  - request_only: no linked product (or product no longer visible)
+     */
+    public function getAvailabilityAttribute(): string
+    {
+        $product = $this->product;
+
+        if (!$product || !$this->productIsVisible($product)) {
+            return 'request_only';
+        }
+
+        return (int) $product->stock_quantity > 0 ? 'available' : 'out_of_stock';
+    }
+
+    public function getIsAvailableAttribute(): bool
+    {
+        return $this->availability === 'available';
+    }
+
+    private function productIsVisible(Product $product): bool
+    {
+        return $product->status
+            ? $product->status === 'active'
+            : (bool) $product->is_active;
     }
 
     // ── Methods ─────────────────────────────────────────────────

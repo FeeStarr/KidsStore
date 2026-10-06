@@ -30,6 +30,7 @@
                             <th>Title</th>
                             <th>Price</th>
                             <th>Category</th>
+                            <th>Age Range</th>
                             <th>Status</th>
                             <th></th>
                         </tr>
@@ -62,6 +63,13 @@
                                 <td>
                                     @if ($creation->category && isset(\App\Models\CustomCreation::CATEGORIES[$creation->category]))
                                         <span class="badge bg-light text-dark">{{ \App\Models\CustomCreation::CATEGORIES[$creation->category] }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($creation->age_range)
+                                        {{ $creation->age_range }}
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif

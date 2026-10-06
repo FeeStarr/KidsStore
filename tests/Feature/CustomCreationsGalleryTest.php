@@ -153,13 +153,14 @@ class CustomCreationsGalleryTest extends TestCase
             ->assertDontSee('badge bg-primary mb-3');
     }
 
-    public function test_detail_page_shows_start_custom_order_cta(): void
+    public function test_detail_page_shows_request_creation_cta_when_unlinked(): void
     {
         $creation = $this->createCreation();
 
         $this->get(route('shop.custom-creations.show', $creation->id))
             ->assertOk()
-            ->assertSee('Start Custom Order');
+            ->assertSee('Can Be Created on Request')
+            ->assertSee('Request This Creation');
     }
 
     // ── Admin CRUD ───────────────────────────────────────────────

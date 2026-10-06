@@ -11,6 +11,7 @@ class CustomCreationController extends Controller
     public function index(Request $request)
     {
         $query = CustomCreation::active()
+            ->with('product')
             ->select([
                 'id',
                 'title',
@@ -19,6 +20,8 @@ class CustomCreationController extends Controller
                 'is_price_from',
                 'description',
                 'category',
+                'age_range',
+                'product_id',
             ]);
 
         $category = $request->input('category');
@@ -42,6 +45,7 @@ class CustomCreationController extends Controller
     public function show(int $id)
     {
         $creation = CustomCreation::active()
+            ->with('product')
             ->where('id', $id)
             ->select([
                 'id',
@@ -51,6 +55,8 @@ class CustomCreationController extends Controller
                 'is_price_from',
                 'description',
                 'category',
+                'age_range',
+                'product_id',
             ])
             ->firstOrFail();
 

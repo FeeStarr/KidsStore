@@ -55,6 +55,26 @@
 
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
+                            <label class="form-label fw-bold">Age Range</label>
+                            <input type="text" name="age_range" class="form-control @error('age_range') is-invalid @enderror" value="{{ old('age_range') }}" maxlength="50" placeholder="e.g. 3-5 years">
+                            <small class="text-muted">Shown on the Custom Creations gallery.</small>
+                            @error('age_range') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Linked Product</label>
+                            <select name="product_id" class="form-select @error('product_id') is-invalid @enderror">
+                                <option value="">None (created on request)</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}" {{ (string) old('product_id') === (string) $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Optional. When the product is in stock, customers see "View &amp; Order".</small>
+                            @error('product_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
                             <div class="form-check mt-2">
                                 <input class="form-check-input" type="checkbox" name="is_price_from" value="1" id="isPriceFrom" {{ old('is_price_from') ? 'checked' : '' }}>
                                 <label class="form-check-label" for="isPriceFrom">Display as "From &#8358;X,XXX"</label>

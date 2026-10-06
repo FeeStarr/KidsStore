@@ -15,7 +15,7 @@ class CustomCreationController extends BaseController
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = CustomCreation::active()->orderByDesc('sort_order');
+        $query = CustomCreation::active()->with('product')->orderByDesc('sort_order');
 
         if ($category = $request->input('category')) {
             $query->where('category', $category);

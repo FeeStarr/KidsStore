@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomCreation;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,6 +23,7 @@ class CustomCreationController extends Controller
     {
         return view('admin.custom-creations.create', [
             'categories' => CustomCreation::CATEGORIES,
+            'products' => $this->productOptions(),
         ]);
     }
 
@@ -34,6 +36,8 @@ class CustomCreationController extends Controller
             'is_price_from' => 'boolean',
             'description' => 'nullable|string|max:1000',
             'category' => 'nullable|string|in:' . implode(',', array_keys(CustomCreation::CATEGORIES)),
+            'age_range' => 'nullable|string|max:50',
+            'product_id' => 'nullable|integer|exists:products,id',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer|min:0',
         ]);
@@ -55,6 +59,7 @@ class CustomCreationController extends Controller
         return view('admin.custom-creations.edit', [
             'creation' => $customCreation,
             'categories' => CustomCreation::CATEGORIES,
+            'products' => $this->productOptions($customCreation),
         ]);
     }
 
@@ -67,6 +72,8 @@ class CustomCreationController extends Controller
             'is_price_from' => 'boolean',
             'description' => 'nullable|string|max:1000',
             'category' => 'nullable|string|in:' . implode(',', array_keys(CustomCreation::CATEGORIES)),
+            'age_range' => 'nullable|string|max:50',
+            'product_id' => 'nullable|integer|exists:products,id',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer|min:0',
         ]);
@@ -100,11 +107,28 @@ class CustomCreationController extends Controller
     }
 
     public function toggleActive(CustomCreation $customCreation)
-    {
+        {
         $customCreation->update(['is_active' => !$customCreation->is_active]);
 
         $status = $customCreation->is_active ? 'activated' : 'deactivated';
 
         return back()->with('success', "Custom creation {$status}.");
+    }
+
+    /**
+     * Products offered in the "Linked Product" dropdown: everything visible
+     * on the shop, plus the currently linked product even if it went inactive.
+     */
+    private function productOptions(?CustomCreation $creation = null): \Illuminate\Database\Eloquent\Collection
+    {
+        return Product::where(function ($query) {
+            $query->where('status', 'active')
+                ->orWhere(function ($legacy) {
+                    $legacy->whereNull('status')->where('is_active', true);
+                });
+        })
+            ->when($creation?->product_id, fn ($query, $id) => $query->orWhere('id', $id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 }
