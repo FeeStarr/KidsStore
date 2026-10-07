@@ -37,10 +37,11 @@ class CheckExpiredPickups extends Command
 
         foreach ($expiredOrders as $order) {
             $daysElapsed = $order->ready_for_pickup_at->diffInDays(now());
+            $stationName = $order->pickupStation?->name ?? 'N/A';
 
             $orders->markPickupWindowExpired($order);
 
-            $this->line("  <info>{$order->reference}</info> - {$order->pickupStation?->name ?? 'N/A'} - {$daysElapsed} days elapsed");
+            $this->line("  <info>{$order->reference}</info> - {$stationName} - {$daysElapsed} days elapsed");
         }
 
         $this->newLine();
