@@ -9,9 +9,12 @@ use App\Services\CartService;
 use App\Services\Contracts\InventoryServiceInterface;
 use App\Services\ImageOptimizationService;
 use App\Services\InventoryService;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        RateLimiter::for('api-auth', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
 
         // Log all authentication events (login, logout, failed, lockout)
         \Illuminate\Support\Facades\Event::listen(

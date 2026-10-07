@@ -26,9 +26,9 @@
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="localhost"/>
         <env name="DB_PORT" value="3306"/>
+        <!-- DB_DATABASE is pinned so tests can never touch the dev database.
+             Credentials come from the untracked .env - never commit them here. -->
         <env name="DB_DATABASE" value="kidsstore_test"/>
-        <env name="DB_USERNAME" value="kidsflairr"/>
-        <env name="DB_PASSWORD" value="REDACTED_DB_PASSWORD_REMOVED"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

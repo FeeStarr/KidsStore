@@ -17,8 +17,10 @@ Route::prefix('v1')->group(function () {
     // ── Public (unauthenticated) routes ───────────────────────────────────
 
     // Auth
-    Route::post('/auth/register', [\App\Http\Controllers\Api\V1\AuthController::class, 'register']);
-    Route::post('/auth/login', [\App\Http\Controllers\Api\V1\AuthController::class, 'login']);
+    Route::post('/auth/register', [\App\Http\Controllers\Api\V1\AuthController::class, 'register'])
+        ->middleware('throttle:api-auth');
+    Route::post('/auth/login', [\App\Http\Controllers\Api\V1\AuthController::class, 'login'])
+        ->middleware('throttle:api-auth');
 
     // Products
     Route::get('/products', [\App\Http\Controllers\Api\V1\ProductController::class, 'index']);

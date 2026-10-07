@@ -170,7 +170,7 @@ class Order extends Model
         return $this->hasMany(RefundRequest::class)->latest();
     }
 
-    /** The most recent pending or successful OPay transaction */
+    /** The most recent pending or successful payment transaction */
     public function activeTransaction(): ?PaymentTransaction
     {
         return $this->paymentTransactions()
