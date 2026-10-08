@@ -81,7 +81,13 @@
     <i class="bi bi-bag-check"></i> Orders &amp; Fulfillment <i class="bi bi-chevron-down chevron"></i>
 </a>
 <div class="collapse {{ $ordersActive ? 'show' : '' }}" id="menu-orders">
-    <a href="{{ route('admin.orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.orders') ? 'active':'' }}"><i class="bi bi-bag-check"></i> Orders</a>
+    <a href="{{ route('admin.orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.orders') ? 'active':'' }}">
+        <i class="bi bi-bag-check"></i> Orders
+        @php($newOrders = \App\Models\Order::whereIn('status', ['pending payment', 'pending confirmation', 'ordered'])->count())
+        @if($newOrders > 0)
+            <span class="badge bg-danger ms-1">{{ $newOrders }}</span>
+        @endif
+    </a>
     <a href="{{ route('admin.refunds.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.refunds') ? 'active':'' }}">
         <i class="bi bi-arrow-counterclockwise"></i> Refunds
         @php($pendingRefunds = \App\Models\RefundRequest::whereIn('status', ['requested', 'pending_review', 'awaiting_evidence'])->count())
@@ -103,7 +109,13 @@
     <i class="bi bi-stars"></i> Custom Orders <i class="bi bi-chevron-down chevron"></i>
 </a>
 <div class="collapse {{ $customActive ? 'show' : '' }}" id="menu-custom">
-    <a href="{{ route('admin.custom-orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.custom-orders') ? 'active':'' }}"><i class="bi bi-list-ul"></i> All Requests</a>
+    <a href="{{ route('admin.custom-orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.custom-orders') ? 'active':'' }}">
+        <i class="bi bi-list-ul"></i> All Requests
+        @php($newRequests = \App\Models\CustomOrder::whereIn('status', ['submitted', 'under_review'])->count())
+        @if($newRequests > 0)
+            <span class="badge bg-danger ms-1">{{ $newRequests }}</span>
+        @endif
+    </a>
 </div>
 
 <a href="{{ route('admin.custom-creations.index') }}" class="{{ str_starts_with($r ?? '', 'admin.custom-creations') ? 'active' : '' }}">
