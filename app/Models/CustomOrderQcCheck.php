@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CustomOrderQcCheck extends Model
 {
     protected $fillable = [
-        'custom_order_id', 'check_item', 'passed', 'notes', 'checked_by', 'checked_at',
+        'custom_order_id', 'check_item', 'passed', 'notes', 'checked_by', 'checked_at', 'photo_path',
     ];
 
     protected $casts = [

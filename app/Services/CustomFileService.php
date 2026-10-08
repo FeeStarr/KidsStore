@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomOrder;
 use App\Models\CustomOrderFile;
+use App\Models\CustomOrderQcCheck;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
@@ -98,6 +99,59 @@ class CustomFileService
     public function getMaxFileSizeMb(): int
     {
         return (int) \App\Models\Setting::get('custom_order_max_file_size_mb', 10);
+    }
+
+    public function storeQcPhoto(CustomOrder $order, CustomOrderQcCheck $check, UploadedFile $file): string
+    {
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            throw new \InvalidArgumentException('File type not allowed.');
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $realMime = $finfo->file($file->getRealPath());
+        if (! in_array($realMime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            throw new \InvalidArgumentException('File content does not match allowed types.');
+        }
+
+        if ($check->photo_path) {
+            Storage::disk('custom_orders')->delete($check->photo_path);
+        }
+
+        $filename = 'qc-' . $check->id . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
+
+        $path = $file->storeAs(
+            "custom-orders/{$order->id}/qc",
+            $filename,
+            'custom_orders'
+        );
+
+        if ($path === false) {
+            throw new \RuntimeException('Failed to store QC photo.');
+        }
+
+        return $path;
+    }
+
+    public function serveQcPhoto(CustomOrder $order, CustomOrderQcCheck $check): ?Response
+    {
+        if (! $check->photo_path) {
+            return null;
+        }
+
+        $fullPath = Storage::disk('custom_orders')->path($check->photo_path);
+
+        $basePath = realpath(Storage::disk('custom_orders')->path(''));
+        if ($basePath === false || strpos(realpath($fullPath) ?: '', $basePath) !== 0) {
+            abort(403, 'Invalid file path.');
+        }
+
+        if (! file_exists($fullPath)) {
+            return null;
+        }
+
+        return response()->file($fullPath);
     }
 
     public function getMaxFiles(): int

@@ -78,6 +78,12 @@
             </form>
         @endif
 
+        @if ($customOrder->status === 'rework_required')
+            <form method="POST" action="{{ route('admin.custom-orders.resume-production', $customOrder) }}">@csrf
+                <button class="btn btn-warning"><i class="bi bi-arrow-repeat me-1"></i> Resume Production</button>
+            </form>
+        @endif
+
         @if ($customOrder->status === 'ready_for_delivery' && $customOrder->delivery_method === 'delivery')
             <form method="POST" action="{{ route('admin.custom-orders.mark-shipped', $customOrder) }}">@csrf
                 <button class="btn btn-success"><i class="bi bi-truck me-1"></i> Mark Shipped</button>
@@ -229,16 +235,29 @@
                 <div class="card-header"><h6 class="mb-0">QC Checklist</h6></div>
                 <div class="card-body">
                     @foreach ($customOrder->qcChecks as $check)
-                        <div class="d-flex align-items-center mb-2">
-                            <form method="POST" action="{{ route('admin.custom-orders.qc-check.update', [$customOrder, $check]) }}" class="d-flex align-items-center gap-2 flex-fill">
+                        <div class="mb-2">
+                            <div class="d-flex align-items-center">
+                                <form method="POST" action="{{ route('admin.custom-orders.qc-check.update', [$customOrder, $check]) }}" class="d-flex align-items-center gap-2 flex-fill">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="passed" value="{{ $check->passed ? '0' : '1' }}">
+                                    <button type="submit" class="btn btn-sm {{ $check->passed ? 'btn-success' : ($check->passed === false ? 'btn-danger' : 'btn-outline-secondary') }} rounded-circle" style="width:24px;height:24px;">
+                                        @if ($check->passed === true) <i class="bi bi-check"></i> @elseif ($check->passed === false) <i class="bi bi-x"></i> @endif
+                                    </button>
+                                    <span class="{{ $check->passed ? 'text-decoration-line-through text-muted' : '' }}">{{ $check->check_item }}</span>
+                                    @if ($check->checked_at)
+                                        <small class="text-muted ms-auto">{{ $check->checked_at->diffForHumans() }}</small>
+                                    @endif
+                                </form>
+                            </div>
+                            <form method="POST" action="{{ route('admin.custom-orders.qc-check.evidence', [$customOrder, $check]) }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 mt-1 ms-4">
                                 @csrf @method('PATCH')
-                                <input type="hidden" name="passed" value="{{ $check->passed ? '0' : '1' }}">
-                                <button type="submit" class="btn btn-sm {{ $check->passed ? 'btn-success' : ($check->passed === false ? 'btn-danger' : 'btn-outline-secondary') }} rounded-circle" style="width:24px;height:24px;">
-                                    @if ($check->passed === true) <i class="bi bi-check"></i> @elseif ($check->passed === false) <i class="bi bi-x"></i> @endif
-                                </button>
-                                <span class="{{ $check->passed ? 'text-decoration-line-through text-muted' : '' }}">{{ $check->check_item }}</span>
-                                @if ($check->checked_at)
-                                    <small class="text-muted ms-auto">{{ $check->checked_at->diffForHumans() }}</small>
+                                <input type="text" name="notes" value="{{ old('notes', $check->notes) }}" class="form-control form-control-sm" style="max-width:260px;" placeholder="Inspection notes" maxlength="500">
+                                <input type="file" name="photo" accept="image/*" class="form-control form-control-sm" style="max-width:200px;">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                @if ($check->photo_path)
+                                    <a href="{{ route('admin.custom-orders.qc-check.photo', [$customOrder, $check]) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-image me-1"></i>Photo
+                                    </a>
                                 @endif
                             </form>
                         </div>

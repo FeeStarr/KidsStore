@@ -163,6 +163,12 @@ class CustomOrderController extends Controller
         return back()->with('success', 'Submitted for quality check.');
     }
 
+    public function resumeProduction(CustomOrder $customOrder)
+    {
+        $this->customOrderService->resumeProduction($customOrder, Auth::id());
+        return back()->with('success', 'Production resumed.');
+    }
+
     public function qualityCheck(CustomOrder $customOrder, Request $request)
     {
         $data = $request->validate([
@@ -195,6 +201,38 @@ class CustomOrderController extends Controller
         ]);
 
         return back()->with('success', 'QC check updated.');
+    }
+
+    public function attachEvidence(CustomOrder $customOrder, CustomOrderQcCheck $check, Request $request)
+    {
+        abort_unless($check->custom_order_id === $customOrder->id, 404);
+
+        $data = $request->validate([
+            'notes' => 'nullable|string|max:500|required_without:photo',
+            'photo' => 'nullable|image|max:5120|required_without:notes',
+        ]);
+
+        if ($request->has('notes')) {
+            $check->notes = trim($data['notes'] ?? '') !== '' ? $data['notes'] : null;
+        }
+
+        if ($request->hasFile('photo')) {
+            $check->photo_path = $this->fileService->storeQcPhoto($customOrder, $check, $request->file('photo'));
+        }
+
+        $check->save();
+
+        return back()->with('success', 'QC evidence saved.');
+    }
+
+    public function serveQcPhoto(CustomOrder $customOrder, CustomOrderQcCheck $check)
+    {
+        abort_unless($check->custom_order_id === $customOrder->id, 404);
+
+        $response = $this->fileService->serveQcPhoto($customOrder, $check);
+        if (! $response) abort(404);
+
+        return $response;
     }
 
     public function markReady(CustomOrder $customOrder)

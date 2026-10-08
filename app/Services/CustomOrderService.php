@@ -222,6 +222,12 @@ class CustomOrderService
         return $order->fresh();
     }
 
+    public function resumeProduction(CustomOrder $order, ?int $userId = null): CustomOrder
+    {
+        $this->transitionTo($order, CustomOrder::STATUS_IN_PRODUCTION, $userId);
+        return $order->fresh();
+    }
+
     public function markReadyForPickup(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_READY_FOR_PICKUP, $userId);
