@@ -25,7 +25,7 @@
                     'quote_expired' => 'warning',
                     default => 'secondary',
                 } }} fs-6 px-3 py-2">
-                    {{ $customOrder->status_label }}
+                    {{ $customOrder->customer_status_label }}
                 </span>
             </div>
 
@@ -241,7 +241,7 @@
                                 @if (!$loop->last)<div class="border-start ms-1" style="height:20px;"></div>@endif
                             </div>
                             <div>
-                                <div class="fw-bold small">{{ \App\Models\CustomOrder::STATUS_LABELS[$history->new_status] ?? ucwords(str_replace('_', ' ', $history->new_status)) }}</div>
+                                <div class="fw-bold small">{{ \App\Models\CustomOrder::CUSTOMER_STATUS_LABELS[$history->new_status] ?? ucwords(str_replace('_', ' ', $history->new_status)) }}</div>
                                 <small class="text-muted">{{ $history->created_at->diffForHumans() }}</small>
                                 @if ($history->reason)
                                     <div class="small text-muted">{{ $history->reason }}</div>

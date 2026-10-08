@@ -65,7 +65,7 @@
                                 'quote_expired' => 'warning',
                                 default => 'secondary',
                             } }} position-absolute top-0 end-0 m-2">
-                                {{ $order->status_label }}
+                                {{ $order->customer_status_label }}
                             </span>
                         </div>
                         <div class="card-body">

@@ -80,6 +80,30 @@ class CustomOrder extends Model
         self::STATUS_QUOTE_EXPIRED => 'Quote Expired',
     ];
 
+    const CUSTOMER_STATUS_LABELS = [
+        self::STATUS_DRAFT => 'Draft',
+        self::STATUS_SUBMITTED => 'Submitted',
+        self::STATUS_UNDER_REVIEW => 'Under Review',
+        self::STATUS_NEEDS_INFORMATION => 'Needs Information',
+        self::STATUS_QUOTE_PENDING => 'Quote Pending',
+        self::STATUS_QUOTED => 'Quoted',
+        self::STATUS_NEEDS_REVISION => 'Needs Revision',
+        self::STATUS_CUSTOMER_APPROVED => 'Customer Approved',
+        self::STATUS_PAYMENT_PENDING => 'Payment Pending',
+        self::STATUS_PAID => 'Paid',
+        self::STATUS_PRODUCTION_PENDING => 'Production Pending',
+        self::STATUS_IN_PRODUCTION => 'Being Made',
+        self::STATUS_QUALITY_CHECK => 'Quality Check in Progress',
+        self::STATUS_REWORK_REQUIRED => 'Being Finalized',
+        self::STATUS_READY_FOR_DELIVERY => 'Ready for Delivery',
+        self::STATUS_SHIPPED => 'Shipped',
+        self::STATUS_READY_FOR_PICKUP => 'Ready for Pickup',
+        self::STATUS_COMPLETED => 'Completed',
+        self::STATUS_CANCELLED => 'Cancelled',
+        self::STATUS_REJECTED => 'Rejected',
+        self::STATUS_QUOTE_EXPIRED => 'Quote Expired',
+    ];
+
     const CATEGORIES = [
         'birthday' => 'Birthday Dresses',
         'princess' => 'Princess Dresses',
@@ -202,6 +226,11 @@ class CustomOrder extends Model
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
+    }
+
+    public function getCustomerStatusLabelAttribute(): string
+    {
+        return self::CUSTOMER_STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
     }
 
     // ── Methods ────────────────────────────────────────────────────
