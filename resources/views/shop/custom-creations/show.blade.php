@@ -33,14 +33,16 @@
             @endif
 
             @php $state = $creation->availability; @endphp
-            <span class="badge mb-3
-                @if ($state === 'available') bg-success
-                @elseif ($state === 'out_of_stock') bg-warning text-dark
-                @else bg-info text-dark @endif">
-                @if ($state === 'available') Available to Order
-                @elseif ($state === 'out_of_stock') Currently Out of Stock
-                @else Can Be Created on Request @endif
-            </span>
+            @if ($state !== 'request_only')
+                <span class="badge mb-3
+                    @if ($state === 'available') bg-success
+                    @elseif ($state === 'out_of_stock') bg-warning text-dark
+                    @else bg-info text-dark @endif">
+                    @if ($state === 'available') Available to Order
+                    @elseif ($state === 'out_of_stock') Currently Out of Stock
+                    @else Can Be Created on Request @endif
+                </span>
+            @endif
 
             @if ($creation->price)
                 <p class="fs-4 fw-bold" style="color:var(--kid-pink);">@if ($creation->is_price_from)From @endif&#8358;{{ number_format($creation->price, 2) }}</p>

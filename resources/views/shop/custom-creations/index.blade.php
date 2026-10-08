@@ -56,14 +56,16 @@
                             @if ($creation->price)
                                 <p class="fw-bold mb-1" style="color:var(--kid-pink);">@if ($creation->is_price_from)From @endif&#8358;{{ number_format($creation->price, 2) }}</p>
                             @endif
-                            <span class="badge align-self-start mb-2
-                                @if ($state === 'available') bg-success
-                                @elseif ($state === 'out_of_stock') bg-warning text-dark
-                                @else bg-info text-dark @endif">
-                                @if ($state === 'available') Available to Order
-                                @elseif ($state === 'out_of_stock') Currently Out of Stock
-                                @else Can Be Created on Request @endif
-                            </span>
+                            @if ($state !== 'request_only')
+                                <span class="badge align-self-start mb-2
+                                    @if ($state === 'available') bg-success
+                                    @elseif ($state === 'out_of_stock') bg-warning text-dark
+                                    @else bg-info text-dark @endif">
+                                    @if ($state === 'available') Available to Order
+                                    @elseif ($state === 'out_of_stock') Currently Out of Stock
+                                    @else Can Be Created on Request @endif
+                                </span>
+                            @endif
                             <div class="d-flex flex-column gap-2 mt-auto">
                                 @if ($state === 'available')
                                     <a href="{{ route('shop.products.show', $creation->product_id) }}" class="btn btn-primary btn-sm w-100">View &amp; Order</a>

@@ -50,7 +50,7 @@ class CustomCreationAvailabilityTest extends TestCase
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
             ->assertSee('Ages 3-5 years')
-            ->assertSee('Can Be Created on Request')
+            ->assertDontSee('Can Be Created on Request')
             ->assertSee('Request This Creation')
             ->assertDontSee('Available to Order')
             ->assertDontSee('Currently Out of Stock')
@@ -92,7 +92,7 @@ class CustomCreationAvailabilityTest extends TestCase
 
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
-            ->assertSee('Can Be Created on Request')
+            ->assertDontSee('Can Be Created on Request')
             ->assertSee('Request This Creation')
             ->assertDontSee('View & Order')
             ->assertDontSee(route('shop.products.show', $product->id), false);
@@ -126,13 +126,13 @@ class CustomCreationAvailabilityTest extends TestCase
             ->assertDontSee('View & Order');
     }
 
-    public function test_detail_request_only_shows_can_be_created_badge(): void
+    public function test_detail_request_only_hides_badge_but_keeps_cta(): void
     {
         $this->creation();
 
         $this->get(route('shop.custom-creations.show', CustomCreation::first()->id))
             ->assertOk()
-            ->assertSee('Can Be Created on Request')
+            ->assertDontSee('Can Be Created on Request')
             ->assertSee('Request This Creation');
     }
 
@@ -152,7 +152,7 @@ class CustomCreationAvailabilityTest extends TestCase
 
         $this->get(route('shop.custom-creations.index'))
             ->assertOk()
-            ->assertSee('Can Be Created on Request')
+            ->assertDontSee('Can Be Created on Request')
             ->assertDontSee('View & Order');
     }
 

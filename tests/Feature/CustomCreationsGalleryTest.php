@@ -159,7 +159,7 @@ class CustomCreationsGalleryTest extends TestCase
 
         $this->get(route('shop.custom-creations.show', $creation->id))
             ->assertOk()
-            ->assertSee('Can Be Created on Request')
+            ->assertDontSee('Can Be Created on Request')
             ->assertSee('Request This Creation');
     }
 
