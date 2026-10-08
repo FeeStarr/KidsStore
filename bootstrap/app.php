@@ -52,6 +52,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->redirectGuestsTo(fn () => route('shop.login'));
 
+        $middleware->redirectUsersTo(fn ($request) => match (true) {
+            $request->is('delivery-portal*') => route('delivery-portal.dashboard'),
+            $request->is('admin/login*')     => route('admin.dashboard'),
+            default                          => '/',
+        });
+
         // Paystack webhook is an unauthenticated server-to-server POST - exempt from CSRF
         $middleware->validateCsrfTokens(except: [
             'paystack/webhook',
