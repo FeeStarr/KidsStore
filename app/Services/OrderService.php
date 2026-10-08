@@ -500,7 +500,7 @@ class OrderService
         $lines = $this->orderLines($order);
 
         try {
-            $this->coupons->validate($coupon, $lines, (int) $order->customer_id);
+            $this->coupons->validate($coupon, $lines, $order->customer_id !== null ? (int) $order->customer_id : null);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw new RuntimeException('This coupon is no longer valid. Please remove it and try again.');
         }
@@ -522,7 +522,7 @@ class OrderService
         }
 
         // Only count usage on an order that is already confirmed at placement.
-        if ($order->status !== 'pending payment' && (int) $order->customer_id > 0) {
+        if ($order->status !== 'pending payment') {
             $this->recordCouponUsageIfAny($order);
         }
     }
@@ -536,7 +536,7 @@ class OrderService
     {
         $couponId = (int) $order->items()->whereNotNull('coupon_id')->value('coupon_id');
 
-        if ($couponId === 0 || (int) $order->customer_id <= 0) {
+        if ($couponId === 0) {
             return;
         }
 
@@ -552,12 +552,13 @@ class OrderService
         }
 
         try {
-            $this->coupons->recordUsage($coupon, (int) $order->customer_id, $order->id, $totalDiscount);
+            $this->coupons->recordUsage($coupon, $order->customer_id !== null ? (int) $order->customer_id : null, $order->id, $totalDiscount);
         } catch (\RuntimeException $e) {
             \Illuminate\Support\Facades\Log::warning('Coupon usage could not be recorded at order confirmation', [
                 'order'   => $order->reference,
                 'coupon'  => $coupon->code,
                 'message' => $e->getMessage(),
+                'reason'  => $e->getPrevious()?->getMessage(),
             ]);
         }
     }

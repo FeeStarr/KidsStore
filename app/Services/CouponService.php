@@ -188,13 +188,13 @@ class CouponService
     }
 
     /**
-     * Atomically record a usage for a customer/order. Throws if the global
-     * limit or the per-customer limit has been reached (race-safe).
+     * Atomically record a usage for an order. Throws if the global limit has
+     * been reached (race-safe). $customerId is null for guest orders.
      *
      * Call only on a successful/confirmed order or its payment verification -
      * NOT merely when a coupon is added to a cart or an unpaid order is made.
      */
-    public function recordUsage(Coupon $coupon, int $customerId, int $orderId, float $discountAmount): void
+    public function recordUsage(Coupon $coupon, ?int $customerId, int $orderId, float $discountAmount): void
     {
         try {
             DB::transaction(function () use ($coupon, $customerId, $orderId, $discountAmount) {
@@ -208,7 +208,19 @@ class CouponService
                     throw new RuntimeException('usage_limit');
                 }
 
-                // Per-customer guard is enforced by the DB unique(coupon_id, customer_id).
+                // Per-customer guard. Runs after the coupons-row increment above,
+                // which holds an exclusive lock on this coupon until commit, so
+                // concurrent redemptions serialize here instead of racing.
+                if ($customerId !== null) {
+                    $already = CouponUsage::where('coupon_id', $coupon->id)
+                        ->where('customer_id', $customerId)
+                        ->count();
+
+                    if ($already >= (int) $coupon->per_customer_limit) {
+                        throw new RuntimeException('per_customer_limit');
+                    }
+                }
+
                 try {
                     CouponUsage::create([
                         'coupon_id'       => $coupon->id,
@@ -218,12 +230,12 @@ class CouponService
                         'used_at'         => now(),
                     ]);
                 } catch (\Throwable $e) {
-                    // Duplicate per-customer row -> roll back the global increment.
-                    throw new RuntimeException('per_customer_limit');
+                    // Duplicate (coupon_id, order_id) row -> roll back the global increment.
+                    throw new RuntimeException('already_recorded', 0, $e);
                 }
             });
         } catch (\RuntimeException $e) {
-            throw new RuntimeException('This coupon is no longer available. Please remove it and try again.');
+            throw new RuntimeException('This coupon is no longer available. Please remove it and try again.', 0, $e);
         }
     }
 
