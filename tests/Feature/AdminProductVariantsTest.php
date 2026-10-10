@@ -139,4 +139,66 @@ class AdminProductVariantsTest extends TestCase
             'quantity' => 4,
         ]);
     }
+
+    public function test_updating_variant_stock_syncs_inventory_columns_and_product_cache(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $category = Category::factory()->create();
+        $color = Color::factory()->create(['name' => 'Green']);
+        $size = Size::factory()->create(['name' => '8']);
+        $ageRange = AgeRange::factory()->create(['name' => '7-8 years']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.products.store'), [
+                'name' => 'Green Tee',
+                'category_id' => $category->id,
+                'selling_price' => 20,
+                'variants' => [
+                    [
+                        'name' => 'Green Size 8',
+                        'sku' => 'GRN-8',
+                        'color_id' => $color->id,
+                        'size_id' => $size->id,
+                        'age_range_id' => $ageRange->id,
+                        'quantity' => 4,
+                        'images' => [UploadedFile::fake()->image('green8.jpg')],
+                    ],
+                ],
+            ])->assertRedirect();
+
+        $productId = \DB::table('products')->where('name', 'Green Tee')->value('id');
+        $variantId = \DB::table('product_variants')->where('sku', 'GRN-8')->value('id');
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.products.update', ['product' => $productId]), [
+                'name' => 'Green Tee',
+                'category_id' => $category->id,
+                'selling_price' => 20,
+                'variants' => [
+                    [
+                        'id' => $variantId,
+                        'name' => 'Green Size 8',
+                        'sku' => 'GRN-8',
+                        'color_id' => $color->id,
+                        'size_id' => $size->id,
+                        'age_range_id' => $ageRange->id,
+                        'quantity' => 9,
+                        'images' => [UploadedFile::fake()->image('green8b.jpg')],
+                    ],
+                ],
+            ])->assertRedirect();
+
+        $inventory = \DB::table('inventories')
+            ->where('product_id', $productId)
+            ->first();
+
+        $this->assertNotNull($inventory);
+        $this->assertSame(9, (int) $inventory->quantity);
+        $this->assertSame(9, (int) $inventory->quantity_on_hand);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $productId,
+            'stock_quantity' => 9,
+        ]);
+    }
 }

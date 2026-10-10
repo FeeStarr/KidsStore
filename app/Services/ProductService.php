@@ -238,7 +238,7 @@ class ProductService
             ];
 
             if ($variant->inventory) {
-                $variant->inventory()->update($inventoryData);
+                $variant->inventory->fill($inventoryData)->save();
             } else {
                 $variant->inventory()->create($inventoryData);
             }
@@ -247,6 +247,8 @@ class ProductService
                 $this->attachVariantImages($variant, $v['images']);
             }
         }
+
+        $product->refreshStock();
     }
 
     /**
