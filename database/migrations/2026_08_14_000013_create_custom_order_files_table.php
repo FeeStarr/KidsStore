@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_files', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->string('file_type', 32); // reference_image, colour_reference, production_photo, qc_photo
             $table->string('file_path');
             $table->string('original_filename')->nullable();

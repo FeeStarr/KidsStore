@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_status_history', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->string('old_status', 32)->nullable();
             $table->string('new_status', 32);
             $table->foreignId('changed_by')->nullable()->constrained('users')->nullOnDelete();

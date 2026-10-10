@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_customizations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->string('attribute', 64); // dress_style, sleeve, neckline, skirt, length, waist, fabric, embellishment
             $table->string('value', 128);
             $table->timestamps();

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('custom_orders', function (Blueprint $table) {
             $table->id();
             $table->string('custom_order_number', 32)->unique();
-            $table->foreignId('user_id')->constrained('users')->cascadeDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('item_type', 32)->default('frock');
 
             $table->string('status', 32)->default('draft');

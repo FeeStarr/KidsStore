@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_quotes', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->unsignedInteger('version')->default(1);
 
             $table->decimal('base_price', 14, 2)->default(0);

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_measurements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->string('measurement_type', 64);
             $table->decimal('measurement_value', 8, 2);
             $table->string('measurement_unit', 4); // cm or in

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('custom_order_qc_checks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeDelete();
+            $table->foreignId('custom_order_id')->constrained('custom_orders')->cascadeOnDelete();
             $table->string('check_item', 64);
             $table->boolean('passed')->nullable(); // null = not yet checked
             $table->text('notes')->nullable();
