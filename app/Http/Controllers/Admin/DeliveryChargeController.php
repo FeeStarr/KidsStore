@@ -94,6 +94,15 @@ class DeliveryChargeController extends Controller
             ->with('success', 'Delivery charge updated.');
     }
 
+    public function toggleActive(DeliveryCharge $deliveryCharge): RedirectResponse
+    {
+        $deliveryCharge->update(['is_active' => ! $deliveryCharge->is_active]);
+
+        $status = $deliveryCharge->is_active ? 'activated' : 'deactivated';
+
+        return back()->with('success', "Delivery charge {$status}.");
+    }
+
     public function destroy(DeliveryCharge $deliveryCharge): RedirectResponse
     {
         $used = Order::where('delivery_agent_id', $deliveryCharge->delivery_agent_id)

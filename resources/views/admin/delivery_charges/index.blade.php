@@ -74,6 +74,13 @@
                             @endif
                         </td>
                         <td class="text-end text-nowrap">
+                            <form action="{{ route('admin.delivery-charges.toggle-active', $charge) }}" method="post" class="d-inline">
+                                @csrf
+                                <button class="btn btn-sm {{ $charge->is_active ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                        title="{{ $charge->is_active ? 'Deactivate' : 'Activate' }}">
+                                    <i class="bi bi-{{ $charge->is_active ? 'pause-circle' : 'play-circle' }}"></i>
+                                </button>
+                            </form>
                             <a href="{{ route('admin.delivery-charges.edit', $charge) }}" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-pencil"></i>
                             </a>

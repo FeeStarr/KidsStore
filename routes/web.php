@@ -410,6 +410,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('delivery-agents', DeliveryAgentController::class)->except(['show'])->middleware('permission:manage_settings');
         Route::resource('delivery-locations', DeliveryLocationController::class)->except(['show'])->middleware('permission:manage_settings');
         Route::resource('delivery-charges', DeliveryChargeController::class)->except(['show'])->middleware('permission:manage_settings');
+        Route::post('delivery-charges/{deliveryCharge}/toggle-active', [DeliveryChargeController::class, 'toggleActive'])
+            ->name('delivery-charges.toggle-active')->middleware('permission:manage_settings');
 
         // Delivery agent approval and reassignment
         Route::post('orders/{order}/approve-delivery', [OrderController::class, 'approveDelivery'])
