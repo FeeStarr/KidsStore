@@ -266,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nextBtn.classList.toggle('d-none', isLast);
         submitBtn.classList.toggle('d-none', !isLast);
         if (isLast) buildSummary();
+        updateNextState();
     }
 
     nextBtn.addEventListener('click', function() {
@@ -297,6 +298,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return valid;
     }
+
+    function stepIsValid(step) {
+        const el = steps[step];
+        let valid = true;
+
+        el.querySelectorAll('[required]').forEach(f => {
+            if (f.offsetParent === null) return;
+            if (!f.value || (f.type === 'checkbox' && !f.checked)) {
+                valid = false;
+            }
+        });
+
+        return valid;
+    }
+
+    function updateNextState() {
+        nextBtn.disabled = !stepIsValid(currentStep);
+    }
+
+    form.addEventListener('input', updateNextState);
+    form.addEventListener('change', updateNextState);
 
     // Delivery method toggle - set initial required state
     const deliveryRadio = document.getElementById('delivery_home');
@@ -350,6 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.colour-swatch').forEach(s => s.style.borderColor = '#dee2e6');
             this.style.borderColor = '#0d6efd';
             document.getElementById('primary_colour').value = this.dataset.colour;
+            updateNextState();
         });
     });
 
