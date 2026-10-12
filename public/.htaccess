@@ -6,13 +6,20 @@
     RewriteEngine On
 
     # Force canonical host + HTTPS (prevents www/http duplicate content for SEO)
-    # Skipped for local dev hosts (localhost / 127.0.0.1)
-    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    #
+    # The host is captured WITHOUT any :port. Building the target from %{HTTP_HOST}
+    # directly would carry an explicit port across, e.g.
+    # http://site:80/about -> https://site:80/about, which redirects to itself.
+    #
+    # Skipped for local dev hosts (localhost / 127.0.0.1) on any port. The exclusion is
+    # non-capturing so it cannot overwrite the %1 captured by the condition above it.
+    RewriteCond %{HTTP_HOST} ^([^:]+)(?::[0-9]+)?$ [NC]
+    RewriteCond %{HTTP_HOST} !^(?:localhost|127\.0\.0\.1)(?::[0-9]+)?$ [NC]
     RewriteCond %{HTTPS} !=on
-    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 
-    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
-    RewriteCond %{HTTP_HOST} ^www\.(.+)$
+    # Strip a leading www., again without carrying any port into the target.
+    RewriteCond %{HTTP_HOST} ^www\.(.+?)(?::[0-9]+)?$ [NC]
     RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 
     # Handle Authorization Header
