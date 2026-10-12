@@ -37,6 +37,7 @@ class CustomOrderService
         return DB::transaction(function () use ($data, $measurements, $customizations) {
             $order = CustomOrder::create([
                 'custom_order_number' => CustomOrder::generateReference(),
+                'submission_token' => $data['submission_token'] ?? null,
                 'user_id' => $data['user_id'],
             'item_type' => $data['item_type'] ?? 'frock',
             'category' => $data['category'] ?? null,
@@ -74,6 +75,11 @@ class CustomOrderService
 
             return $order;
         });
+    }
+
+    public function findBySubmissionToken(?string $token, ?int $userId = null): ?CustomOrder
+    {
+        return CustomOrder::findBySubmissionToken($token, $userId);
     }
 
     public function submit(CustomOrder $order): CustomOrder

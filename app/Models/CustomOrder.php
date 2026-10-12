@@ -112,7 +112,7 @@ class CustomOrder extends Model
     ];
 
     protected $fillable = [
-        'custom_order_number', 'user_id', 'item_type', 'category', 'status', 'payment_status',
+        'custom_order_number', 'submission_token', 'user_id', 'item_type', 'category', 'status', 'payment_status',
         'base_product_id', 'child_name', 'child_age', 'child_gender',
         'delivery_method', 'pickup_station_id', 'delivery_location_id', 'delivery_address',
         'customer_notes', 'admin_notes', 'production_notes', 'customer_visible_notes',
@@ -244,7 +244,30 @@ class CustomOrder extends Model
             $next = (int) $m[1] + 1;
         }
 
-        return 'CF-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+        $reference = 'CF-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+
+        // Two concurrent submissions can read the same "last" reference, so step
+        // forward until the candidate is actually free.
+        while (static::where('custom_order_number', $reference)->exists()) {
+            $next++;
+            $reference = 'CF-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+        }
+
+        return $reference;
+    }
+
+    /**
+     * Find the order created by an earlier submission carrying the same token.
+     */
+    public static function findBySubmissionToken(?string $token, ?int $userId = null): ?self
+    {
+        if (blank($token)) {
+            return null;
+        }
+
+        return static::where('submission_token', $token)
+            ->when($userId !== null, fn ($query) => $query->where('user_id', $userId))
+            ->first();
     }
 
     public static function canTransition(string $current, string $new): bool

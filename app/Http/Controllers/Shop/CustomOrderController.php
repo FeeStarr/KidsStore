@@ -15,11 +15,13 @@ use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomPaymentService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 
 class CustomOrderController extends Controller
 {
@@ -65,7 +67,11 @@ class CustomOrderController extends Controller
         Session::forget('custom_order_draft');
         $fileService = $this->fileService;
 
-        return view('shop.custom-frock.create', array_merge($data, compact('baseProduct', 'saved', 'fileService')));
+        // Fresh idempotency key per rendered form; replaying the same submit
+        // resolves back to the order it already created.
+        $submissionToken = (string) Str::uuid();
+
+        return view('shop.custom-frock.create', array_merge($data, compact('baseProduct', 'saved', 'fileService', 'submissionToken')));
     }
 
     public function createSimilar(CustomOrder $customOrder)
@@ -102,6 +108,7 @@ class CustomOrderController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
+            'submission_token' => ['nullable', 'string', 'max:64'],
             'child_name' => ['required', 'string', 'max:100'],
             'category' => ['nullable', 'string', 'in:' . implode(',', array_keys(CustomOrder::CATEGORIES))],
             'delivery_method' => ['required', 'in:pickup,delivery'],
@@ -124,6 +131,15 @@ class CustomOrderController extends Controller
             'return_policy_acknowledged' => ['required', 'accepted'],
         ]);
 
+        $submissionToken = $data['submission_token'] ?? null;
+
+        // Idempotency: the same form submission arriving twice (double click, browser
+        // resend, proxy retry) must resolve to the order it already created rather
+        // than inserting another one.
+        if ($existing = $this->customOrderService->findBySubmissionToken($submissionToken, Auth::id())) {
+            return $this->redirectToOrder($existing, duplicate: true);
+        }
+
         if ($data['delivery_method'] === 'delivery'
             && ! DeliveryCharge::activeWithAgentFor((int) ($data['delivery_location_id'] ?? 0))) {
             return back()
@@ -139,22 +155,35 @@ class CustomOrderController extends Controller
             'child_size' => $data['child_size'] ?? null,
         ], fn ($v) => ! empty($v));
 
-        $order = $this->customOrderService->create([
-            'user_id' => Auth::id(),
-            'item_type' => 'frock',
-            'category' => $data['category'] ?? null,
-            'base_product_id' => $data['base_product_id'] ?? null,
-            'child_name' => $data['child_name'],
-            'child_gender' => 'girl',
-            'delivery_method' => $data['delivery_method'],
-            'pickup_station_id' => $data['pickup_station_id'] ?? null,
-            'delivery_location_id' => $data['delivery_method'] === 'delivery' ? ($data['delivery_location_id'] ?? null) : null,
-            'delivery_fee' => $this->resolveDeliveryFee($data),
-            'delivery_address' => $data['delivery_address'] ?? null,
-            'customer_notes' => $data['customer_notes'] ?? null,
-            'custom_colour_description' => $data['custom_colour_description'] ?? null,
-            'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
-        ], [], $customizations);
+        try {
+            $order = $this->customOrderService->create([
+                'user_id' => Auth::id(),
+                'submission_token' => $submissionToken,
+                'item_type' => 'frock',
+                'category' => $data['category'] ?? null,
+                'base_product_id' => $data['base_product_id'] ?? null,
+                'child_name' => $data['child_name'],
+                'child_gender' => 'girl',
+                'delivery_method' => $data['delivery_method'],
+                'pickup_station_id' => $data['pickup_station_id'] ?? null,
+                'delivery_location_id' => $data['delivery_method'] === 'delivery' ? ($data['delivery_location_id'] ?? null) : null,
+                'delivery_fee' => $this->resolveDeliveryFee($data),
+                'delivery_address' => $data['delivery_address'] ?? null,
+                'customer_notes' => $data['customer_notes'] ?? null,
+                'custom_colour_description' => $data['custom_colour_description'] ?? null,
+                'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
+            ], [], $customizations);
+        } catch (QueryException $e) {
+            // A concurrent copy of this request won the unique submission_token
+            // index; adopt its order instead of failing the customer.
+            $existing = $this->customOrderService->findBySubmissionToken($submissionToken, Auth::id());
+
+            if (! $existing) {
+                throw $e;
+            }
+
+            return $this->redirectToOrder($existing, duplicate: true);
+        }
 
         // Handle file uploads
         $this->uploadFiles($order, $data, Auth::id());
@@ -166,8 +195,7 @@ class CustomOrderController extends Controller
             Log::error('Custom order submit failed: '.$e->getMessage());
         }
 
-        return redirect()->route('shop.custom-frock.show', $order)
-            ->with('success', 'Your custom frock request has been submitted! Order number: '.$order->custom_order_number);
+        return $this->redirectToOrder($order);
     }
 
     public function show(CustomOrder $customOrder)
@@ -321,6 +349,18 @@ class CustomOrderController extends Controller
         );
 
         return back()->with('success', 'Thank you! Your information has been sent to our team.');
+    }
+
+    private function redirectToOrder(CustomOrder $order, bool $duplicate = false)
+    {
+        return redirect()->route('shop.custom-frock.show', $order)
+            ->with(
+                'success',
+                ($duplicate
+                    ? 'This request was already submitted. '
+                    : 'Your custom frock request has been submitted! ')
+                .'Order number: '.$order->custom_order_number
+            );
     }
 
     private function uploadFiles(CustomOrder $order, array $data, int $userId): void

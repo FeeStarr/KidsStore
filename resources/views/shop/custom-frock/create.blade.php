@@ -29,6 +29,7 @@
                 @csrf
 
                 <input type="hidden" name="base_product_id" value="{{ $baseProduct?->id }}">
+                <input type="hidden" name="submission_token" id="submissionToken" value="{{ $submissionToken }}">
 
                 {{-- Step 1: Basic Info --}}
                 <div class="form-step" data-step="0">
@@ -319,6 +320,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('input', updateNextState);
     form.addEventListener('change', updateNextState);
+
+    // Block duplicate submissions: the first submit locks the button and any
+    // further submit event (double click, Enter key, browser resend) is ignored.
+    // The server-side submission_token is the real guarantee.
+    let isSubmitting = false;
+
+    function lockSubmitBtn() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
+    }
+
+    submitBtn.addEventListener('click', lockSubmitBtn);
+
+    form.addEventListener('submit', function(e) {
+        if (isSubmitting) { e.preventDefault(); return; }
+        isSubmitting = true;
+        lockSubmitBtn();
+    });
 
     // Delivery method toggle - set initial required state
     const deliveryRadio = document.getElementById('delivery_home');
