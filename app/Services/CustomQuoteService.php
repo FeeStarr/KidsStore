@@ -4,12 +4,12 @@ namespace App\Services;
 
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQuote;
-use App\Models\User;
-use App\Notifications\CustomQuoteReady;
 use App\Notifications\CustomQuoteApproved;
+use App\Notifications\CustomQuoteReady;
 use App\Notifications\NotificationRecipients;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
@@ -27,7 +27,7 @@ class CustomQuoteService
         int $validDays = 7,
         ?int $userId = null,
     ): CustomOrderQuote {
-        return DB::transaction(function () use ($order, $breakdown, $total, $notes, $validDays, $userId) {
+        $quote = DB::transaction(function () use ($order, $breakdown, $total, $notes, $validDays, $userId) {
             // Supersede any existing draft quote
             $order->quotes()
                 ->where('status', CustomOrderQuote::STATUS_DRAFT)
@@ -66,11 +66,24 @@ class CustomQuoteService
                 'quote_valid_until' => $quote->valid_until,
             ]);
 
-            // Notify customer
-            $order->user->notify(new CustomQuoteReady($order, $quote));
-
             return $quote;
         });
+
+        // Sent outside the transaction on purpose. Inside it, any mail failure (SMTP
+        // timeout, bad credentials) propagated and rolled the whole quote back, so a
+        // flaky mail server could silently discard the admin's work.
+        try {
+            $order->user->notify(new CustomQuoteReady($order, $quote));
+        } catch (\Throwable $e) {
+            Log::error('CustomQuoteReady notification failed', [
+                'error' => $e->getMessage(),
+                'order' => $order->custom_order_number,
+                'quote' => $quote->id,
+                'email' => $order->user?->email,
+            ]);
+        }
+
+        return $quote;
     }
 
     public function approve(CustomOrder $order, CustomOrderQuote $quote, ?int $userId = null): void
