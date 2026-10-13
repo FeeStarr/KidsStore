@@ -476,12 +476,17 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Every field that recalculates the total when edited. `discount` belongs here so
+    // typing in it refreshes the total, but it must NOT be summed - it is subtracted
+    // below. Including it in both cancelled itself out, so a discount silently did
+    // nothing while still being printed as a deduction in the customer's breakdown.
     const fields = ['base_price', 'fabric_cost', 'customization_cost', 'embellishment_cost', 'measurement_fee', 'rush_fee', 'delivery_fee', 'discount'];
+    const additiveFields = fields.filter(f => f !== 'discount');
     const totalInput = document.getElementById('quoteTotal');
 
     function recalc() {
         let total = 0;
-        fields.forEach(f => {
+        additiveFields.forEach(f => {
             const el = document.querySelector(`[name="${f}"]`);
             if (el) total += parseFloat(el.value) || 0;
         });
