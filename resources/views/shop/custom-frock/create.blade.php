@@ -83,13 +83,11 @@
                                         @foreach ($deliveryLocations as $loc)
                                             <option value="{{ $loc->id }}"
                                                     {{ old('delivery_location_id', $saved['delivery_location_id'] ?? '') == $loc->id ? 'selected' : '' }}>
-                                                {{ $loc->name }}{{ $loc->state ? ', ' . $loc->state : '' }}{{ isset($chargesByLocation[$loc->id]) ? ' - ₦' . number_format($chargesByLocation[$loc->id]['amount'], 2) : '' }}
+                                                {{ $loc->name }}{{ $loc->state ? ', ' . $loc->state : '' }}
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div id="delivery-charge-display" class="alert alert-info py-2 mb-3 mt-2" style="display:none">
-                                        <i class="bi bi-truck me-1"></i> Delivery charge: <strong id="charge-amount"></strong>
-                                    </div>
+                                    {{-- No price shown here: delivery is charged from the quote. --}}
                                     <div id="delivery-unavailable" class="alert alert-warning py-2 mb-3 mt-2" style="display:none">
                                         <i class="bi bi-exclamation-triangle me-1"></i> No delivery agent available for this location.
                                     </div>
@@ -355,36 +353,25 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('delivery_address').required = !isPickup;
             document.getElementById('delivery-location-select').required = !isPickup;
             document.getElementById('pickup_station_id').required = isPickup;
-            updateChargeDisplay();
+            updateDeliveryAvailability();
         });
     });
 
-    // Delivery charge display (mirrors checkout)
-    const chargesData = @json($deliveryCharges);
+    // Delivery availability only. The price is intentionally absent: it lives on the
+    // quote, and showing a figure here would set an expectation the quote may not meet.
+    const locationsWithAgent = @json($deliveryCharges);
     const locationSelect = document.getElementById('delivery-location-select');
-    const chargeDisplay = document.getElementById('delivery-charge-display');
-    const chargeAmount = document.getElementById('charge-amount');
     const deliveryUnavailable = document.getElementById('delivery-unavailable');
 
-    function updateChargeDisplay() {
+    function updateDeliveryAvailability() {
         const locId = parseInt(locationSelect.value);
-        const charge = chargesData.find(c => c.location_id === locId);
+        const served = locationsWithAgent.includes(locId);
 
-        if (charge) {
-            chargeAmount.textContent = '\u20A6' + charge.amount.toLocaleString(undefined, {minimumFractionDigits: 2});
-            chargeDisplay.style.display = '';
-            deliveryUnavailable.style.display = 'none';
-        } else if (locId) {
-            chargeDisplay.style.display = 'none';
-            deliveryUnavailable.style.display = '';
-        } else {
-            chargeDisplay.style.display = 'none';
-            deliveryUnavailable.style.display = 'none';
-        }
+        deliveryUnavailable.style.display = locId && !served ? '' : 'none';
     }
 
-    locationSelect.addEventListener('change', updateChargeDisplay);
-    updateChargeDisplay();
+    locationSelect.addEventListener('change', updateDeliveryAvailability);
+    updateDeliveryAvailability();
 
     // Colour swatches
     document.querySelectorAll('.colour-swatch').forEach(swatch => {

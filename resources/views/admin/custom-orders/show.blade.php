@@ -125,7 +125,7 @@
                     <hr>
                     <strong>Delivery Location:</strong> {{ $customOrder->deliveryLocation->name }}{{ $customOrder->deliveryLocation->state ? ', ' . $customOrder->deliveryLocation->state : '' }}
                     @if ($customOrder->delivery_fee > 0)
-                        <br><strong>Delivery Charge:</strong> &#8358;{{ number_format($customOrder->delivery_fee, 2) }}
+                        <br><strong>Standard Delivery:</strong> &#8358;{{ number_format($customOrder->delivery_fee, 2) }}
                     @endif
                 @endif
                 @if ($customOrder->pickupStation)

@@ -65,7 +65,7 @@ class CustomOrderDeliveryLocationTest extends TestCase
         ], $overrides);
     }
 
-    public function test_create_form_shows_delivery_locations_with_prices(): void
+    public function test_create_form_lists_locations_without_advertising_prices(): void
     {
         $location = $this->makeLocation('Ikeja');
         $this->makeCharge($location, 2500);
@@ -76,9 +76,65 @@ class CustomOrderDeliveryLocationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Ikeja');
-        $response->assertSee('₦2,500.00');
         $response->assertSee('delivery-location-select');
         $response->assertDontSee('Hidden Spot');
+
+        // Delivery is charged from the quote, so no figure is advertised before one
+        // exists. The rate is still recorded on the order for the admin - see
+        // test_store_persists_delivery_location_and_fee.
+        $response->assertDontSee('₦2,500.00');
+        $response->assertDontSee('2,500.00');
+    }
+
+    public function test_create_form_keeps_the_no_agent_availability_warning(): void
+    {
+        $this->actingAs($this->customer())
+            ->get(route('shop.custom-frock.create'))
+            ->assertOk()
+            ->assertSee('No delivery agent available for this location')
+            ->assertSee('delivery-unavailable', false);
+    }
+
+    public function test_customer_order_page_shows_no_delivery_price(): void
+    {
+        $location = $this->makeLocation('Ikeja');
+        $this->makeCharge($location, 2500);
+
+        $this->actingAs($this->customer())
+            ->post(route('shop.custom-frock.store'), $this->storePayload(['delivery_location_id' => $location->id]))
+            ->assertRedirect();
+
+        $order = CustomOrder::where('child_name', 'Test Child')->firstOrFail();
+
+        $this->actingAs($order->user)
+            ->get(route('shop.custom-frock.show', $order))
+            ->assertOk()
+            ->assertDontSee('Estimated delivery charge')
+            // Factual delivery details are still shown.
+            ->assertSee('Home Delivery')
+            ->assertSee('Ikeja')
+            ->assertSee('123 Test Street');
+    }
+
+    public function test_admin_order_page_still_shows_standard_delivery_reference(): void
+    {
+        $location = $this->makeLocation('Ikeja');
+        $this->makeCharge($location, 2500);
+
+        $this->actingAs($this->customer())
+            ->post(route('shop.custom-frock.store'), $this->storePayload(['delivery_location_id' => $location->id]))
+            ->assertRedirect();
+
+        $order = CustomOrder::where('child_name', 'Test Child')->firstOrFail();
+
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        // The admin keeps the reference they need to decide what to charge.
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.custom-orders.show', $order))
+            ->assertOk()
+            ->assertSee('Standard Delivery:')
+            ->assertSee('2,500.00');
     }
 
     public function test_store_persists_delivery_location_and_fee(): void

@@ -269,9 +269,8 @@
                     @if ($customOrder->delivery_address)
                         <p class="mb-1"><strong>Address:</strong> {{ $customOrder->delivery_address }}</p>
                     @endif
-                    @if ($customOrder->delivery_method === 'delivery' && $customOrder->delivery_fee > 0)
-                        <p class="mb-0"><strong>Estimated delivery charge:</strong> &#8358;{{ number_format($customOrder->delivery_fee, 2) }}</p>
-                    @endif
+                    {{-- No delivery price here. Delivery is quoted, and the quote is the
+                         only figure the customer is charged. --}}
                 </div>
             </div>
 

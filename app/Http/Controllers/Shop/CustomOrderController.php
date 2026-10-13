@@ -399,22 +399,21 @@ class CustomOrderController extends Controller
 
     private function getFormOptions(): array
     {
-        $deliveryCharges = DeliveryCharge::where('is_active', true)
+        // Only the location ids are needed here, to tell the customer whether delivery
+        // is possible at all. The price itself is deliberately not sent to the form:
+        // delivery is charged from the quote, so showing a figure before one exists
+        // only creates an expectation that may not match what is eventually quoted.
+        // resolveDeliveryFee() still records the rate on the order for the admin.
+        $deliveryLocationsWithAgent = DeliveryCharge::where('is_active', true)
             ->whereHas('agent', fn ($q) => $q->where('is_active', true))
-            ->get()
-            ->map(fn ($c) => [
-                'location_id' => $c->delivery_location_id,
-                'amount' => (float) $c->amount,
-                'agent_name' => $c->agent->name,
-            ])
+            ->pluck('delivery_location_id')
             ->values();
 
         return [
             'colours' => CustomOrderColour::active()->get(),
             'pickupStations' => PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
             'deliveryLocations' => DeliveryLocation::where('is_active', true)->orderBy('name')->get(),
-            'deliveryCharges' => $deliveryCharges,
-            'chargesByLocation' => $deliveryCharges->keyBy('location_id'),
+            'deliveryCharges' => $deliveryLocationsWithAgent,
         ];
     }
 }
