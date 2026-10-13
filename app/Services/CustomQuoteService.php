@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQuote;
 use App\Notifications\CustomQuoteApproved;
+use App\Notifications\CustomQuoteExpired;
 use App\Notifications\CustomQuoteReady;
 use App\Notifications\NotificationRecipients;
 use Carbon\Carbon;
@@ -147,6 +148,19 @@ class CustomQuoteService
                 $order,
                 CustomOrder::STATUS_QUOTE_EXPIRED
             );
+
+            // Tell the customer their quote lapsed so they can start a new request,
+            // instead of the order silently going quiet.
+            try {
+                $order->user->notify(new CustomQuoteExpired($order));
+            } catch (\Throwable $e) {
+                Log::error('CustomQuoteExpired notification failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $order->custom_order_number,
+                    'email' => $order->user?->email,
+                ]);
+            }
+
             $count++;
         }
 

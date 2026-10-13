@@ -4,25 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomOrder;
-use App\Models\CustomOrderColour;
-use App\Models\CustomOrderEmbellishment;
-use App\Models\CustomOrderFabric;
-use App\Models\CustomOrderLength;
-use App\Models\CustomOrderMeasurementField;
-use App\Models\CustomOrderMeasurementGuide;
-use App\Models\CustomOrderNeckline;
+use App\Models\CustomOrderFile;
 use App\Models\CustomOrderQcCheck;
-use App\Models\CustomOrderSleeve;
-use App\Models\CustomOrderSkirt;
-use App\Models\CustomOrderStyle;
-use App\Models\CustomOrderWaist;
+use App\Notifications\CustomOrderMessageReceived;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomQuoteService;
-use App\Notifications\CustomOrderMessageReceived;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class CustomOrderController extends Controller
 {
@@ -48,8 +37,8 @@ class CustomOrderController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('custom_order_number', 'like', "%{$search}%")
-                  ->orWhere('child_name', 'like', "%{$search}%")
-                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"));
+                    ->orWhere('child_name', 'like', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -82,6 +71,7 @@ class CustomOrderController extends Controller
     public function review(CustomOrder $customOrder)
     {
         $this->customOrderService->review($customOrder, Auth::id());
+
         return back()->with('success', 'Order marked as under review.');
     }
 
@@ -109,6 +99,7 @@ class CustomOrderController extends Controller
     public function approveForQuote(CustomOrder $customOrder)
     {
         $this->customOrderService->approveForQuote($customOrder, Auth::id());
+
         return back()->with('success', 'Order approved for quotation.');
     }
 
@@ -116,6 +107,7 @@ class CustomOrderController extends Controller
     {
         $request->validate(['reason' => 'required|string|max:500']);
         $this->customOrderService->reject($customOrder, $request->input('reason'), Auth::id());
+
         return back()->with('success', 'Order rejected.');
     }
 
@@ -154,18 +146,21 @@ class CustomOrderController extends Controller
     public function startProduction(CustomOrder $customOrder)
     {
         $this->customOrderService->startProduction($customOrder, Auth::id());
+
         return back()->with('success', 'Production started.');
     }
 
     public function submitForQc(CustomOrder $customOrder)
     {
         $this->customOrderService->submitForQc($customOrder, Auth::id());
+
         return back()->with('success', 'Submitted for quality check.');
     }
 
     public function resumeProduction(CustomOrder $customOrder)
     {
         $this->customOrderService->resumeProduction($customOrder, Auth::id());
+
         return back()->with('success', 'Production resumed.');
     }
 
@@ -177,9 +172,11 @@ class CustomOrderController extends Controller
 
         if ($data['passed']) {
             $this->customOrderService->passQc($customOrder, $customOrder->delivery_method, Auth::id());
+
             return back()->with('success', 'QC passed.');
         } else {
             $this->customOrderService->failQc($customOrder, Auth::id());
+
             return back()->with('warning', 'QC failed. Returned to production.');
         }
     }
@@ -230,7 +227,9 @@ class CustomOrderController extends Controller
         abort_unless($check->custom_order_id === $customOrder->id, 404);
 
         $response = $this->fileService->serveQcPhoto($customOrder, $check);
-        if (! $response) abort(404);
+        if (! $response) {
+            abort(404);
+        }
 
         return $response;
     }
@@ -240,20 +239,23 @@ class CustomOrderController extends Controller
         if ($customOrder->delivery_method === 'pickup') {
             $this->customOrderService->markReadyForPickup($customOrder, Auth::id());
         } else {
-            $this->customOrderService->transitionTo($customOrder, CustomOrder::STATUS_READY_FOR_DELIVERY, Auth::id());
+            $this->customOrderService->markReadyForDelivery($customOrder, Auth::id());
         }
+
         return back()->with('success', 'Order marked as ready.');
     }
 
     public function markShipped(CustomOrder $customOrder)
     {
         $this->customOrderService->markShipped($customOrder, Auth::id());
+
         return back()->with('success', 'Order shipped.');
     }
 
     public function complete(CustomOrder $customOrder)
     {
         $this->customOrderService->complete($customOrder, Auth::id());
+
         return back()->with('success', 'Order completed.');
     }
 
@@ -261,9 +263,9 @@ class CustomOrderController extends Controller
     {
         $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->messageMaxKilobytes()],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:'.$this->fileService->messageMaxKilobytes()],
         ], [
-            'attachment.max' => 'Image must be ' . CustomFileService::MESSAGE_MAX_MB . 'MB or smaller.',
+            'attachment.max' => 'Image must be '.CustomFileService::MESSAGE_MAX_MB.'MB or smaller.',
         ]);
 
         $text = trim($request->input('message', ''));
@@ -290,15 +292,19 @@ class CustomOrderController extends Controller
     {
         $request->validate(['admin_notes' => 'nullable|string|max:2000']);
         $customOrder->update(['admin_notes' => $request->input('admin_notes')]);
+
         return back()->with('success', 'Notes updated.');
     }
 
-    public function serveFile(CustomOrder $customOrder, \App\Models\CustomOrderFile $file)
+    public function serveFile(CustomOrder $customOrder, CustomOrderFile $file)
     {
         abort_unless($file->custom_order_id === $customOrder->id, 404);
 
         $response = $this->fileService->serve($file);
-        if (!$response) abort(404);
+        if (! $response) {
+            abort(404);
+        }
+
         return $response;
     }
 }

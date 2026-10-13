@@ -4,7 +4,9 @@ namespace App\Observers;
 
 use App\Models\CustomOrder;
 use App\Models\Order;
+use App\Notifications\CustomOrderPaid;
 use App\Services\CustomOrderService;
+use Illuminate\Support\Facades\Log;
 
 class OrderObserver
 {
@@ -14,12 +16,12 @@ class OrderObserver
 
     public function updated(Order $order): void
     {
-        if (!$order->custom_order_id) {
+        if (! $order->custom_order_id) {
             return;
         }
 
         $customOrder = CustomOrder::find($order->custom_order_id);
-        if (!$customOrder) {
+        if (! $customOrder) {
             return;
         }
 
@@ -46,6 +48,18 @@ class OrderObserver
                 'amount_paid' => $order->amount_paid,
                 'payment_status' => 'paid',
             ]);
+
+            // Payment is already confirmed at this point - a mail failure must not
+            // bubble up and break the payment verification flow.
+            try {
+                $customOrder->user->notify(new CustomOrderPaid($customOrder));
+            } catch (\Throwable $e) {
+                Log::error('CustomOrderPaid notification failed', [
+                    'error' => $e->getMessage(),
+                    'order' => $customOrder->custom_order_number,
+                    'email' => $customOrder->user?->email,
+                ]);
+            }
         }
     }
 }

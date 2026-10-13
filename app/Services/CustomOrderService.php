@@ -5,16 +5,18 @@ namespace App\Services;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQcCheck;
 use App\Models\CustomOrderStatusHistory;
-use App\Models\User;
+use App\Notifications\CustomOrderCancelled;
 use App\Notifications\CustomOrderCompleted;
+use App\Notifications\CustomOrderInfoRequested;
 use App\Notifications\CustomOrderInProduction;
 use App\Notifications\CustomOrderReady;
 use App\Notifications\CustomOrderReceived;
+use App\Notifications\CustomOrderRejected;
 use App\Notifications\CustomOrderReviewed;
-use App\Notifications\CustomOrderInfoRequested;
-use App\Notifications\CustomOrderCancelled;
+use App\Notifications\CustomOrderShipped;
 use App\Notifications\NotificationRecipients;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
@@ -39,18 +41,18 @@ class CustomOrderService
                 'custom_order_number' => CustomOrder::generateReference(),
                 'submission_token' => $data['submission_token'] ?? null,
                 'user_id' => $data['user_id'],
-            'item_type' => $data['item_type'] ?? 'frock',
-            'category' => $data['category'] ?? null,
-            'status' => CustomOrder::STATUS_DRAFT,
+                'item_type' => $data['item_type'] ?? 'frock',
+                'category' => $data['category'] ?? null,
+                'status' => CustomOrder::STATUS_DRAFT,
                 'base_product_id' => $data['base_product_id'] ?? null,
                 'child_name' => $data['child_name'] ?? null,
                 'child_age' => $data['child_age'] ?? null,
                 'child_gender' => $data['child_gender'] ?? null,
                 'delivery_method' => $data['delivery_method'] ?? 'delivery',
-            'pickup_station_id' => $data['pickup_station_id'] ?? null,
-            'delivery_location_id' => $data['delivery_location_id'] ?? null,
-            'delivery_fee' => $data['delivery_fee'] ?? 0,
-            'delivery_address' => $data['delivery_address'] ?? null,
+                'pickup_station_id' => $data['pickup_station_id'] ?? null,
+                'delivery_location_id' => $data['delivery_location_id'] ?? null,
+                'delivery_fee' => $data['delivery_fee'] ?? 0,
+                'delivery_address' => $data['delivery_address'] ?? null,
                 'customer_notes' => $data['customer_notes'] ?? null,
                 'custom_colour_description' => $data['custom_colour_description'] ?? null,
                 'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
@@ -65,7 +67,7 @@ class CustomOrderService
             }
 
             foreach ($customizations as $attribute => $value) {
-                if (!empty($value)) {
+                if (! empty($value)) {
                     $order->customizations()->create([
                         'attribute' => $attribute,
                         'value' => $value,
@@ -96,7 +98,7 @@ class CustomOrderService
         $order->user->notify(new CustomOrderReceived($order));
 
         // Notify admins
-            $admins = NotificationRecipients::adminUsers();
+        $admins = NotificationRecipients::adminUsers();
         Notification::send($admins, new CustomOrderReceived($order));
 
         return $order->fresh();
@@ -106,6 +108,7 @@ class CustomOrderService
     {
         $this->transitionTo($order, CustomOrder::STATUS_UNDER_REVIEW, $userId);
         $order->user->notify(new CustomOrderReviewed($order));
+
         return $order->fresh();
     }
 
@@ -113,18 +116,23 @@ class CustomOrderService
     {
         $this->transitionTo($order, CustomOrder::STATUS_NEEDS_INFORMATION, $userId);
         $order->user->notify(new CustomOrderInfoRequested($order, $message));
+
         return $order->fresh();
     }
 
     public function approveForQuote(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_QUOTE_PENDING, $userId);
+
         return $order->fresh();
     }
 
     public function reject(CustomOrder $order, string $reason, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_REJECTED, $userId, $reason);
+
+        $this->sendSafely($order, new CustomOrderRejected($order, $reason));
+
         return $order->fresh();
     }
 
@@ -136,7 +144,7 @@ class CustomOrderService
         $order->user->notify(new CustomOrderCancelled($order));
 
         // Notify admins
-            $admins = NotificationRecipients::adminUsers();
+        $admins = NotificationRecipients::adminUsers();
         Notification::send($admins, new CustomOrderCancelled($order));
 
         return $order->fresh();
@@ -144,7 +152,7 @@ class CustomOrderService
 
     public function transitionTo(CustomOrder $order, string $newStatus, ?int $userId = null, ?string $reason = null): void
     {
-        if (!CustomOrder::canTransition($order->status, $newStatus)) {
+        if (! CustomOrder::canTransition($order->status, $newStatus)) {
             throw new RuntimeException(
                 "Cannot transition from \"{$order->status}\" to \"{$newStatus}\"."
             );
@@ -192,6 +200,7 @@ class CustomOrderService
         $this->transitionTo($order, CustomOrder::STATUS_PRODUCTION_PENDING, $userId);
         $this->transitionTo($order->fresh(), CustomOrder::STATUS_IN_PRODUCTION, $userId);
         $order->user->notify(new CustomOrderInProduction($order));
+
         return $order->fresh();
     }
 
@@ -219,42 +228,80 @@ class CustomOrderService
 
         $this->transitionTo($order, $targetStatus, $userId);
         $order->user->notify(new CustomOrderReady($order));
+
         return $order->fresh();
     }
 
     public function failQc(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_REWORK_REQUIRED, $userId);
+
         return $order->fresh();
     }
 
     public function resumeProduction(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_IN_PRODUCTION, $userId);
+
         return $order->fresh();
     }
 
     public function markReadyForPickup(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_READY_FOR_PICKUP, $userId);
+
+        $this->sendSafely($order, new CustomOrderReady($order));
+
+        return $order->fresh();
+    }
+
+    public function markReadyForDelivery(CustomOrder $order, ?int $userId = null): CustomOrder
+    {
+        $this->transitionTo($order, CustomOrder::STATUS_READY_FOR_DELIVERY, $userId);
+
+        $this->sendSafely($order, new CustomOrderReady($order));
+
         return $order->fresh();
     }
 
     public function markShipped(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_SHIPPED, $userId);
+
+        $this->sendSafely($order, new CustomOrderShipped($order));
+
         return $order->fresh();
     }
 
     public function complete(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_COMPLETED, $userId);
-        $order->user->notify(new CustomOrderCompleted($order));
+        $this->sendSafely($order, new CustomOrderCompleted($order));
+
         return $order->fresh();
     }
 
     public function getStatusLabel(string $status): string
     {
         return CustomOrder::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+    }
+
+    /**
+     * Dispatch a customer notification without letting a mail failure (SMTP timeout,
+     * bad credentials) break the admin action that triggered it. The status change
+     * has already been committed at this point and must stand on its own.
+     */
+    private function sendSafely(CustomOrder $order, $notification): void
+    {
+        try {
+            $order->user->notify($notification);
+        } catch (\Throwable $e) {
+            Log::error('Custom order notification failed', [
+                'error' => $e->getMessage(),
+                'order' => $order->custom_order_number,
+                'notification' => class_basename($notification),
+                'email' => $order->user?->email,
+            ]);
+        }
     }
 }
