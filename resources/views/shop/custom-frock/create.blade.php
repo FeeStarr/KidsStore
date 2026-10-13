@@ -321,17 +321,18 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('input', updateNextState);
     form.addEventListener('change', updateNextState);
 
-    // Block duplicate submissions: the first submit locks the button and any
-    // further submit event (double click, Enter key, browser resend) is ignored.
-    // The server-side submission_token is the real guarantee.
+    // Block duplicate submissions. The lock is applied on 'submit', not 'click', so a
+    // failed HTML5 validation leaves the button usable: this form has required fields on
+    // earlier steps which are hidden with `d-none`, and Chrome refuses to submit (never
+    // firing 'submit') when such a field is empty or unfocusable. Locking on click
+    // disabled the button before that could happen, leaving it stuck on "Submitting...".
+    // The server-side submission_token remains the real guarantee.
     let isSubmitting = false;
 
     function lockSubmitBtn() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
     }
-
-    submitBtn.addEventListener('click', lockSubmitBtn);
 
     form.addEventListener('submit', function(e) {
         if (isSubmitting) { e.preventDefault(); return; }

@@ -15,7 +15,7 @@ use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
 use App\Services\CustomPaymentService;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -173,9 +173,13 @@ class CustomOrderController extends Controller
                 'custom_colour_description' => $data['custom_colour_description'] ?? null,
                 'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
             ], [], $customizations);
-        } catch (QueryException $e) {
+        } catch (UniqueConstraintViolationException $e) {
             // A concurrent copy of this request won the unique submission_token
             // index; adopt its order instead of failing the customer.
+            //
+            // Narrowed to unique violations only: any other database error (unknown
+            // column, missing table) would previously enter this recovery path and
+            // then throw a second, far more confusing error from the lookup below.
             $existing = $this->customOrderService->findBySubmissionToken($submissionToken, Auth::id());
 
             if (! $existing) {
