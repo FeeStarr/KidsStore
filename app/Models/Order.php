@@ -241,10 +241,22 @@ class Order extends Model
         return false;
     }
 
-    public function getBalanceAttribute(): float
-    {
-        return (float) $this->total_amount - (float) $this->amount_paid;
-    }
+/**
+ * Outstanding balance owed by the customer.
+ *
+ * grand_total is the authoritative payable amount. total_amount is a legacy
+ * duplicate of it that the custom-order flow historically left at 0, which made a
+ * fully paid order report a negative balance; grand_total is maintained everywhere,
+ * so it is the only column safe to derive money from.
+ *
+ * Refunds are deliberately not netted here - amount_paid stays gross because
+ * RefundAmountService::forWholeOrder() uses it as the refund ceiling. Refund-aware
+ * balance is tracked as a separate change (see docs/BACKLOG.md).
+ */
+public function getBalanceAttribute(): float
+{
+    return round((float) $this->grand_total - (float) $this->amount_paid, 2);
+}
 
     /**
      * Get all available order statuses

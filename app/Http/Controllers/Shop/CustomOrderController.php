@@ -9,12 +9,11 @@ use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
 use App\Models\PickupStation;
 use App\Models\Product;
-use App\Models\User;
 use App\Notifications\CustomOrderMessageReceived;
 use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
 use App\Services\CustomOrderService;
-use App\Services\CustomPaymentService;
+use App\Services\CustomQuoteService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +27,7 @@ class CustomOrderController extends Controller
     public function __construct(
         private CustomOrderService $customOrderService,
         private CustomFileService $fileService,
-        private CustomPaymentService $paymentService,
+        private CustomQuoteService $quoteService,
     ) {}
 
     public function index(Request $request)
@@ -110,7 +109,7 @@ class CustomOrderController extends Controller
         $data = $request->validate([
             'submission_token' => ['nullable', 'string', 'max:64'],
             'child_name' => ['required', 'string', 'max:100'],
-            'category' => ['nullable', 'string', 'in:' . implode(',', array_keys(CustomOrder::CATEGORIES))],
+            'category' => ['nullable', 'string', 'in:'.implode(',', array_keys(CustomOrder::CATEGORIES))],
             'delivery_method' => ['required', 'in:pickup,delivery'],
             'pickup_station_id' => ['required_if:delivery_method,pickup', 'nullable', 'exists:pickup_stations,id'],
             'delivery_location_id' => ['required_if:delivery_method,delivery', 'nullable', 'exists:delivery_locations,id'],
@@ -221,28 +220,23 @@ class CustomOrderController extends Controller
     {
         abort_unless($customOrder->user_id === Auth::id(), 403);
 
-        $quote = $customOrder->approvedQuote() ?? $customOrder->latestQuote();
+        // Approval and linked-order creation are one atomic unit. Anything that fails
+        // leaves the record exactly as it was, so there is never a half-approved quote
+        // or an order the customer cannot reach.
+        try {
+            $linkedOrder = $this->quoteService->approveAndCreateOrder($customOrder, Auth::id());
+        } catch (\Throwable $e) {
+            Log::error('Custom quote approval failed', [
+                'error' => $e->getMessage(),
+                'custom_order' => $customOrder->custom_order_number,
+                'user' => Auth::id(),
+            ]);
 
-        if (! $quote || $quote->isExpired()) {
-            return back()->with('error', 'This quote has expired. Please request a new one.');
+            return back()->with(
+                'error',
+                'We could not complete your approval just now, so nothing was changed and no order was created. Please try again in a moment.'
+            );
         }
-
-        // Approve the quote
-        $this->customOrderService->transitionTo(
-            $customOrder,
-            CustomOrder::STATUS_CUSTOMER_APPROVED,
-            Auth::id()
-        );
-
-        // Create linked order for payment processing
-        $linkedOrder = $this->paymentService->createLinkedOrder($customOrder);
-
-        // Quote approved - now waiting for the customer to pay the linked order
-        $this->customOrderService->transitionTo(
-            $customOrder->fresh(),
-            CustomOrder::STATUS_PAYMENT_PENDING,
-            Auth::id()
-        );
 
         return redirect()->route('shop.account.orders.show', $linkedOrder)
             ->with('success', 'Quote approved! Please proceed to payment.');
@@ -308,9 +302,9 @@ class CustomOrderController extends Controller
 
         $data = $request->validate([
             'message' => ['required_without:attachment', 'nullable', 'string', 'max:1000'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:' . $this->fileService->messageMaxKilobytes()],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:'.$this->fileService->messageMaxKilobytes()],
         ], [
-            'attachment.max' => 'Image must be ' . CustomFileService::MESSAGE_MAX_MB . 'MB or smaller.',
+            'attachment.max' => 'Image must be '.CustomFileService::MESSAGE_MAX_MB.'MB or smaller.',
         ]);
 
         $file = null;

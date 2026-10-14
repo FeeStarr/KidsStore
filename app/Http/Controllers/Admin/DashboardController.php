@@ -21,7 +21,7 @@ class DashboardController extends Controller
             'pending_orders'  => Order::where('status', 'pending')->orWhere('status', 'order placed')->count(),
             'pending_purchases' => Purchase::where('status', 'pending')->count(),
             'revenue_total'   => (float) Payment::sum('amount'),
-            'orders_total'    => (float) Order::sum(DB::raw('COALESCE(total_amount, grand_total)')),
+            'orders_total'    => (float) Order::sum(DB::raw('COALESCE(NULLIF(total_amount, 0), grand_total)')),
         ];
 
         $recentOrders = Order::with('customer')->latest()->take(5)->get();

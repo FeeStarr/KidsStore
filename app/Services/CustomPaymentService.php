@@ -26,6 +26,10 @@ class CustomPaymentService
                 'delivery_address' => $order->delivery_address,
                 'subtotal' => $order->total_amount,
                 'grand_total' => $order->total_amount,
+                // total_amount is a legacy duplicate of grand_total. OrderService keeps
+                // the two in step; without this it stayed 0 and the order reported a
+                // balance of -15,000 once paid.
+                'total_amount' => $order->total_amount,
                 'amount_paid' => 0,
                 'note' => "Custom Order: {$order->custom_order_number}",
             ]);
@@ -54,7 +58,8 @@ class CustomPaymentService
             return $order->child_age ? "{$order->child_age} years (Standard)" : 'Standard Size';
         }
 
-        $parts = $measurements->map(fn($m) => "{$m->measurement_type}: {$m->measurement_value}{$m->measurement_unit}");
-        return 'Custom: ' . $parts->implode(', ');
+        $parts = $measurements->map(fn ($m) => "{$m->measurement_type}: {$m->measurement_value}{$m->measurement_unit}");
+
+        return 'Custom: '.$parts->implode(', ');
     }
 }

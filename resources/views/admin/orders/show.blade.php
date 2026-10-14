@@ -467,7 +467,17 @@
             <td class="text-end">₦{{ number_format($p->amount, 2) }}</td>
         </tr>
     @empty
-        <tr><td colspan="5" class="text-center text-muted p-3">No payments recorded.</td></tr>
+        <tr>
+            <td colspan="5" class="text-center text-muted p-3">
+                @if($order->paymentTransactions->isNotEmpty())
+                    No manually recorded payments. This order was paid online &mdash;
+                    see {{ $order->paymentTransactions->where('status', 'success')->count() }} successful
+                    transaction(s) in the Paystack panel below.
+                @else
+                    No payments recorded.
+                @endif
+            </td>
+        </tr>
     @endforelse
     </tbody>
 </table>

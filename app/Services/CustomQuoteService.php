@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQuote;
+use App\Models\Order;
 use App\Notifications\CustomQuoteApproved;
 use App\Notifications\CustomQuoteExpired;
 use App\Notifications\CustomQuoteReady;
@@ -18,6 +19,7 @@ class CustomQuoteService
 {
     public function __construct(
         private CustomOrderService $customOrderService,
+        private CustomPaymentService $paymentService,
     ) {}
 
     public function create(
@@ -87,23 +89,51 @@ class CustomQuoteService
         return $quote;
     }
 
-    public function approve(CustomOrder $order, CustomOrderQuote $quote, ?int $userId = null): void
+    /**
+     * Approve the customer's quote and create the payable linked order as one unit.
+     *
+     * Everything that makes the customer *commit* to an order happens inside a single
+     * transaction: the quote is marked approved, the lifecycle advances to
+     * customer_approved, the linked order is created, and the lifecycle reaches
+     * payment_pending. If any step throws, all of it rolls back and the record is left
+     * exactly as it was - no approved quote, no orphaned order, nothing to pay for.
+     *
+     * The custom-order row is locked for update *inside* the transaction, so two
+     * concurrent approvals serialise rather than both passing the "already approved"
+     * check. That plus the unique index on orders.custom_order_id means a customer can
+     * only ever end up with one payable order.
+     */
+    public function approveAndCreateOrder(CustomOrder $order, ?int $userId = null): Order
     {
-        if ($quote->custom_order_id !== $order->id) {
-            throw new RuntimeException('Quote does not belong to this custom order.');
-        }
+        $linkedOrder = DB::transaction(function () use ($order, $userId) {
+            // Re-read under the row lock. The route-bound instance was loaded before
+            // this transaction began and carries a stale status.
+            $locked = CustomOrder::lockForUpdate()->find($order->id);
 
-        if ($quote->status !== CustomOrderQuote::STATUS_DRAFT) {
-            throw new RuntimeException('Only draft quotes can be approved.');
-        }
+            if (! $locked) {
+                throw new RuntimeException('Custom order not found.');
+            }
 
-        if ($quote->isExpired()) {
-            throw new RuntimeException('This quote has expired and cannot be approved.');
-        }
+            if ($locked->order()->exists()) {
+                throw new RuntimeException('This quote has already been approved.');
+            }
 
-        DB::transaction(function () use ($order, $quote, $userId) {
-            // Supersede other draft quotes
-            $order->quotes()
+            $quote = $locked->approvedQuote() ?? $locked->latestQuote();
+
+            if (! $quote || $quote->isExpired()) {
+                throw new RuntimeException('This quote has expired and cannot be approved.');
+            }
+
+            if ($quote->status !== CustomOrderQuote::STATUS_DRAFT) {
+                throw new RuntimeException('Only draft quotes can be approved.');
+            }
+
+            if ($quote->custom_order_id !== $locked->id) {
+                throw new RuntimeException('Quote does not belong to this custom order.');
+            }
+
+            // Supersede any other draft quotes so only one can ever be approved.
+            $locked->quotes()
                 ->where('id', '!=', $quote->id)
                 ->where('status', CustomOrderQuote::STATUS_DRAFT)
                 ->update(['status' => CustomOrderQuote::STATUS_SUPERSEDED]);
@@ -114,15 +144,30 @@ class CustomQuoteService
             ]);
 
             $this->customOrderService->transitionTo(
-                $order,
+                $locked,
                 CustomOrder::STATUS_CUSTOMER_APPROVED,
                 $userId
             );
 
-            // Notify admins
-            $admins = NotificationRecipients::adminUsers();
-            Notification::send($admins, new CustomQuoteApproved($order));
+            $linked = $this->paymentService->createLinkedOrder($locked);
+
+            $this->customOrderService->transitionTo(
+                $locked->fresh(),
+                CustomOrder::STATUS_PAYMENT_PENDING,
+                $userId
+            );
+
+            return $linked;
         });
+
+        // Dispatched only once the transaction has committed. A rollback cannot unsend
+        // an email, so a notification must never live inside the transaction.
+        Notification::send(
+            NotificationRecipients::adminUsers(),
+            new CustomQuoteApproved($order->fresh())
+        );
+
+        return $linkedOrder;
     }
 
     public function requestRevision(CustomOrder $order, string $message, ?int $userId = null): void
