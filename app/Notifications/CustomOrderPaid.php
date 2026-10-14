@@ -24,7 +24,7 @@ class CustomOrderPaid extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Payment Confirmed for Your Custom Frock')
+            ->subject('Payment Confirmed for Your Custom Order')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Your payment has been confirmed!')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

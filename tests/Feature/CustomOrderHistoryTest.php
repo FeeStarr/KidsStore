@@ -31,8 +31,8 @@ class CustomOrderHistoryTest extends TestCase
         $this->actingAs($this->customer())
             ->get(route('shop.custom-frock.index'))
             ->assertOk()
-            ->assertSee('No custom orders yet')
-            ->assertSee('Create a Custom Order');
+            ->assertSee('No custom frock requests yet')
+            ->assertSee('Create a Custom Request');
     }
 
     public function test_customer_sees_their_custom_orders(): void
@@ -354,7 +354,7 @@ class CustomOrderHistoryTest extends TestCase
         $this->actingAs($user)
             ->get(route('shop.home'))
             ->assertSee(route('shop.custom-frock.index'))
-            ->assertSee('My Custom Orders');
+            ->assertSee('My Custom Frocks');
     }
 
     // ── Integration: existing submission still works ─────────────

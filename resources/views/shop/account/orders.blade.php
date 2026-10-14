@@ -10,7 +10,17 @@
         <tr>
             <td>{{ $loop->iteration }}</td>
             <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a>
-                @if($o->custom_order_id)<span class="badge text-bg-info ms-1">Custom</span>@endif
+                @if($o->custom_order_id)
+                    @if($o->customOrder)
+                        <a href="{{ route('shop.custom-frock.show', $o->customOrder) }}"
+                           class="badge text-bg-info ms-1"
+                           title="This is the payment record for your custom frock {{ $o->customOrder->custom_order_number }}">
+                            Custom frock {{ $o->customOrder->custom_order_number }}
+                        </a>
+                    @else
+                        <span class="badge text-bg-info ms-1">Custom frock</span>
+                    @endif
+                @endif
             </td>
             <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {

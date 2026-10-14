@@ -28,7 +28,7 @@ class CustomOrderMessageReceived extends Notification
         $sender = $isAdmin ? 'A customer' : 'Our team';
 
         $mail = (new MailMessage)
-            ->subject('New Message for Custom Frock Order')
+            ->subject('New Message About Your Custom Order')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line($sender . ' has sent a message regarding your custom frock order.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

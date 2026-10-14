@@ -1,6 +1,6 @@
 ﻿@extends('layouts.shop')
 
-@section('title', 'Custom Frock Order')
+@section('title', 'Custom Frock Request')
 
 @section('content')
 <div class="container py-5">
@@ -200,7 +200,7 @@
 
                     <div class="card shadow-sm mb-4 border-warning">
                         <div class="card-body">
-                            <h6 class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i> Return Policy for Custom Orders</h6>
+                            <h6 class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i> Return Policy for Custom Frocks</h6>
                             <p class="small mb-2">Custom frocks are made to order and <strong>cannot be returned</strong> for change of mind or incorrect measurements provided by the customer. Returns are accepted for manufacturing defects or errors made by KidsFlairr.</p>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="return_policy_acknowledged" id="return_policy_acknowledged" value="1" required>

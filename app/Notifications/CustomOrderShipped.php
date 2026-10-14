@@ -23,7 +23,7 @@ class CustomOrderShipped extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Custom Frock Has Been Shipped')
+            ->subject('Your Custom Order Has Been Shipped')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Your custom frock is on its way!')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

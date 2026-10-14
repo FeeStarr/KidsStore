@@ -67,7 +67,7 @@ class CustomCreationAvailabilityTest extends TestCase
             ->assertSee('Ages 6-8 years')
             ->assertSee('Available to Order')
             ->assertSee('View & Order')
-            ->assertSee('Start Custom Order')
+            ->assertSee('Start a Custom Request')
             ->assertSee(route('shop.products.show', $product->id), false);
     }
 
@@ -110,7 +110,7 @@ class CustomCreationAvailabilityTest extends TestCase
             ->assertSee('Ages 2-4 years')
             ->assertSee('Available to Order')
             ->assertSee('View & Order')
-            ->assertSee('Start Custom Order');
+            ->assertSee('Start a Custom Request');
     }
 
     public function test_detail_out_of_stock_never_hides_the_custom_order_option(): void

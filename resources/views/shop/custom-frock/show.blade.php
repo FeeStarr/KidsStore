@@ -1,6 +1,6 @@
 ﻿@extends('layouts.shop')
 
-@section('title', 'Custom Order ' . $customOrder->custom_order_number)
+@section('title', $customOrder->lifecycle_label . ' ' . $customOrder->custom_order_number)
 
 @section('content')
 <div class="container py-5">
@@ -302,10 +302,23 @@
                             </span>
                         </div>
                         @php $linkedOrder = $customOrder->order; @endphp
-                        @if ($linkedOrder && $linkedOrder->isPayNowEligible())
-                            <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-primary w-100 mt-3">
-                                <i class="bi bi-credit-card me-1"></i>Complete Payment
-                            </a>
+                        @if ($customOrder->isStrandedAfterApproval())
+                            <div class="alert alert-warning mt-3 mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Your approval needs confirming and no order has been created yet,
+                                so there is nothing to pay. Please contact our support team and we
+                                will sort it out for you.
+                            </div>
+                        @elseif ($linkedOrder)
+                            <p class="small text-muted mt-3 mb-1">
+                                Payment is handled on order
+                                <a href="{{ route('shop.account.orders.show', $linkedOrder) }}">{{ $linkedOrder->reference }}</a>.
+                            </p>
+                            @if ($linkedOrder->isPayNowEligible())
+                                <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-primary w-100">
+                                    <i class="bi bi-credit-card me-1"></i>Pay now
+                                </a>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -315,7 +328,7 @@
             @if (in_array($customOrder->status, ['draft']))
                 <div class="card shadow-sm mb-4">
                     <div class="card-body">
-                        <form method="POST" action="{{ route('shop.custom-frock.cancel', $customOrder) }}" onsubmit="return confirm('Cancel this custom order?')">
+                        <form method="POST" action="{{ route('shop.custom-frock.cancel', $customOrder) }}" onsubmit="return confirm('Cancel this request? No payment will be taken.')">
                             @csrf
                             <button type="submit" class="btn btn-outline-danger w-100">Cancel Order</button>
                         </form>

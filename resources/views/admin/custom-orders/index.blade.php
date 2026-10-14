@@ -1,10 +1,10 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
-@section('title', 'Custom Orders')
+@section('title', 'Custom Frocks')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">Custom Orders</h1>
+    <h1 class="h3 mb-0">Custom Frocks</h1>
 </div>
 
 {{-- Stats --}}
@@ -77,7 +77,7 @@
 <div class="card shadow-sm">
     <div class="card-body">
         @if ($orders->isEmpty())
-            <p class="text-center text-muted py-4">No custom orders found.</p>
+            <p class="text-center text-muted py-4">No custom frock requests found.</p>
         @else
             <div class="table-responsive">
                 <table class="table table-hover align-middle">

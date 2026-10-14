@@ -1,13 +1,13 @@
 @extends('layouts.shop')
 
-@section('title', 'My Custom Orders')
+@section('title', 'My Custom Frocks')
 
 @section('content')
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0">My Custom Orders</h1>
+        <h1 class="h3 mb-0">My Custom Frocks</h1>
         <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Start Custom Order
+            <i class="bi bi-plus-lg me-1"></i> Start a Custom Request
         </a>
     </div>
 
@@ -30,9 +30,9 @@
     @if ($orders->isEmpty())
         <div class="text-center py-5">
             <i class="bi bi-stars display-1 text-muted"></i>
-            <h4 class="mt-3">No custom orders yet</h4>
+            <h4 class="mt-3">No custom frock requests yet</h4>
             <p class="text-muted">Create something special with KidsFlairr and bring your idea to life.</p>
-            <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary mt-2">Create a Custom Order</a>
+            <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary mt-2">Create a Custom Request</a>
         </div>
     @else
         <div class="row g-3">
@@ -70,7 +70,17 @@
                         </div>
                         <div class="card-body">
                             <h6 class="card-title mb-1">{{ $order->getCustomizationValue('dress_style') ?: 'Custom Frock' }}</h6>
-                            <p class="text-muted small mb-2">{{ $order->custom_order_number }}</p>
+                            <p class="text-muted small mb-2">{{ $order->lifecycle_label }} {{ $order->custom_order_number }}</p>
+                            @if ($order->isStrandedAfterApproval())
+                                <p class="small text-warning mb-2">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Approval needs confirming. Please contact us and we'll sort it out.
+                                </p>
+                            @elseif ($order->hasPayableOrder())
+                                <p class="small text-muted mb-2">
+                                    Order reference: <a href="{{ route('shop.account.orders.show', $order->order) }}">{{ $order->order->reference }}</a>
+                                </p>
+                            @endif
                             @if ($order->child_name)
                                 <p class="text-muted small mb-2">
                                     {{ $order->child_name }}@if ($order->child_age) ({{ $order->child_age }} years)@endif

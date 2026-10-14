@@ -23,7 +23,7 @@ class CustomOrderCompleted extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Custom Frock Has Been Delivered')
+            ->subject('Your Custom Order Has Been Delivered')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Your custom frock has been delivered!')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

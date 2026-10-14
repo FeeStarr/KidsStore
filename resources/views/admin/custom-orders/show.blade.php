@@ -1,6 +1,6 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
-@section('title', 'Custom Order ' . $customOrder->custom_order_number)
+@section('title', $customOrder->lifecycle_label . ' ' . $customOrder->custom_order_number)
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">

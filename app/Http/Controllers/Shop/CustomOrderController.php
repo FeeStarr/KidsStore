@@ -35,7 +35,11 @@ class CustomOrderController extends Controller
         $filter = $request->input('filter');
 
         $query = CustomOrder::where('user_id', Auth::id())
-            ->with(['files' => fn ($q) => $q->where('file_type', 'reference_image')->limit(1)])
+            ->with([
+                'files' => fn ($q) => $q->where('file_type', 'reference_image')->limit(1),
+                // lifecycle_label reads the linked order; eager-load to avoid N+1.
+                'order',
+            ])
             ->latest();
 
         if ($filter === 'active') {

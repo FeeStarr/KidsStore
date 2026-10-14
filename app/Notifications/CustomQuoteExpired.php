@@ -23,7 +23,7 @@ class CustomQuoteExpired extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Custom Frock Quote Has Expired')
+            ->subject('Your Custom Request Quote Has Expired')
             ->greeting('Hello '.$notifiable->name.'!')
             ->line('The quote we prepared for your custom frock has expired.')
             ->line('Reference: '.$this->customOrder->custom_order_number)

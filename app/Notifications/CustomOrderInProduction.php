@@ -23,7 +23,7 @@ class CustomOrderInProduction extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Custom Frock is Now in Production')
+            ->subject('Your Custom Order is Now in Production')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Exciting news! Your custom frock is now being crafted.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

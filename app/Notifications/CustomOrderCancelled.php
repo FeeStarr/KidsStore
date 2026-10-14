@@ -26,7 +26,7 @@ class CustomOrderCancelled extends Notification
         $isAdmin = $notifiable->hasAnyRole(['superadmin', 'admin', 'staff']);
 
         $mail = (new MailMessage)
-            ->subject('Custom Frock Order Cancelled')
+            ->subject('Custom Order Cancelled')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('A custom frock order has been cancelled.')
             ->line('Reference: ' . $this->customOrder->custom_order_number);

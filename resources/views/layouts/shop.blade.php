@@ -1,4 +1,4 @@
-﻿@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
+@php($appName = \App\Models\Setting::get('app_name', config('app.name', 'KidsFlairr')))
 @php($title = $title ?? $appName)
 <!doctype html>
 <html lang="en">
@@ -244,7 +244,7 @@
                     <li><a class="dropdown-item {{ request()->routeIs('shop.order.*') ? 'active' : '' }}" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.help') ? 'active' : '' }}" href="{{ route('shop.help') }}"><i class="bi bi-question-circle me-1"></i>Help &amp; Guide</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.create') ? 'active' : '' }}" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Orders</a></li>
+                    <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.create') ? 'active' : '' }}" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Frocks</a></li>
                 </ul>
             </li>
         </ul>
@@ -272,7 +272,7 @@
                         @endif
                         <li><a class="dropdown-item {{ request()->routeIs('shop.account.profile') ? 'active' : '' }}" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item {{ request()->routeIs('shop.account.orders.*') ? 'active' : '' }}" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
-                        <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.index') ? 'active' : '' }}" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Orders</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.index') ? 'active' : '' }}" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Frocks</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf

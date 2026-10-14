@@ -154,7 +154,7 @@ class CustomOrderPaymentEligibilityTest extends TestCase
             ->get(route('shop.account.orders.index'))
             ->assertOk()
             ->assertSee('Pay Now')
-            ->assertSee('>Custom</span>', false);
+            ->assertSee('Custom frock', false);
     }
 
     public function test_my_orders_hides_pay_now_for_paid_orders(): void
@@ -183,7 +183,7 @@ class CustomOrderPaymentEligibilityTest extends TestCase
         $this->actingAs($customer, 'web')
             ->get(route('shop.custom-frock.show', $custom))
             ->assertOk()
-            ->assertSee('Complete Payment');
+            ->assertSee('Pay now');
 
         $linked->update(['status' => 'confirmed', 'payment_status' => 'paid', 'amount_paid' => 29000]);
         $custom->update(['status' => CustomOrder::STATUS_PAID, 'payment_status' => 'paid', 'amount_paid' => 29000]);
@@ -191,7 +191,7 @@ class CustomOrderPaymentEligibilityTest extends TestCase
         $this->actingAs($customer, 'web')
             ->get(route('shop.custom-frock.show', $custom))
             ->assertOk()
-            ->assertDontSee('Complete Payment');
+            ->assertDontSee('Pay now');
     }
 
     public function test_order_page_shows_24h_deadline_for_regular_orders(): void

@@ -56,6 +56,24 @@ class CustomOrder extends Model
         self::STATUS_READY_FOR_PICKUP => [self::STATUS_COMPLETED],
     ];
 
+    /**
+     * Statuses the record only reaches after the customer approves a quote and a
+     * payable linked order is created. See lifecycle_label for how this is used.
+     */
+    const POST_APPROVAL_STATUSES = [
+        self::STATUS_CUSTOMER_APPROVED,
+        self::STATUS_PAYMENT_PENDING,
+        self::STATUS_PAID,
+        self::STATUS_PRODUCTION_PENDING,
+        self::STATUS_IN_PRODUCTION,
+        self::STATUS_QUALITY_CHECK,
+        self::STATUS_REWORK_REQUIRED,
+        self::STATUS_READY_FOR_DELIVERY,
+        self::STATUS_READY_FOR_PICKUP,
+        self::STATUS_SHIPPED,
+        self::STATUS_COMPLETED,
+    ];
+
     const STATUS_LABELS = [
         self::STATUS_DRAFT => 'Draft',
         self::STATUS_SUBMITTED => 'Submitted',
@@ -231,6 +249,43 @@ class CustomOrder extends Model
     public function getCustomerStatusLabelAttribute(): string
     {
         return self::CUSTOMER_STATUS_LABELS[$this->status] ?? ucfirst(str_replace('_', ' ', $this->status));
+    }
+
+    /**
+     * Whether a payable linked order actually exists for this record.
+     */
+    public function hasPayableOrder(): bool
+    {
+        return $this->order !== null;
+    }
+
+    /**
+     * What this record is called, which depends on what the customer has committed to
+     * rather than on whether they have paid yet. An unpaid order is still an order.
+     *
+     *   - "Custom Request" - an enquiry and the quote we sent back. Nothing is owed.
+     *   - "Custom Order"  - a live, payable order (ORD-... exists).
+     *
+     * The linked order is created in the same transaction that approves the quote, so
+     * its existence is the truthful signal. Deriving the label from it rather than from
+     * the status alone means a record stranded in a post-approval status by the old
+     * non-atomic flow cannot claim an order exists when none does - see
+     * isStrandedAfterApproval().
+     */
+    public function getLifecycleLabelAttribute(): string
+    {
+        return $this->hasPayableOrder() ? 'Custom Order' : 'Custom Request';
+    }
+
+    /**
+     * A record that reached a post-approval status but has no linked order - only
+     * possible for rows stranded by the pre-atomic approval flow. The UI must not
+     * claim an order exists; it prompts for a retry instead.
+     */
+    public function isStrandedAfterApproval(): bool
+    {
+        return in_array($this->status, self::POST_APPROVAL_STATUSES, true)
+            && ! $this->hasPayableOrder();
     }
 
     // ── Methods ────────────────────────────────────────────────────

@@ -401,7 +401,7 @@ class CustomOrderEmailThumbnailTest extends TestCase
 
         $mail = (new CustomOrderReceived($order))->toMail($customer);
 
-        $this->assertSame('Your Custom Frock Request Has Been Received', $mail->subject);
+        $this->assertSame('Your Custom Request Has Been Received', $mail->subject);
         $this->assertFalse($mail->viewData['isInternal']);
         $this->assertStringContainsString(
             route('shop.custom-frock.show', $order),
@@ -422,7 +422,7 @@ class CustomOrderEmailThumbnailTest extends TestCase
 
         $mail = (new CustomOrderReceived($order))->toMail($admin);
 
-        $this->assertSame('New Custom Frock Request - CF-000777', $mail->subject);
+        $this->assertSame('New Custom Request - CF-000777', $mail->subject);
         $this->assertTrue($mail->viewData['isInternal']);
         $this->assertStringContainsString(
             route('admin.custom-orders.show', $order),

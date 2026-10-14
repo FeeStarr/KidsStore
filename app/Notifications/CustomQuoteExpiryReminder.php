@@ -25,7 +25,7 @@ class CustomQuoteExpiryReminder extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Reminder: Your Custom Frock Quote Expires Soon')
+            ->subject('Reminder: Your Custom Request Quote Expires Soon')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('This is a friendly reminder that your custom frock quote will expire in 24 hours.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

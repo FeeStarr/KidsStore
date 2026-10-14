@@ -24,7 +24,7 @@ class CustomQuoteApproved extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Custom Frock Quote Approved - Payment Required')
+            ->subject('Custom Request Quote Approved - Payment Required')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('The customer has approved the quote for their custom frock.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

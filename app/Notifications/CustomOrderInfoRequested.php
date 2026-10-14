@@ -24,7 +24,7 @@ class CustomOrderInfoRequested extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->subject('More Information Needed for Your Custom Frock')
+            ->subject('More Information Needed for Your Custom Request')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('We need a bit more information to proceed with your custom frock request.')
             ->line('Reference: ' . $this->customOrder->custom_order_number);

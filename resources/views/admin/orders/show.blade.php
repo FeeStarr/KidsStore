@@ -273,7 +273,15 @@
             @if($order->payment_method)
                 <dt class="col-4">Payment Method</dt><dd class="col-8">{{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</dd>
             @endif
-            <dt class="col-4">Note</dt><dd class="col-8">{{ $order->note ?: '-' }}</dd>
+            <dt class="col-4">Note</dt><dd class="col-8">
+                {{ $order->note ?: '-' }}
+                @if($order->customOrder)
+                    <a href="{{ route('admin.custom-orders.show', $order->customOrder) }}" class="badge text-bg-info ms-1">
+                        {{ $order->customOrder->lifecycle_label }} {{ $order->customOrder->custom_order_number }}
+                    </a>
+                    <small class="text-muted d-block">This order is the payment and delivery record for that custom frock.</small>
+                @endif
+            </dd>
         </dl>
     </div></div></div>
     <div class="col-md-6"><div class="card"><div class="card-body">

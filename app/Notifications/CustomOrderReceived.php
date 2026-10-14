@@ -33,8 +33,8 @@ class CustomOrderReceived extends Notification
 
         $message = (new MailMessage)
             ->subject($isInternal
-                ? 'New Custom Frock Request - '.$order->custom_order_number
-                : 'Your Custom Frock Request Has Been Received');
+? 'New Custom Request - '.$order->custom_order_number
+            : 'Your Custom Request Has Been Received');
 
         // The reference image lives on a private disk, so it has to travel with the
         // mail. Symfony promotes any cid:-referenced attachment to an inline part.

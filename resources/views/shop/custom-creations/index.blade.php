@@ -69,7 +69,7 @@
                             <div class="d-flex flex-column gap-2 mt-auto">
                                 @if ($state === 'available')
                                     <a href="{{ route('shop.products.show', $creation->product_id) }}" class="btn btn-primary btn-sm w-100">View &amp; Order</a>
-                                    <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-outline-primary btn-sm w-100">Start Custom Order</a>
+                                    <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-outline-primary btn-sm w-100">Start a Custom Request</a>
                                 @elseif ($state === 'out_of_stock')
                                     <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary btn-sm w-100">Request This Creation</a>
                                     @if (config('shop.out_of_stock_visibility') !== 'hide')

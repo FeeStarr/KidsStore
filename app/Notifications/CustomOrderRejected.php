@@ -24,7 +24,7 @@ class CustomOrderRejected extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->subject('Update on Your Custom Frock Request')
+            ->subject('Update on Your Custom Request')
             ->greeting('Hello '.$notifiable->name.'!')
             ->line('Unfortunately we are unable to take on your custom frock request at this time.')
             ->line('Reference: '.$this->customOrder->custom_order_number);

@@ -25,7 +25,7 @@ class CustomOrderReady extends Notification
         $method = $this->customOrder->delivery_method === 'pickup' ? 'for pickup' : 'and will be shipped soon';
 
         return (new MailMessage)
-            ->subject('Your Custom Frock is Ready!')
+            ->subject('Your Custom Order is Ready!')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Great news! Your custom frock has passed quality check and is ready ' . $method . '.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)

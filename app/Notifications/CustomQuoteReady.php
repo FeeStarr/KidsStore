@@ -34,7 +34,7 @@ class CustomQuoteReady extends Notification
             : 'Please review and respond promptly.';
 
         return (new MailMessage)
-            ->subject('Your Custom Frock Quote is Ready!')
+            ->subject('Your Custom Request Quote is Ready!')
             ->greeting('Hello '.$notifiable->name.'!')
             ->line('Great news! We\'ve prepared a quote for your custom frock.')
             ->line('Reference: '.$this->customOrder->custom_order_number)

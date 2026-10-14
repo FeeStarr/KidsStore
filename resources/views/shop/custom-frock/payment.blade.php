@@ -1,6 +1,6 @@
 @extends('layouts.shop')
 
-@section('title', 'Pay for Custom Order ' . $customOrder->custom_order_number)
+@section('title', 'Pay for ' . $customOrder->lifecycle_label . ' ' . $customOrder->custom_order_number)
 
 @section('content')
 <div class="container py-5">

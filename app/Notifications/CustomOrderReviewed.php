@@ -23,7 +23,7 @@ class CustomOrderReviewed extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Custom Frock Request Has Been Reviewed')
+            ->subject('Your Custom Request Has Been Reviewed')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('Great news! Your custom frock request has been reviewed and approved for quoting.')
             ->line('Reference: ' . $this->customOrder->custom_order_number)
