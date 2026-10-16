@@ -64,7 +64,7 @@ class Order extends Model
         'note', 'expected_delivery_date',
         'pickup_station_fee_total',
         'ordered_at', 'pending_confirmation_at', 'pending_payment_at',
-        'confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'cancelled_at',
+        'confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'picked_up_at', 'cancelled_at',
         'expired_at', 'pickup_window_expired_at',
     ];
 
@@ -83,6 +83,7 @@ class Order extends Model
         'shipped_at'              => 'datetime',
         'ready_for_pickup_at'     => 'datetime',
         'delivered_at'            => 'datetime',
+        'picked_up_at'            => 'datetime',
         'cancelled_at'            => 'datetime',
         'ordered_at'              => 'datetime',
         'pending_confirmation_at' => 'datetime',
@@ -134,7 +135,19 @@ class Order extends Model
                 default                            => null,
             };
 
-            if ($column) {
+            if (! $column) {
+                return;
+            }
+
+            // A pickup order reaching "delivered" means the customer collected it, not
+            // that a courier delivered it, so the collection time is recorded in
+            // picked_up_at. delivered_at stays reserved for courier delivery.
+            if ($column === 'delivered_at' && $order->isPickupOrder()) {
+                $column = 'picked_up_at';
+            }
+
+            // Write once. A retry must never move an already recorded fulfilment time.
+            if ($order->{$column} === null) {
                 $order->{$column} = now();
             }
         });
@@ -199,6 +212,36 @@ class Order extends Model
     public function isVerificationPending(): bool
     {
         return $this->payment_status === 'verification_pending';
+    }
+
+    /**
+     * Whether this order is collected from a pickup station.
+     *
+     * delivery_method is the single authoritative classifier: it is a NOT NULL enum
+     * defaulting to 'delivery'. pickup_station_id is deliberately NOT used - it is
+     * nullable, and some checkout paths assign it without checking delivery_method, so
+     * a station id on its own cannot prove an order is a pickup.
+     */
+    public function isPickupOrder(): bool
+    {
+        return $this->delivery_method === self::DELIVERY_METHOD_PICKUP;
+    }
+
+    public function isDeliveryOrder(): bool
+    {
+        return $this->delivery_method === self::DELIVERY_METHOD_DELIVERY;
+    }
+
+    /**
+     * The moment fulfilment actually completed, used as the start of the reporting
+     * window. Returns null when no reliable timestamp exists - callers must handle that
+     * explicitly rather than falling back to updated_at, which shifts on any edit.
+     */
+    public function fulfilmentCompletedAt(): ?\DateTimeInterface
+    {
+        return $this->isPickupOrder()
+            ? $this->picked_up_at
+            : ($this->delivered_at ?? $this->delivery_delivered_at);
     }
 
     /**

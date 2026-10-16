@@ -215,7 +215,18 @@ class OrderService
             $this->confirm($order);
         }
         $prev = $order->status;
-        $order->update(['status' => 'delivered', 'delivered_at' => now()]);
+
+        // Fulfilment timestamps are written once and never reset, so a retry cannot move
+        // the clock. Pickup orders record collection in picked_up_at; delivered_at stays
+        // reserved for courier delivery and is deliberately not set for them.
+        $column = $order->isPickupOrder() ? 'picked_up_at' : 'delivered_at';
+
+        $updates = ['status' => 'delivered'];
+        if ($order->{$column} === null) {
+            $updates[$column] = now();
+        }
+        $order->update($updates);
+
         $this->notifyStatusChange($order->fresh(), $prev);
         return $order->fresh();
     }

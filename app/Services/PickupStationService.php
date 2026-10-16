@@ -116,7 +116,13 @@ class PickupStationService
             $order = $item->order;
             $allPickedUp = $order->items()->where('pickup_status', '!=', 'picked_up')->doesntExist();
             if ($allPickedUp && ! in_array($order->status, ['delivered', 'cancelled'])) {
-                $order->update(['status' => 'delivered']);
+                // Record actual collection. Written once and never reset. delivered_at is
+                // reserved for courier delivery and is not set for pickup orders.
+                $updates = ['status' => 'delivered'];
+                if ($order->picked_up_at === null) {
+                    $updates['picked_up_at'] = now();
+                }
+                $order->update($updates);
             }
         });
 

@@ -89,14 +89,29 @@ class DeliveryAgentService
             'Cannot mark as delivered: payment has not been confirmed.'
         );
 
+        // Terminal states are refused before anything is written, so a cancelled,
+        // returned or expired order cannot be left holding contradictory delivery
+        // metadata even though the main status transition is rejected.
+        abort_if(
+            in_array($order->status, ['cancelled', 'returned', 'expired', 'pickup window expired'], true),
+            400,
+            'Cannot mark as delivered: this order is already cancelled or expired.'
+        );
+
         $order->update([
             'delivery_status'       => Order::DELIVERY_STATUS_DELIVERED,
-            'delivery_delivered_at' => now(),
+            'delivery_delivered_at' => $order->delivery_delivered_at ?? now(),
         ]);
 
-        // Update overall order status if in a valid pre-delivery state
-        if (in_array($order->status, ['out for delivery', 'processing'], true)) {
+        // Update the overall order status. This previously only ran for 'out for
+        // delivery' and 'processing', so an order in any other eligible state kept a
+        // delivered delivery_status with no canonical delivered_at and no delivered
+        // order status.
+        if ($order->status !== Order::STATUS_DELIVERED) {
             app(OrderService::class)->markDelivered($order);
+        } elseif ($order->delivered_at === null) {
+            // Already delivered, but the canonical timestamp was never stamped.
+            $order->update(['delivered_at' => now()]);
         }
 
         $this->logAction('delivery.delivered', $order, $agent);
