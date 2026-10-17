@@ -9,8 +9,8 @@ use App\Models\CustomOrderLength;
 use App\Models\CustomOrderMeasurementField;
 use App\Models\CustomOrderMeasurementGuide;
 use App\Models\CustomOrderNeckline;
-use App\Models\CustomOrderSleeve;
 use App\Models\CustomOrderSkirt;
+use App\Models\CustomOrderSleeve;
 use App\Models\CustomOrderStyle;
 use App\Models\CustomOrderWaist;
 use Illuminate\Database\Seeder;
@@ -30,6 +30,7 @@ class CustomOrderLookupSeeder extends Seeder
         $this->seedColours();
         $this->seedMeasurementFields();
         $this->seedMeasurementGuides();
+        $this->seedFinishedGarmentGuides();
     }
 
     private function seedStyles(): void
@@ -203,9 +204,81 @@ class CustomOrderLookupSeeder extends Seeder
             ],
         ];
         foreach ($guides as $i => $guide) {
+            // Keyed on basis too: the same measurement type now has separate copy for
+            // body and finished-garment figures.
             CustomOrderMeasurementGuide::firstOrCreate(
-                ['measurement_type' => $guide['measurement_type']],
-                array_merge($guide, ['sort_order' => $i + 1])
+                ['measurement_type' => $guide['measurement_type'], 'basis' => 'body'],
+                array_merge($guide, ['basis' => 'body', 'sort_order' => $i + 1])
+            );
+        }
+    }
+
+    /**
+     * How-to-measure copy for finished-garment figures.
+     *
+     * These describe the garment, not the child's body, so measuring a child with them
+     * would be wrong. Written conservatively; review the wording with your tailor
+     * before relying on it.
+     */
+    private function seedFinishedGarmentGuides(): void
+    {
+        $guides = [
+            [
+                'measurement_type' => 'shoulder_width',
+                'name' => 'Shoulder Width (garment)',
+                'description' => 'Lay a similar frock flat with no stretching. Measure straight across the shoulders from seam to seam.',
+            ],
+            [
+                'measurement_type' => 'chest',
+                'name' => 'Chest / Bust (garment)',
+                'description' => 'Lay the garment flat. Measure straight across the widest part, usually about 2cm below the armhole seam.',
+            ],
+            [
+                'measurement_type' => 'waist',
+                'name' => 'Waist (garment)',
+                'description' => 'Lay the garment flat. Measure straight across the narrowest part of the waist seam.',
+            ],
+            [
+                'measurement_type' => 'hip',
+                'name' => 'Hip (garment)',
+                'description' => 'Lay the garment flat. Measure straight across the widest part of the hip seam.',
+            ],
+            [
+                'measurement_type' => 'armhole',
+                'name' => 'Armhole (garment)',
+                'description' => 'Measure around the inside of the armhole seam of a similar garment, following the seam.',
+            ],
+            [
+                'measurement_type' => 'sleeve_length',
+                'name' => 'Sleeve Length (garment)',
+                'description' => 'Measure from the shoulder seam to the end of the sleeve on a similar laid-flat garment.',
+            ],
+            [
+                'measurement_type' => 'shoulder_to_waist',
+                'name' => 'Shoulder to Waist (garment)',
+                'description' => 'Lay the garment flat and measure straight down from the shoulder seam to the waist seam.',
+            ],
+            [
+                'measurement_type' => 'waist_to_knee',
+                'name' => 'Waist to Knee (garment)',
+                'description' => 'Measure straight down the garment from the waist seam to the finished hem at knee level.',
+            ],
+            [
+                'measurement_type' => 'full_dress_length',
+                'name' => 'Full Dress Length (garment)',
+                'description' => 'Measure straight down the front of a similar frock, from the shoulder seam to the finished hem.',
+            ],
+            [
+                'measurement_type' => 'neck_circumference',
+                'name' => 'Neck Circumference (garment)',
+                'description' => 'Measure around the neckline of a similar garment, following the seam.',
+            ],
+        ];
+
+        foreach ($guides as $i => $guide) {
+            CustomOrderMeasurementGuide::firstOrCreate(
+                ['measurement_type' => $guide['measurement_type'], 'basis' => 'finished_garment'],
+                array_merge($guide, ['basis' => 'finished_garment', 'sort_order' => $i + 1])
             );
         }
     }

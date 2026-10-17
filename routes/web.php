@@ -72,6 +72,7 @@ Route::name('shop.')->group(function () {
     Route::get('/about', [ShopAboutController::class, 'show'])->name('about');
     Route::get('/contact', [ShopContactController::class, 'show'])->name('contact');
     Route::get('/return-policy', [ShopReturnPolicyController::class, 'show'])->name('return-policy');
+Route::get('/size-guide', [\App\Http\Controllers\Shop\SizeGuideController::class, 'show'])->name('size-guide');
     Route::get('/privacy-policy', [ShopPrivacyPolicyController::class, 'show'])->name('privacy-policy');
     Route::get('/cookie-policy', [\App\Http\Controllers\Shop\CookiePolicyController::class, 'show'])->name('cookie-policy');
     Route::get('/help', [ShopHelpController::class, 'show'])->name('help');

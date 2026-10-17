@@ -319,7 +319,8 @@
             <div class="d-flex gap-3">
                 <a href="{{ route('shop.help') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.help') ? 'active' : '' }}">Help &amp; Guide</a>
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.contact') ? 'active' : '' }}">Contact Us</a>
-                <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.return-policy') ? 'active' : '' }}">Return Policy</a>
+                <a href="{{ route('shop.size-guide') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.size-guide') ? 'active' : '' }}">Size Guide</a>
+<a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.return-policy') ? 'active' : '' }}">Return Policy</a>
                 <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.privacy-policy') ? 'active' : '' }}">Privacy Policy</a>
                 <a href="/cookie-policy" class="text-decoration-none text-white-50 {{ request()->is('cookie-policy') ? 'active' : '' }}" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
             </div>
