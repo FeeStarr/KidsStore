@@ -104,7 +104,7 @@
     @endif
 </div>
 
-@php($customActive = str_starts_with($r ?? '', 'admin.custom-orders'))
+@php($customActive = str_starts_with($r ?? '', 'admin.custom-orders') || str_starts_with($r ?? '', 'admin.size-charts'))
 <a href="#menu-custom" data-bs-toggle="collapse" role="button" aria-expanded="{{ $customActive ? 'true' : 'false' }}" class="{{ $customActive ? 'active' : '' }}">
     <i class="bi bi-stars"></i> Custom Frocks <i class="bi bi-chevron-down chevron"></i>
 </a>
@@ -115,6 +115,9 @@
         @if($newRequests > 0)
             <span class="badge bg-danger ms-1">{{ $newRequests }}</span>
         @endif
+    </a>
+    <a href="{{ route('admin.size-charts.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.size-charts') ? 'active':'' }}">
+        <i class="bi bi-rulers"></i> Size Charts
     </a>
 </div>
 

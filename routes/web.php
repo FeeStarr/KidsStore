@@ -307,6 +307,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('custom-orders/{customOrder}/notes', [App\Http\Controllers\Admin\CustomOrderController::class, 'updateNotes'])->name('custom-orders.update-notes')->middleware('permission:manage_orders');
         Route::get('custom-orders/{customOrder}/files/{file}', [App\Http\Controllers\Admin\CustomOrderController::class, 'serveFile'])->name('custom-orders.file')->middleware('permission:manage_orders');
 
+        // Size Charts (custom frock sizing)
+        Route::get('size-charts', [\App\Http\Controllers\Admin\SizeChartController::class, 'index'])->name('size-charts.index')->middleware('permission:manage_orders');
+        Route::get('size-charts/create', [\App\Http\Controllers\Admin\SizeChartController::class, 'create'])->name('size-charts.create')->middleware('permission:manage_orders');
+        Route::post('size-charts', [\App\Http\Controllers\Admin\SizeChartController::class, 'store'])->name('size-charts.store')->middleware('permission:manage_orders');
+        Route::get('size-charts/{sizeChart}', [\App\Http\Controllers\Admin\SizeChartController::class, 'show'])->name('size-charts.show')->middleware('permission:manage_orders');
+        Route::get('size-charts/{sizeChart}/edit', [\App\Http\Controllers\Admin\SizeChartController::class, 'edit'])->name('size-charts.edit')->middleware('permission:manage_orders');
+        Route::put('size-charts/{sizeChart}', [\App\Http\Controllers\Admin\SizeChartController::class, 'update'])->name('size-charts.update')->middleware('permission:manage_orders');
+        Route::post('size-charts/{sizeChart}/publish', [\App\Http\Controllers\Admin\SizeChartController::class, 'publish'])->name('size-charts.publish')->middleware('permission:manage_orders');
+        Route::post('size-charts/{sizeChart}/retire', [\App\Http\Controllers\Admin\SizeChartController::class, 'retire'])->name('size-charts.retire')->middleware('permission:manage_orders');
+        Route::post('size-charts/{sizeChart}/new-version', [\App\Http\Controllers\Admin\SizeChartController::class, 'newVersion'])->name('size-charts.new-version')->middleware('permission:manage_orders');
+        Route::post('size-charts/{sizeChart}/entries', [\App\Http\Controllers\Admin\SizeChartController::class, 'storeEntry'])->name('size-charts.entries.store')->middleware('permission:manage_orders');
+        Route::put('size-charts/{sizeChart}/entries/{entry}', [\App\Http\Controllers\Admin\SizeChartController::class, 'updateEntry'])->name('size-charts.entries.update')->middleware('permission:manage_orders');
+        Route::delete('size-charts/{sizeChart}/entries/{entry}', [\App\Http\Controllers\Admin\SizeChartController::class, 'destroyEntry'])->name('size-charts.entries.destroy')->middleware('permission:manage_orders');
+        Route::post('size-charts/{sizeChart}/entries/{entry}/measurements', [\App\Http\Controllers\Admin\SizeChartController::class, 'storeMeasurement'])->name('size-charts.measurements.store')->middleware('permission:manage_orders');
+        Route::put('size-charts/{sizeChart}/entries/{entry}/measurements/{measurement}', [\App\Http\Controllers\Admin\SizeChartController::class, 'updateMeasurement'])->name('size-charts.measurements.update')->middleware('permission:manage_orders');
+        Route::delete('size-charts/{sizeChart}/entries/{entry}/measurements/{measurement}', [\App\Http\Controllers\Admin\SizeChartController::class, 'destroyMeasurement'])->name('size-charts.measurements.destroy')->middleware('permission:manage_orders');
+
         // Custom Creations (standalone gallery)
         Route::get('custom-creations', [App\Http\Controllers\Admin\CustomCreationController::class, 'index'])->name('custom-creations.index')->middleware('permission:manage_orders');
         Route::get('custom-creations/create', [App\Http\Controllers\Admin\CustomCreationController::class, 'create'])->name('custom-creations.create')->middleware('permission:manage_orders');

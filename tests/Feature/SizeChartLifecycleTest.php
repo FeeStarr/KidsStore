@@ -224,14 +224,17 @@ class SizeChartLifecycleTest extends TestCase
         $this->assertEquals(60.0, $copy->min_value);
     }
 
-    public function test_a_locked_chart_cannot_be_versioned(): void
+    public function test_a_locked_chart_can_be_copied_forward_but_not_edited(): void
     {
         $chart = $this->chart();
         $this->entryWith($chart, $this->validMeasurements());
+        $chart->load('entries.measurements');
         $chart->lockFor($this->order());
 
+        // Copying forward is the only route to change a chart an order was sized against,
+        // so it must remain available. Direct edits must not.
         $this->expectException(RuntimeException::class);
-        $chart->newVersion();
+        $chart->assertNotLocked();
     }
 
     public function test_editing_the_locked_original_leaves_the_new_version_independent(): void

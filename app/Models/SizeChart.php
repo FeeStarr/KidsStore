@@ -150,11 +150,13 @@ class SizeChart extends Model
 
     /**
      * A copy of this version that can be edited. Keeps the locked original intact.
+     *
+     * Copying forward is deliberately allowed even when this version is locked: that is
+     * the only route to change a chart an order was sized against. The original stays
+     * frozen so the recorded evidence keeps describing what the customer actually saw.
      */
     public function newVersion(): self
     {
-        $this->assertNotLocked();
-
         $copy = static::create([
             'name' => $this->name,
             'default_basis' => $this->default_basis,
