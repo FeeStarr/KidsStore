@@ -9,6 +9,7 @@ use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
 use App\Models\PickupStation;
 use App\Models\Product;
+use App\Models\SizeChart;
 use App\Notifications\CustomOrderMessageReceived;
 use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CustomOrderController extends Controller
 {
@@ -100,6 +102,12 @@ class CustomOrderController extends Controller
             'custom_colour_description' => $customOrder->custom_colour_description,
             'standard_size' => $customizations['standard_size'] ?? null,
             'child_size' => $customizations['child_size'] ?? null,
+            // Carry the sizing choice forward so the parent can confirm rather than
+            // re-enter it. A retired chart is dropped so the form falls back cleanly.
+            'size_chart_id' => SizeChart::published()->whereKey($customOrder->size_chart_id)->exists()
+                ? $customOrder->size_chart_id
+                : null,
+            'selected_chart_size' => $customOrder->selected_chart_size,
         ], fn ($v) => $v !== null && $v !== '');
 
         Session::put('custom_order_draft', $saved);
@@ -125,8 +133,24 @@ class CustomOrderController extends Controller
             'secondary_colour' => ['nullable', 'string', 'max:128'],
             'accent_colour' => ['nullable', 'string', 'max:128'],
             'custom_colour_description' => ['nullable', 'string', 'max:500'],
-            'standard_size' => ['required', 'string', 'max:64'],
+            'standard_size' => ['nullable', 'string', 'max:64', Rule::requiredIf(function () {
+                // Only enforced when no size chart is published, so a chart-backed
+                // selection replaces it rather than sitting alongside it.
+                return SizeChart::published()->doesntExist();
+            })],
             'child_size' => ['nullable', 'string', 'max:64'],
+            'sizing_method' => ['nullable', Rule::in([
+                CustomOrder::SIZING_STANDARD, CustomOrder::SIZING_MEASUREMENTS,
+            ])],
+            'size_chart_id' => ['nullable', 'exists:size_charts,id'],
+            'selected_chart_size' => ['nullable', 'string', 'max:64', Rule::requiredIf(function () use ($request) {
+                // Required only when the submission is actually using a published
+                // chart. Without one the form falls back to the age range.
+                return (bool) SizeChart::published()->whereKey($request->input('size_chart_id'))->exists();
+            })],
+            'measurements' => ['nullable', 'array'],
+            'measurements.*.value' => ['nullable', 'numeric', 'min:1', 'max:500'],
+            'measurements.*.unit' => ['nullable', 'string', 'max:8'],
             'reference_files' => ['nullable', 'array'],
             'reference_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:'.$this->fileService->getMaxFileSizeMb() * 1024],
             'colour_files' => ['nullable', 'array'],
@@ -158,6 +182,37 @@ class CustomOrderController extends Controller
             'child_size' => $data['child_size'] ?? null,
         ], fn ($v) => ! empty($v));
 
+        // Resolve the sizing evidence. A chart selection is only honoured from a
+        // published chart, so a stale or retired chart id cannot be submitted.
+        $sizeChart = null;
+        $sizingMethod = $data['sizing_method'] ?? null;
+        $selectedSize = $data['selected_chart_size'] ?? null;
+
+        if ($sizeChartId = $data['size_chart_id'] ?? null) {
+            $sizeChart = SizeChart::published()->whereKey($sizeChartId)->first();
+
+            if ($sizeChart) {
+                $sizingMethod = CustomOrder::SIZING_STANDARD;
+                $selectedSize ??= $sizeChart->entries->firstWhere('label', $selectedSize)?->label;
+            }
+        }
+
+        // Only measurements the parent actually supplied are stored. The array is keyed by
+        // measurement type (measurements[chest][value]), so the key is the type.
+        $measurements = collect($data['measurements'] ?? [])
+            ->map(fn ($row, $type) => [
+                'type' => $type,
+                'value' => $row['value'] ?? null,
+                'unit' => $row['unit'] ?? 'cm',
+            ])
+            ->filter(fn ($row) => filled($row['value']))
+            ->values()
+            ->all();
+
+        if ($measurements !== [] && $sizingMethod === null) {
+            $sizingMethod = CustomOrder::SIZING_MEASUREMENTS;
+        }
+
         try {
             $order = $this->customOrderService->create([
                 'user_id' => Auth::id(),
@@ -167,6 +222,11 @@ class CustomOrderController extends Controller
                 'base_product_id' => $data['base_product_id'] ?? null,
                 'child_name' => $data['child_name'],
                 'child_gender' => 'girl',
+                'sizing_method' => $sizingMethod,
+                'size_chart_id' => $sizeChart?->id,
+                'size_chart_version' => $sizeChart?->version,
+                'selected_chart_size' => $selectedSize,
+                'return_policy_acknowledged_at' => now(),
                 'delivery_method' => $data['delivery_method'],
                 'pickup_station_id' => $data['pickup_station_id'] ?? null,
                 'delivery_location_id' => $data['delivery_method'] === 'delivery' ? ($data['delivery_location_id'] ?? null) : null,
@@ -175,7 +235,7 @@ class CustomOrderController extends Controller
                 'customer_notes' => $data['customer_notes'] ?? null,
                 'custom_colour_description' => $data['custom_colour_description'] ?? null,
                 'return_policy_acknowledged' => $data['return_policy_acknowledged'] ?? false,
-            ], [], $customizations);
+            ], $measurements, $customizations);
         } catch (UniqueConstraintViolationException $e) {
             // A concurrent copy of this request won the unique submission_token
             // index; adopt its order instead of failing the customer.
@@ -412,6 +472,17 @@ class CustomOrderController extends Controller
             'pickupStations' => PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
             'deliveryLocations' => DeliveryLocation::where('is_active', true)->orderBy('name')->get(),
             'deliveryCharges' => $deliveryLocationsWithAgent,
+
+            // Only published charts may be offered. A chart with no measurements can
+            // never be published, so the selector is never populated with blank
+            // options or invented figures.
+            'sizeChart' => SizeChart::published()
+                ->with(['entries' => fn ($q) => $q->orderBy('sort_order'), 'entries.measurements'])
+                ->orderByDesc('version')
+                ->first(),
+            'measurementFields' => \App\Models\CustomOrderMeasurementField::active()->get(),
+            'bodyGuides' => \App\Models\CustomOrderMeasurementGuide::active()
+                ->where('basis', 'body')->get()->keyBy('measurement_type'),
         ];
     }
 }

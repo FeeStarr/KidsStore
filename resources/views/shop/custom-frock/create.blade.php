@@ -127,22 +127,125 @@
                                     </div>
                                 </div>
 
-                                {{-- Age range --}}
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Age Range <span class="text-danger">*</span></label>
-                                    <select name="standard_size" class="form-select" required>
-                                        <option value="">Select age...</option>
-                                        @foreach (\App\Models\AgeRange::where('is_active', true)->orderBy('name')->get() as $age)
-                                            <option value="{{ $age->name }}" {{ old('standard_size', $saved['standard_size'] ?? '') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
-                                        @endforeach
-                                    </select>
+                                {{-- Sizing. A published chart offers a real size choice; without one the
+                                     age range is kept so existing traffic is never blocked. --}}
+                                <div class="col-12">
+                                    @if($sizeChart)
+                                        <label class="form-label fw-bold">Sizing <span class="text-danger">*</span></label>
+                                        <input type="hidden" name="sizing_method" value="{{ old('sizing_method', \App\Models\CustomOrder::SIZING_STANDARD) }}">
+                                        <input type="hidden" name="size_chart_id" value="{{ old('size_chart_id', $sizeChart->id) }}">
+
+                                        <select name="selected_chart_size" class="form-select" required>
+                                            <option value="">Choose a size from the guide...</option>
+                                            @foreach($sizeChart->entries as $entry)
+                                                <option value="{{ $entry->label }}"
+                                                    @selected(old('selected_chart_size', $saved['selected_chart_size'] ?? '') === $entry->label)>
+                                                    {{ $entry->label }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        <small class="form-text text-muted">
+                                            Not sure?
+                                            <a href="{{ route('shop.size-guide') }}" target="_blank" rel="noopener">Check the {{ $sizeChart->name }} size guide</a>
+                                            before choosing &mdash; it takes a minute and helps us get the fit right.
+                                        </small>
+
+                                        <details class="mt-2">
+                                            <summary class="small text-muted" style="cursor:pointer">Show the measurements for each size</summary>
+                                            @php
+                                                $chartTypes = $sizeChart->entries
+                                                    ->flatMap(fn ($e) => $e->measurements->pluck('measurement_type'))
+                                                    ->unique()->sort()->values();
+                                            @endphp
+                                            <div class="table-responsive mt-2">
+                                                <table class="table table-sm table-bordered small mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Size</th>
+                                                            @foreach($chartTypes as $type)
+                                                                <th>{{ ucwords(str_replace('_', ' ', $type)) }}</th>
+                                                            @endforeach
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($sizeChart->entries as $entry)
+                                                            <tr>
+                                                                <th scope="row">{{ $entry->label }}</th>
+                                                                @foreach($chartTypes as $type)
+                                                                    @php $cell = $entry->measurements->firstWhere('measurement_type', $type); @endphp
+                                                                    <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
+                                                                @endforeach
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <small class="form-text text-muted">
+                                                @if($sizeChart->default_basis === \App\Models\SizeChart::BASIS_BODY)
+                                                    These are body measurements &mdash; measure your child.
+                                                @else
+                                                    These are finished garment measurements &mdash; lay a similar frock flat and measure straight across it.
+                                                @endif
+                                            </small>
+                                        </details>
+                                    @else
+                                        <label class="form-label fw-bold">Age Range <span class="text-danger">*</span></label>
+                                        <select name="standard_size" class="form-select" required>
+                                            <option value="">Select age...</option>
+                                            @foreach(\App\Models\AgeRange::where('is_active', true)->orderBy('name')->get() as $age)
+                                                <option value="{{ $age->name }}" {{ old('standard_size', $saved['standard_size'] ?? '') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            Our size guide is being prepared. We will confirm the size with you before we cut.
+                                        </small>
+                                    @endif
                                 </div>
 
-                                {{-- Size preference --}}
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Size Preference</label>
-                                    <input type="text" name="child_size" class="form-control" placeholder="e.g. Small, Medium, Large" value="{{ old('child_size', $saved['child_size'] ?? '') }}">
-                                    <small class="text-muted">Optional - our team will confirm during review.</small>
+                                {{-- Optional: send actual measurements instead of picking a size --}}
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="send_measurements"
+                                               data-bs-toggle="collapse" data-bs-target="#measurementFields"
+                                               aria-expanded="false" aria-controls="measurementFields">
+                                        <label class="form-check-label small" for="send_measurements">
+                                            I'd rather send my child's measurements
+                                        </label>
+                                    </div>
+
+                                    <div class="collapse mt-2" id="measurementFields">
+                                        <div class="border rounded p-3 bg-light">
+                                            <p class="small text-muted mb-3">
+                                                Only worth doing if your child falls between two sizes, or the style is a
+                                                particularly fitted one. If your child is close to a size on the guide,
+                                                choosing that size is perfectly fine.
+                                            </p>
+
+                                            @foreach($measurementFields as $field)
+                                                <div class="row g-2 align-items-center mb-2">
+                                                    <div class="col-sm-5">
+                                                        <label class="form-label small mb-0" for="m_{{ $field->name }}">{{ $field->label }}</label>
+                                                    </div>
+                                                    <div class="col-sm-4">
+                                                        <input type="number" step="0.1" min="1" max="500" id="m_{{ $field->name }}"
+                                                               class="form-control form-control-sm"
+                                                               name="measurements[{{ $field->name }}][value]"
+                                                               value="{{ old('measurements.'.$field->name.'.value') }}">
+                                                    </div>
+                                                    <div class="col-sm-3">
+                                                        <input type="text" class="form-control form-control-sm" maxlength="8"
+                                                               name="measurements[{{ $field->name }}][unit]" value="cm">
+                                                    </div>
+                                                </div>
+                                                @if(isset($bodyGuides[$field->name]))
+                                                    <small class="text-muted d-block mb-2" style="margin-top:-4px">
+                                                        {{ $bodyGuides[$field->name]->description }}
+                                                    </small>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {{-- Primary colour --}}
@@ -406,8 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
             "Child's Name": fd.get('child_name') || '-',
             "Gender": 'Girl',
             "Design Type": 'Upload Reference',
-            "Age Range": fd.get('standard_size') || '-',
-            "Size Preference": fd.get('child_size') || 'Not specified',
+            "Size": fd.get('selected_chart_size') || fd.get('standard_size') || '-',
             "Primary Colour": fd.get('primary_colour') || '-',
             "Secondary Colour": fd.get('secondary_colour') || '-',
             "Accent Colour": fd.get('accent_colour') || '-',

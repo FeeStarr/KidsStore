@@ -131,7 +131,9 @@ class CustomOrder extends Model
 
     protected $fillable = [
         'custom_order_number', 'submission_token', 'user_id', 'item_type', 'category', 'status', 'payment_status',
-        'base_product_id', 'child_name', 'child_age', 'child_gender',
+        'base_product_id', 'sizing_method', 'size_chart_id', 'size_chart_version', 'selected_chart_size',
+        'sizing_snapshot', 'sizing_confirmed_at', 'sizing_policy_acknowledged_at',
+        'return_policy_acknowledged_at', 'child_name', 'child_age', 'child_gender',
         'delivery_method', 'pickup_station_id', 'delivery_location_id', 'delivery_address',
         'customer_notes', 'admin_notes', 'production_notes', 'customer_visible_notes',
         'custom_colour_description',
@@ -155,6 +157,10 @@ class CustomOrder extends Model
         'quote_valid_until' => 'datetime',
         'estimated_production_days' => 'integer',
         'return_policy_acknowledged' => 'boolean',
+        'sizing_snapshot' => 'array',
+        'sizing_confirmed_at' => 'datetime',
+        'sizing_policy_acknowledged_at' => 'datetime',
+        'return_policy_acknowledged_at' => 'datetime',
         'submitted_at' => 'datetime',
         'quoted_at' => 'datetime',
         'approved_at' => 'datetime',
@@ -239,6 +245,11 @@ class CustomOrder extends Model
         return $this->hasOne(Order::class);
     }
 
+    public function sizeChart(): BelongsTo
+    {
+        return $this->belongsTo(SizeChart::class, 'size_chart_id');
+    }
+
     // ── Accessors ──────────────────────────────────────────────────
 
     public function getStatusLabelAttribute(): string
@@ -289,6 +300,73 @@ class CustomOrder extends Model
     }
 
     // ── Methods ────────────────────────────────────────────────────
+
+    public const SIZING_STANDARD = 'standard_size';
+    public const SIZING_MEASUREMENTS = 'custom_measurements';
+
+    /**
+     * Captures the sizing evidence exactly as it stood at confirmation.
+     *
+     * Freezing this is what makes a later sizing dispute resolvable: if the chart is
+     * edited or a new version published, this order still describes what the customer
+     * actually saw and agreed to.
+     */
+    public function captureSizingSnapshot(?SizeChart $chart = null): void
+    {
+        $chart ??= $this->sizeChart;
+
+        $entry = $chart?->entries->firstWhere('label', $this->selected_chart_size);
+
+        $this->sizing_snapshot = [
+            'captured_at' => now()->toIso8601String(),
+            'chart_name' => $chart?->name,
+            'chart_version' => $chart?->version ?? $this->size_chart_version,
+            'sizing_method' => $this->sizing_method,
+            'selected_size' => $this->selected_chart_size,
+            'submitted_measurements' => $this->measurements->map(fn ($m) => [
+                'type' => $m->measurement_type,
+                'label' => \App\Models\CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
+                    ?? $m->measurement_type,
+                'value' => (float) $m->measurement_value,
+                'unit' => $m->measurement_unit,
+            ])->all(),
+            'chart_figures' => $entry ? $entry->measurements->map(fn ($m) => [
+                'type' => $m->measurement_type,
+                'basis' => $m->basis,
+                'min' => $m->min_value,
+                'max' => $m->max_value,
+                'unit' => $m->unit,
+            ])->all() : null,
+        ];
+    }
+
+    /**
+     * Resize risk worth flagging to a parent. This is the reason sizing evidence is
+     * captured at all: a growing child between ordering and wearing the frock is a
+     * foreseeable outcome, not a defect.
+     */
+    public function sizingRiskNote(): ?string
+    {
+        if ($this->sizing_method !== self::SIZING_MEASUREMENTS) {
+            return null;
+        }
+
+        if (! $this->sizing_confirmed_at) {
+            return 'Sizing not confirmed yet.';
+        }
+
+        $weeks = (int) floor($this->sizing_confirmed_at->diffInWeeks(now()));
+
+        if ($weeks < 1) {
+            return null;
+        }
+
+        return sprintf(
+            'Sizing confirmed %d week%s ago. Children grow quickly, so it is worth re-checking the measurements before the frock is cut.',
+            $weeks,
+            $weeks === 1 ? '' : 's'
+        );
+    }
 
     public static function generateReference(): string
     {
