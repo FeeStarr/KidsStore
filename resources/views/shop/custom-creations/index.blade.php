@@ -7,6 +7,9 @@
             <h1 class="h3 mb-1">Custom Creations</h1>
             <p class="text-muted mb-0">See what we can create for you.</p>
         </div>
+        <a href="{{ route('shop.size-guide') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-rulers me-1"></i>Size Guide
+        </a>
     </div>
 
     {{-- Category Filter Tabs --}}
