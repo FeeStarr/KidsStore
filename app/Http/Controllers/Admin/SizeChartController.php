@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomOrderMeasurementField;
+use App\Models\CustomOrderMeasurementGuide;
 use App\Models\SizeChart;
 use App\Models\SizeChartEntry;
 use App\Models\SizeChartMeasurement;
@@ -11,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SizeChartController extends Controller
 {
@@ -46,7 +48,52 @@ class SizeChartController extends Controller
             'blockers' => $sizeChart->publicationBlockers(),
             'measurementTypes' => CustomOrderMeasurementField::active()->get(),
             'bases' => SizeChart::BASES,
+            'guides' => $this->guidesByBasisAndType(),
+            'guideUsage' => $this->guideUsage(),
         ]);
+    }
+
+    /**
+     * How-to-measure copy, grouped so each basis can be labelled unambiguously.
+     *
+     * Guides are global: they carry no size_chart_id and are shared by every chart.
+     * Body and finished-garment wording are genuinely different instructions, so they
+     * are kept apart here rather than interleaved.
+     */
+    private function guidesByBasisAndType(): array
+    {
+        $guides = CustomOrderMeasurementGuide::active()
+            ->get()
+            ->groupBy('basis');
+
+        return collect(SizeChart::BASES)
+            ->mapWithKeys(fn ($basis) => [
+                $basis => $guides->get($basis, collect())->keyBy('measurement_type'),
+            ])
+            ->all();
+    }
+
+    /**
+     * Charts using each measurement type, derived from the database.
+     *
+     * This is what makes a guide edit's blast radius honest. It is never read from
+     * submitted form data, so an admin cannot be tricked into believing a change is
+     * narrower than it really is.
+     */
+    private function guideUsage(): array
+    {
+        $types = CustomOrderMeasurementGuide::query()->distinct()->pluck('measurement_type');
+
+        $usage = [];
+
+        foreach ($types as $type) {
+            $usage[$type] = SizeChart::whereHas(
+                'entries.measurements',
+                fn ($q) => $q->where('measurement_type', $type)
+            )->pluck('name')->all();
+        }
+
+        return $usage;
     }
 
     public function edit(SizeChart $sizeChart): RedirectResponse
@@ -101,13 +148,14 @@ class SizeChartController extends Controller
     {
         $sizeChart->assertNotLocked();
 
-        $data = $request->validate([
-            'label' => ['required', 'string', 'max:64'],
-            'code' => ['nullable', 'string', 'max:32'],
-        ]);
+        $data = $request->validate($this->entryRules());
+        $this->assertNoDuplicateUntilered($sizeChart, $data['label'], null, $data['fit'] ?? null);
 
         $sizeChart->entries()->create([
             'label' => $data['label'],
+            // An empty selection arrives as null via ConvertEmptyStringsToNull, which
+            // is what keeps "no fitting assigned" from silently becoming medium.
+            'fit' => $data['fit'] ?? null,
             'code' => $data['code'] ?? null,
             'sort_order' => (int) $sizeChart->entries()->max('sort_order') + 1,
         ]);
@@ -120,12 +168,14 @@ class SizeChartController extends Controller
         $this->assertEntryBelongs($sizeChart, $entry);
         $sizeChart->assertNotLocked();
 
-        $data = $request->validate([
-            'label' => ['required', 'string', 'max:64'],
-            'code' => ['nullable', 'string', 'max:32'],
-        ]);
+        $data = $request->validate($this->entryRules());
+        $this->assertNoDuplicateUntilered($sizeChart, $data['label'], $entry, $data['fit'] ?? null);
 
-        $entry->update($data);
+        $entry->update([
+            'label' => $data['label'],
+            'fit' => $data['fit'] ?? null,
+            'code' => $data['code'] ?? null,
+        ]);
 
         return back()->with('success', 'Size updated.');
     }
@@ -197,6 +247,51 @@ class SizeChartController extends Controller
         return back()->with('success', 'Measurement removed.');
     }
 
+    // ── global measurement guides ───────────────────────────────────────────
+
+    /**
+     * Editing how-to-measure copy is global by nature: these rows have no
+     * size_chart_id, so one edit is seen by customers on every chart.
+     *
+     * This is deliberately not blocked by $chart->is_locked. A lock protects a
+     * chart's versioned measurements that an order was sized against; it says
+     * nothing about whether an instruction is correct. Refusing to let the tailor
+     * fix a wrong instruction because some unrelated chart was locked would make
+     * the error harder to remove, not safer.
+     */
+    public function updateGuide(
+        Request $request,
+        SizeChart $sizeChart,
+        CustomOrderMeasurementGuide $guide
+    ): RedirectResponse {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+            // accepted, not merely required: a crafted request could otherwise
+            // submit any non-empty value and pass the confirmation.
+            'confirm_global_change' => ['required', 'accepted'],
+        ]);
+
+        // Which charts this actually touches, straight from the database.
+        $affected = SizeChart::whereHas(
+            'entries.measurements',
+            fn ($q) => $q->where('measurement_type', $guide->measurement_type)
+        )->pluck('name')->all();
+
+        $guide->update([
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        $message = $affected === []
+            ? 'Instruction updated. No chart currently uses this measurement.'
+            : 'Instruction updated. It now also shows on: '.implode(', ', $affected).'.';
+
+        return back()->with('success', $message);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function validateChart(Request $request): array
@@ -205,6 +300,51 @@ class SizeChartController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'default_basis' => ['nullable', Rule::in(SizeChart::BASES)],
         ]);
+    }
+
+    private function entryRules(): array
+    {
+        return [
+            'label' => ['required', 'string', 'max:64'],
+            'code' => ['nullable', 'string', 'max:32'],
+            'fit' => ['nullable', Rule::in(SizeChart::FITS)],
+        ];
+    }
+
+    /**
+     * MySQL treats NULLs as distinct inside a unique index, so the database happily
+     * accepts two untilered entries sharing a label even though
+     * (size_chart_id, label, fit) claims to be unique. That case is enforced here
+     * instead. Tiered collisions stay with the database, which handles them correctly.
+     */
+    private function assertNoDuplicateUntilered(
+        SizeChart $chart,
+        string $label,
+        ?SizeChartEntry $ignore = null,
+        ?string $fit = null
+    ): void {
+        // Only untilered rows need checking. Tiered collisions are caught by the
+        // database, and an untilered row may legitimately share a label with a
+        // tiered one - that is just partial coverage at an age band.
+        if ($fit !== null) {
+            return;
+        }
+
+        $query = SizeChartEntry::where('size_chart_id', $chart->id)
+            ->where('label', $label)
+            ->whereNull('fit');
+
+        if ($ignore) {
+            // Without this an update conflicts with the row being updated.
+            $query->whereKeyNot($ignore->getKey());
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'fit' => 'This chart already has a size labelled "'.$label
+                    .'" with no fitting assigned. Give it a fitting, or change the label.',
+            ]);
+        }
     }
 
     /**

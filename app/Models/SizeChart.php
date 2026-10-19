@@ -86,6 +86,35 @@ class SizeChart extends Model
      * invents or interpolates figures: if the tailor has not supplied a measurement, the
      * chart simply is not ready, rather than showing a blank or guessed value.
      */
+    /**
+     * Which fit tiers this chart offers for each age band, and whether each
+     * combination actually has figures behind it.
+     *
+     * Coverage varies by design - a band may offer only the fits the tailor
+     * supports at that age. An absent tier is therefore a normal state and is
+     * never a reason to block publication; only a supplied tier with no
+     * measurements is, and that is caught by publicationBlockers().
+     *
+     * @return array<string, array<string, array{present: bool, complete: bool, entry_id: int|null}>>
+     */
+    public function fitCoverage(): array
+    {
+        $coverage = [];
+
+        foreach ($this->entries as $entry) {
+            // Grouped by age band first: coverage is per band, not per chart.
+            $key = $entry->hasFit() ? $entry->fit : 'unassigned';
+
+            $coverage[$entry->label][$key] = [
+                'present' => true,
+                'complete' => $entry->measurements->isNotEmpty(),
+                'entry_id' => $entry->id,
+            ];
+        }
+
+        return $coverage;
+    }
+
     public function publicationBlockers(): array
     {
         $blockers = [];
@@ -96,7 +125,10 @@ class SizeChart extends Model
 
         foreach ($this->entries as $entry) {
             if ($entry->measurements->isEmpty()) {
-                $blockers[] = "Size \"{$entry->label}\" has no measurements.";
+                // A supplied fit with no figures is the actionable case: the admin
+                // offered that tier, so the figures are now expected. Untilered
+                // entries are held to the same rule, as they always have been.
+                $blockers[] = "Size \"{$entry->displayLabel()}\" has no measurements.";
 
                 continue;
             }
