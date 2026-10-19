@@ -26,11 +26,12 @@ class SizeChartSchemaTest extends TestCase
         ]);
     }
 
-    private function entry(SizeChart $chart, string $label = '2-3 years'): SizeChartEntry
+    private function entry(SizeChart $chart, string $label = '2-3 years', ?string $fit = null): SizeChartEntry
     {
         return SizeChartEntry::create([
             'size_chart_id' => $chart->id,
             'label' => $label,
+            'fit' => $fit,
             'sort_order' => 1,
         ]);
     }
@@ -94,18 +95,39 @@ class SizeChartSchemaTest extends TestCase
         ]);
     }
 
-    public function test_entry_labels_are_unique_per_chart_only(): void
+    public function test_entry_labels_are_unique_per_chart_and_fit_only(): void
     {
         $chart = $this->chart();
         $other = SizeChart::create(['name' => 'Boys 2026', 'version' => 1]);
 
-        $this->entry($chart, '2-3 years');
+        $this->entry($chart, '2-3 years', 'small');
+
+        // Same age band, different fit, same chart: this is the whole point of tiers
+        // and must be allowed so each fit can carry its own measurements.
+        $this->entry($chart, '2-3 years', 'medium');
 
         // Same label in a different chart is fine.
         $this->entry($other, '2-3 years');
 
+        // Only a genuine collision is rejected.
         $this->expectException(UniqueConstraintViolationException::class);
+        $this->entry($chart, '2-3 years', 'small');
+    }
+
+    /**
+     * MySQL treats NULLs as distinct inside a unique index, so two *untilered*
+     * entries sharing a label are not caught by the database. This test pins that
+     * known limitation down so it cannot drift silently; the admin editor and the
+     * publish gate are responsible for rejecting the duplicate.
+     */
+    public function test_duplicate_untilered_entries_are_not_caught_by_the_database(): void
+    {
+        $chart = $this->chart();
+
         $this->entry($chart, '2-3 years');
+        $this->entry($chart, '2-3 years');
+
+        $this->assertSame(2, SizeChartEntry::where('size_chart_id', $chart->id)->count());
     }
 
     public function test_measurement_ranges_are_optional(): void

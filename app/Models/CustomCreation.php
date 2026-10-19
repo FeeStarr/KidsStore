@@ -20,6 +20,7 @@ class CustomCreation extends Model
         'category',
         'age_range',
         'product_id',
+        'requires_measurement_confirmation',
         'is_active',
         'sort_order',
     ];
@@ -28,6 +29,7 @@ class CustomCreation extends Model
         'price' => 'decimal:2',
         'is_price_from' => 'boolean',
         'is_active' => 'boolean',
+        'requires_measurement_confirmation' => 'boolean',
         'sort_order' => 'integer',
     ];
 

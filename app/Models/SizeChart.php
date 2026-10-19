@@ -16,6 +16,26 @@ class SizeChart extends Model
 
     public const BASES = [self::BASIS_BODY, self::BASIS_FINISHED_GARMENT];
 
+    /**
+     * Fit tiers describe how the frock is cut, never the child's body.
+     *
+     * A null fit is a genuine state meaning "no tier assigned yet", and is
+     * deliberately distinct from any tier that was actually chosen.
+     */
+    public const FIT_SMALL = 'small';
+
+    public const FIT_MEDIUM = 'medium';
+
+    public const FIT_LARGE = 'large';
+
+    public const FITS = [self::FIT_SMALL, self::FIT_MEDIUM, self::FIT_LARGE];
+
+    public const FIT_LABELS = [
+        self::FIT_SMALL => 'Small fitting',
+        self::FIT_MEDIUM => 'Medium fitting',
+        self::FIT_LARGE => 'Large fitting',
+    ];
+
     protected $fillable = [
         'name', 'default_basis', 'version', 'is_active',
         'is_published', 'published_at', 'is_locked', 'locked_by_order_id',

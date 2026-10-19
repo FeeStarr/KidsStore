@@ -131,7 +131,7 @@ class CustomOrder extends Model
 
     protected $fillable = [
         'custom_order_number', 'submission_token', 'user_id', 'item_type', 'category', 'status', 'payment_status',
-        'base_product_id', 'sizing_method', 'size_chart_id', 'size_chart_version', 'selected_chart_size',
+        'base_product_id', 'sizing_method', 'size_chart_id', 'size_chart_version', 'selected_chart_size', 'selected_chart_fit',
         'sizing_snapshot', 'sizing_confirmed_at', 'sizing_policy_acknowledged_at',
         'return_policy_acknowledged_at', 'child_name', 'child_age', 'child_gender',
         'delivery_method', 'pickup_station_id', 'delivery_location_id', 'delivery_address',
@@ -315,7 +315,10 @@ class CustomOrder extends Model
     {
         $chart ??= $this->sizeChart;
 
-        $entry = $chart?->entries->firstWhere('label', $this->selected_chart_size);
+        $entry = $chart?->entries->firstWhere(
+            fn ($e) => $e->label === $this->selected_chart_size
+                && $e->fit === $this->selected_chart_fit
+        );
 
         $this->sizing_snapshot = [
             'captured_at' => now()->toIso8601String(),
@@ -323,6 +326,12 @@ class CustomOrder extends Model
             'chart_version' => $chart?->version ?? $this->size_chart_version,
             'sizing_method' => $this->sizing_method,
             'selected_size' => $this->selected_chart_size,
+            // Null means no tier was assigned; recording it as a value would invent
+            // a choice nobody made.
+            'selected_fit' => $this->selected_chart_fit,
+            'selected_fit_label' => $this->selected_chart_fit !== null
+                ? (SizeChart::FIT_LABELS[$this->selected_chart_fit] ?? $this->selected_chart_fit)
+                : null,
             'submitted_measurements' => $this->measurements->map(fn ($m) => [
                 'type' => $m->measurement_type,
                 'label' => \App\Models\CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
