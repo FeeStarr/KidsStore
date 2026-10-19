@@ -9,7 +9,6 @@ use App\Models\SizeChartEntry;
 use App\Models\SizeChartMeasurement;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -302,52 +301,125 @@ class FitTierSchemaTest extends TestCase
     // --------------------------------------------------------- migration reversibility
 
     /**
-     * Reversibility is proven against the disposable test database only. The
-     * development database never sees a rollback: SafeMysqlConnection refuses to
-     * DROP there, and forcing it through is what left custom_order_measurement_guides
-     * half-migrated earlier.
+     * Reversibility is proven on a separate connection, never on the connection the
+     * test's own rows live on, and never on the development database.
+     *
+     * The development database never sees a rollback at all: SafeMysqlConnection
+     * refuses to DROP there, and forcing it through is what left
+     * custom_order_measurement_guides half-migrated earlier.
      */
     public function test_the_migration_can_be_rolled_back_and_reapplied(): void
     {
-        $migration = require database_path(
-            'migrations/2026_10_19_000001_add_fit_and_confirmation_fields.php'
-        );
+        $this->withSeparateMigrationConnection(function (): void {
+            $migration = $this->fitMigration();
 
-        $chart = $this->chart();
-        SizeChartEntry::create([
-            'size_chart_id' => $chart->id, 'label' => '2-3 years', 'fit' => 'small', 'sort_order' => 1,
-        ]);
+            try {
+                $migration->down();
 
-        $migration->down();
+                $this->assertFalse(Schema::hasColumn('size_chart_entries', 'fit'));
+                $this->assertFalse(Schema::hasColumn('custom_orders', 'selected_chart_fit'));
+                $this->assertFalse(Schema::hasColumn('custom_creations', 'requires_measurement_confirmation'));
 
-        $this->assertFalse(Schema::hasColumn('size_chart_entries', 'fit'));
-        $this->assertFalse(Schema::hasColumn('custom_orders', 'selected_chart_fit'));
-        $this->assertFalse(Schema::hasColumn('custom_creations', 'requires_measurement_confirmation'));
+                // The original (chart, label) uniqueness comes back on rollback.
+                $indexes = $this->uniqueIndexNames('size_chart_entries');
 
-        // The original (chart, label) uniqueness comes back on rollback.
-        $this->expectException(UniqueConstraintViolationException::class);
-        SizeChartEntry::create([
-            'size_chart_id' => $chart->id, 'label' => '2-3 years', 'sort_order' => 1,
-        ]);
+                $this->assertContains('size_chart_entries_size_chart_id_label_unique', $indexes);
+                $this->assertNotContains('size_chart_entries_chart_label_fit_unique', $indexes);
+            } finally {
+                // The schema is restored even if an assertion fails, so a failure
+                // here cannot corrupt the rest of the suite.
+                $migration->up();
+            }
+
+            $this->assertTrue(Schema::hasColumn('size_chart_entries', 'fit'));
+            $this->assertTrue(Schema::hasColumn('custom_orders', 'selected_chart_fit'));
+            $this->assertTrue(Schema::hasColumn('custom_creations', 'requires_measurement_confirmation'));
+        });
     }
 
     public function test_the_migration_can_be_reapplied_after_a_rollback(): void
     {
-        $migration = require database_path(
+        $this->withSeparateMigrationConnection(function (): void {
+            $migration = $this->fitMigration();
+
+            $migration->down();
+
+            $applied = false;
+
+            try {
+                $migration->up();
+                $applied = true;
+            } finally {
+                // Only re-apply if the first attempt failed, otherwise the column
+                // would be added twice.
+                if (! $applied) {
+                    $migration->up();
+                }
+            }
+
+            $this->assertTrue(Schema::hasColumn('size_chart_entries', 'fit'));
+            $this->assertTrue(Schema::hasColumn('custom_orders', 'selected_chart_fit'));
+            $this->assertTrue(Schema::hasColumn('custom_creations', 'requires_measurement_confirmation'));
+
+            $indexes = $this->uniqueIndexNames('size_chart_entries');
+
+            $this->assertContains('size_chart_entries_chart_label_fit_unique', $indexes);
+            $this->assertNotContains('size_chart_entries_size_chart_id_label_unique', $indexes);
+        });
+    }
+
+    private function fitMigration(): object
+    {
+        return require database_path(
             'migrations/2026_10_19_000001_add_fit_and_confirmation_fields.php'
         );
+    }
 
-        $migration->down();
-        $migration->up();
+    /**
+     * Run a callback against a separate connection to the same database.
+     *
+     * A rollback runs DROP and ALTER, and MySQL implicitly commits the open
+     * transaction when it executes DDL. Done on the test's own connection that ends
+     * the test's transaction early, so rows written afterwards escape the rollback
+     * and stay behind for every later test in the process - which is how a stray
+     * chart can make an unrelated "this page is empty" test fail intermittently,
+     * with no obvious cause.
+     *
+     * The implicit commit belongs to whichever connection ran the DDL, so giving
+     * the DDL its own connection leaves the test's transaction untouched. A
+     * separate *database* would be tidier still, but the application's database
+     * user is only granted privileges on the two named databases, and a test that
+     * needed a hand-made GRANT would not run for anyone else.
+     */
+    private function withSeparateMigrationConnection(callable $callback): void
+    {
+        $originalDefault = config('database.default');
+        $originalConfig = config('database.connections.'.$originalDefault);
 
-        $this->assertTrue(Schema::hasColumn('size_chart_entries', 'fit'));
-        $this->assertTrue(Schema::hasColumn('custom_orders', 'selected_chart_fit'));
-        $this->assertTrue(Schema::hasColumn('custom_creations', 'requires_measurement_confirmation'));
+        config(['database.connections.migration_probe' => $originalConfig]);
+        config(['database.default' => 'migration_probe']);
 
-        $entry = SizeChartEntry::create([
-            'size_chart_id' => $this->chart()->id, 'label' => '2-3 years', 'fit' => 'large', 'sort_order' => 1,
-        ]);
+        \DB::purge('migration_probe');
 
-        $this->assertSame('large', $entry->fresh()->fit);
+        try {
+            $callback();
+        } finally {
+            config(['database.default' => $originalDefault]);
+            \DB::purge('migration_probe');
+        }
+    }
+
+    /**
+     * The unique indexes currently defined on a table.
+     */
+    private function uniqueIndexNames(string $table): array
+    {
+        return \DB::table('information_schema.STATISTICS')
+            ->where('TABLE_SCHEMA', config('database.connections.'.config('database.default').'.database'))
+            ->where('TABLE_NAME', $table)
+            ->where('NON_UNIQUE', 0)
+            ->distinct()
+            ->pluck('INDEX_NAME')
+            ->all();
     }
 }
