@@ -130,7 +130,7 @@
                 <div class="col-md-3">
                     <label class="form-label">Fitting</label>
                     <select name="fit" class="form-select">
-                        <option value="">Standard &mdash; no fitting assigned</option>
+                        <option value="">{{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}</option>
                         @foreach(\App\Models\SizeChart::FITS as $fit)
                             <option value="{{ $fit }}">{{ \App\Models\SizeChart::FIT_LABELS[$fit] }}</option>
                         @endforeach
@@ -153,7 +153,7 @@
                 @if($entry->hasFit())
                     <span class="badge text-bg-secondary ms-1">{{ $entry->fitLabel() }}</span>
                 @else
-                    <span class="badge text-bg-light text-dark ms-1">Standard &mdash; no fitting assigned</span>
+                    <span class="badge text-bg-light text-dark ms-1">{{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}</span>
                 @endif
                 @if($entry->measurements->isEmpty())
                     <span class="badge text-bg-warning ms-1">No measurements yet</span>
@@ -168,7 +168,7 @@
                     </div>
                     <div class="col-auto">
                         <select name="fit" class="form-select form-select-sm" aria-label="Fitting">
-                            <option value="">Standard &mdash; no fitting assigned</option>
+                            <option value="">{{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}</option>
                             @foreach(\App\Models\SizeChart::FITS as $fit)
                                 <option value="{{ $fit }}" @selected($entry->fit === $fit)>
                                     {{ \App\Models\SizeChart::FIT_LABELS[$fit] }}

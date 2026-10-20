@@ -35,15 +35,39 @@
         @foreach($charts as $chart)
             @foreach($bases as $basis)
                 @php
-                    // Measurement types this chart actually holds for this basis.
+                    // Which bases this chart actually holds figures for.
                     $types = $chart->entries
                         ->flatMap(fn ($e) => $e->measurements->where('basis', $basis)->pluck('measurement_type'))
                         ->unique()->sort()->values();
+
+                    // Age bands, and the fittings actually offered for each one.
+                    $bands = [];
+                    foreach ($chart->fitGroups() as $group) {
+                        $options = [];
+                        foreach ($group['options'] as $option) {
+                            $options[] = [
+                                'key' => $option['key'],
+                                'label' => $option['label'],
+                                'tiered' => $option['tiered'],
+                                'entry' => $option['entry'],
+                                // A fitting with no figures for this basis exists, but it
+                                // cannot be chosen, and must not look choosable.
+                                'available' => $option['entry']->hasBasis($basis),
+                            ];
+                        }
+                        $bands[] = [
+                            'label' => $group['label'],
+                            'options' => $options,
+                            // A band of only standard cuts has no fitting to choose.
+                            'hasTiered' => collect($options)->contains(fn ($o) => $o['tiered']),
+                            'anyAvailable' => collect($options)->contains(fn ($o) => $o['available']),
+                        ];
+                    }
                 @endphp
 
                 @continue($types->isEmpty())
 
-                <div class="card mb-4">
+                <div class="card mb-4" data-size-guide>
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>
                             {{ $chart->name }}
@@ -54,28 +78,80 @@
                         <small class="text-muted">in centimetres</small>
                     </div>
                     <div class="card-body">
+
+                        {{-- Step one: the age band. --}}
+                        <div class="mb-3 d-none" data-sg-age-step>
+                            <div class="small fw-semibold mb-2">Step 1 &mdash; choose an age band</div>
+                            <div class="d-flex flex-wrap gap-2" role="group" aria-label="Choose an age band">
+                                @foreach($bands as $bandIndex => $band)
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-sg-age-btn="{{ $bandIndex }}"
+                                            aria-pressed="false"
+                                            @disabled(! $band['anyAvailable'])>
+                                        {{ $band['label'] }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Step two: the fitting, and only the ones actually offered. --}}
+                        @foreach($bands as $bandIndex => $band)
+                            @if($band['hasTiered'])
+                                <div class="mb-3 d-none" data-sg-fit-step data-band="{{ $bandIndex }}">
+                                    <div class="small fw-semibold mb-2">Step 2 &mdash; choose a fitting</div>
+                                    <div class="d-flex flex-wrap gap-2" role="group" aria-label="Choose a fitting">
+                                        @foreach($band['options'] as $option)
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    data-sg-fit-btn-band="{{ $bandIndex }}"
+                                                    data-sg-fit-btn-fit="{{ $option['key'] }}"
+                                                    aria-pressed="false"
+                                                    @disabled(! $option['available'])>
+                                                {{ $option['label'] }}
+                                                @unless($option['available'])
+                                                    <span class="text-muted small">
+                                                        (no {{ $basis === \App\Models\SizeChart::BASIS_BODY ? 'body' : 'garment' }} figures yet)
+                                                    </span>
+                                                @endunless
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+
                         <div class="table-responsive">
                             <table class="table table-bordered align-middle mb-0">
                                 <thead>
                                     <tr>
-                                        <th style="min-width:130px">Size</th>
+                                        <th style="min-width:190px">Size</th>
                                         @foreach($types as $type)
-                                            <th class="small">{{ \App\Models\SizeChartMeasurement::where('measurement_type', $type)->value('measurement_type') ? ucwords(str_replace('_', ' ', $type)) : $type }}</th>
+                                            <th class="small">{{ ucwords(str_replace('_', ' ', $type)) }}</th>
                                         @endforeach
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($chart->entries as $entry)
-                                        <tr>
-                                            <th scope="row">{{ $entry->label }}</th>
-                                            @foreach($types as $type)
-                                                @php
-                                                    $cell = $entry->measurements
-                                                        ->first(fn ($m) => $m->measurement_type === $type && $m->basis === $basis);
-                                                @endphp
-                                                <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
-                                            @endforeach
-                                        </tr>
+                                    @foreach($bands as $bandIndex => $band)
+                                        @foreach($band['options'] as $option)
+                                            <tr data-sg-row-band="{{ $bandIndex }}" data-sg-row-fit="{{ $option['key'] }}">
+                                                <th scope="row">
+                                                    {{ $option['entry']->combinedLabel() }}
+                                                    @unless($option['tiered'])
+                                                        <span class="badge text-bg-light text-dark ms-1">
+                                                            {{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
+                                                        </span>
+                                                    @endunless
+                                                </th>
+                                                @foreach($types as $type)
+                                                    @php
+                                                        $cell = $option['entry']->measurements
+                                                            ->first(fn ($m) => $m->measurement_type === $type && $m->basis === $basis);
+                                                    @endphp
+                                                    <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
+                                                @endforeach
+                                            </tr>
+                                        @endforeach
                                     @endforeach
                                 </tbody>
                             </table>
@@ -126,3 +202,103 @@
 
 </div>
 @endsection
+
+@push('styles')
+<style>
+    /* Rows are all present in the page so the guide still reads without scripting.
+       The script marks the guide as enhanced, and only then is the rest hidden. */
+    .sg-hidden { display: none !important; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    var roots = document.querySelectorAll('[data-size-guide]');
+
+    Array.prototype.forEach.call(roots, function (root) {
+        var rows = Array.prototype.slice.call(root.querySelectorAll('[data-sg-row-band]'));
+        if (!rows.length) return;
+
+        var ageButtons = Array.prototype.slice.call(root.querySelectorAll('[data-sg-age-btn]'));
+        var fitButtons = Array.prototype.slice.call(root.querySelectorAll('[data-sg-fit-btn-band]'));
+        var fitSteps = Array.prototype.slice.call(root.querySelectorAll('[data-sg-fit-step]'));
+        var ageStep = root.querySelector('[data-sg-age-step]');
+
+        function rowsOfBand(band) {
+            return rows.filter(function (row) {
+                return row.getAttribute('data-sg-row-band') === String(band);
+            });
+        }
+
+        function showRows(band, fit) {
+            rows.forEach(function (row) {
+                var sameBand = row.getAttribute('data-sg-row-band') === String(band);
+                var sameFit = fit === null || row.getAttribute('data-sg-row-fit') === fit;
+                row.classList.toggle('sg-hidden', !(sameBand && sameFit));
+            });
+        }
+
+        function selectFit(band, fit) {
+            fitButtons.forEach(function (button) {
+                var active = button.getAttribute('data-sg-fit-btn-band') === String(band)
+                    && button.getAttribute('data-sg-fit-btn-fit') === fit;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+
+            showRows(band, fit);
+        }
+
+        function selectAge(band) {
+            ageButtons.forEach(function (button) {
+                var active = button.getAttribute('data-sg-age-btn') === String(band);
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+
+            // Only the fitting step for the chosen band is shown.
+            fitSteps.forEach(function (step) {
+                var match = step.getAttribute('data-sg-fit-step') === String(band);
+                step.classList.toggle('d-none', !match);
+            });
+
+            var options = fitButtons.filter(function (button) {
+                return button.getAttribute('data-sg-fit-btn-band') === String(band) && !button.disabled;
+            });
+
+            if (options.length) {
+                selectFit(band, options[0].getAttribute('data-sg-fit-btn-fit'));
+            } else {
+                // A band of only standard cuts has no fitting to choose, so it shows
+                // its one entry rather than an empty step.
+                selectFit(band, null);
+            }
+        }
+
+        ageButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                selectAge(button.getAttribute('data-sg-age-btn'));
+            });
+        });
+
+        fitButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                selectFit(
+                    button.getAttribute('data-sg-fit-btn-band'),
+                    button.getAttribute('data-sg-fit-btn-fit')
+                );
+            });
+        });
+
+        // The first band that actually has figures is the sensible starting point.
+        var firstBand = ageButtons.filter(function (button) {
+            return !button.disabled;
+        })[0] || ageButtons[0];
+
+        if (ageStep) ageStep.classList.remove('d-none');
+        if (firstBand) selectAge(firstBand.getAttribute('data-sg-age-btn'));
+    });
+})();
+</script>
+@endpush

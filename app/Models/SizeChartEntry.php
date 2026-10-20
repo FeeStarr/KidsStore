@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SizeChartEntry extends Model
 {
+    /** The key an untilered entry is filed under. */
+    public const FIT_UNASSIGNED = 'unassigned';
+
+    /** How an untilered entry is described to a customer. */
+    public const FIT_UNASSIGNED_LABEL = 'Standard (no tier assigned)';
+
     protected $fillable = ['size_chart_id', 'label', 'fit', 'code', 'sort_order'];
 
     protected $casts = ['sort_order' => 'integer'];
@@ -35,16 +41,38 @@ class SizeChartEntry extends Model
     {
         return $this->hasFit()
             ? (SizeChart::FIT_LABELS[$this->fit] ?? $this->fit)
-            : 'Standard (no fitting assigned)';
+            : self::FIT_UNASSIGNED_LABEL;
     }
 
     /**
-     * Customer-facing name, e.g. "2-3 years - Medium fitting". An untilered entry
-     * reads as the age band alone rather than inventing a tier.
+     * The key a fitting is stored under. Untilered entries share one key so the
+     * interface can treat them as a single ordinary option.
+     */
+    public function fitKey(): string
+    {
+        return $this->hasFit() ? $this->fit : self::FIT_UNASSIGNED;
+    }
+
+    /**
+     * Customer-facing name of this size, e.g. "2-3 years - Medium fitting".
+     *
+     * An untilered entry reads as the age band alone rather than inventing a tier;
+     * the interface labels it as the standard cut alongside.
      */
     public function displayLabel(): string
     {
         return $this->hasFit() ? "{$this->label} - {$this->fitLabel()}" : $this->label;
+    }
+
+    /**
+     * The age band and fitting together, as a customer reads them: "2-3 years ·
+     * Medium fitting". Used wherever a size is chosen or reviewed.
+     */
+    public function combinedLabel(): string
+    {
+        return $this->hasFit()
+            ? $this->label." \u{00B7} ".$this->fitLabel()
+            : $this->label;
     }
 
     /**

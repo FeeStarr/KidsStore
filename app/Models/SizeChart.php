@@ -87,6 +87,53 @@ class SizeChart extends Model
      * chart simply is not ready, rather than showing a blank or guessed value.
      */
     /**
+     * The sizes this chart offers, grouped by age band and then by fitting.
+     *
+     * Coverage varies by band: a band may offer only the fittings the tailor supports
+     * at that age. An absent fitting is therefore a normal state and is never shown as
+     * an option that could have been chosen.
+     *
+     * @return array<int, array{key: string, label: string, options: array<int, array{key: string, label: string, tiered: bool, entry: SizeChartEntry}>}>
+     */
+    public function fitGroups(): array
+    {
+        $groups = [];
+
+        foreach ($this->entries as $entry) {
+            $key = $entry->label;
+
+            if (! isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'label' => $key,
+                    'options' => [],
+                ];
+            }
+
+            $groups[$key]['options'][] = [
+                'key' => $entry->fitKey(),
+                'label' => $entry->fitLabel(),
+                'tiered' => $entry->hasFit(),
+                'entry' => $entry,
+            ];
+        }
+
+        // Order the fittings within a band as small, medium, large, then the
+        // standard cut, so a customer reads them in a predictable sequence.
+        $rank = array_merge(
+            array_flip(self::FITS),
+            [SizeChartEntry::FIT_UNASSIGNED => count(self::FITS)]
+        );
+
+        foreach ($groups as $key => $group) {
+            usort($group['options'], fn ($a, $b) => ($rank[$a['key']] ?? 99) <=> ($rank[$b['key']] ?? 99));
+            $groups[$key] = $group;
+        }
+
+        return array_values($groups);
+    }
+
+    /**
      * Which fit tiers this chart offers for each age band, and whether each
      * combination actually has figures behind it.
      *

@@ -312,7 +312,7 @@ class FitTierAdminTest extends TestCase
             ->get(route('admin.size-charts.show', $chart))
             ->assertOk()
             ->assertSee('Fitting coverage')
-            ->assertSee('no fitting assigned')
+            ->assertSee('no tier assigned')
             ->assertSee('Offered');
     }
 
