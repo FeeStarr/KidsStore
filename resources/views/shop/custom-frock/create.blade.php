@@ -214,7 +214,7 @@
                                         </small>
 
                                         <details class="mt-2">
-                                            <summary class="small text-muted" style="cursor:pointer">Show the measurements for each size</summary>
+                                            <summary class="small text-muted" style="cursor:pointer">Show the measurements for each fitting</summary>
                                             @php
                                                 $chartTypes = $sizeChart->entries
                                                     ->flatMap(fn ($e) => $e->measurements->pluck('measurement_type'))
