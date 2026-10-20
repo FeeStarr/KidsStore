@@ -13,6 +13,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
@@ -27,9 +28,37 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ImageOptimizationService::class);
     }
 
+    /**
+     * Stop a blocked statement from hanging the test suite indefinitely.
+     *
+     * MariaDB's lock_wait_timeout defaults to 86400 seconds, and it covers metadata
+     * locks. A DROP or ALTER that cannot take the lock therefore waits a day rather
+     * than failing, which wedges the whole server: every later test then fails on a
+     * dead connection, and the next run's migrate:fresh cannot get past the same
+     * lock.
+     *
+     * A short timeout turns that into an ordinary, readable failure.
+     */
+    private function boundTestLockTimeouts(): void
+    {
+        if (! $this->app->runningUnitTests()) {
+            return;
+        }
+
+        try {
+            DB::statement('SET SESSION lock_wait_timeout = 15');
+            DB::statement('SET SESSION innodb_lock_wait_timeout = 10');
+        } catch (\Throwable) {
+            // No database yet, or the server is not reachable. Neither is a reason
+            // to stop the application from booting.
+        }
+    }
+
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        $this->boundTestLockTimeouts();
 
         RateLimiter::for('api-auth', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());

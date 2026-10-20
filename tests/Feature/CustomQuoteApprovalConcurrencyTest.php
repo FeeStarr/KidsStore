@@ -139,30 +139,37 @@ class CustomQuoteApprovalConcurrencyTest extends FoundationTestCase
         $b = DB::connection('lock_b');
 
         $a->beginTransaction();
-        $this->assertNotNull(
-            $a->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first(),
-            'Connection A must be able to take the row lock.'
-        );
 
-        // A short lock wait so a genuine block fails fast instead of hanging the suite.
-        $b->statement('SET SESSION innodb_lock_wait_timeout = 1');
-        $b->beginTransaction();
-
-        $blocked = false;
         try {
-            $b->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
-        } catch (QueryException $e) {
-            $blocked = true;
+            $this->assertNotNull(
+                $a->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first(),
+                'Connection A must be able to take the row lock.'
+            );
+
+            // A short lock wait so a genuine block fails fast instead of hanging the suite.
+            $b->statement('SET SESSION innodb_lock_wait_timeout = 1');
+            $b->beginTransaction();
+
+            $blocked = false;
+            try {
+                $b->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
+            } catch (QueryException $e) {
+                $blocked = true;
+            } finally {
+                // Always closed. A transaction left open on another connection keeps
+                // a metadata lock on custom_orders, which would then block the next
+                // run's migrate:fresh until the server gave up.
+                $b->rollBack();
+            }
+
+            $this->assertTrue(
+                $blocked,
+                'Connection B should block on the row lock held by connection A. If it did not, '
+                .'the locking primitive this flow depends on is not working.'
+            );
+        } finally {
+            $a->rollBack();
         }
-        $b->rollBack();
-
-        $this->assertTrue(
-            $blocked,
-            'Connection B should block on the row lock held by connection A. If it did not, '
-            .'the locking primitive this flow depends on is not working.'
-        );
-
-        $a->rollBack();
     }
 
     /**
@@ -183,19 +190,38 @@ class CustomQuoteApprovalConcurrencyTest extends FoundationTestCase
 
         // Connection A approves: locks, checks, creates, commits.
         $a->beginTransaction();
-        $a->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
 
-        $seenBefore = $a->table('orders')->where('custom_order_id', $order->id)->exists();
-        $this->assertFalse($seenBefore);
+        try {
+            $a->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
 
-        $this->insertLinkedOrder($a, $order->id, 'ORD-LOCK-A-'.uniqid());
-        $a->commit();
+            $seenBefore = $a->table('orders')->where('custom_order_id', $order->id)->exists();
+            $this->assertFalse($seenBefore);
+
+            $this->insertLinkedOrder($a, $order->id, 'ORD-LOCK-A-'.uniqid());
+            $a->commit();
+        } catch (\Throwable $e) {
+            // Never leave the transaction open on another connection.
+            if ($a->getPdo()->inTransaction()) {
+                $a->rollBack();
+            }
+
+            throw $e;
+        }
 
         // Connection B now runs the same check and must see A's committed order.
         $b->beginTransaction();
-        $b->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
-        $seenAfter = $b->table('orders')->where('custom_order_id', $order->id)->exists();
-        $b->commit();
+
+        try {
+            $b->table('custom_orders')->where('id', $order->id)->lockForUpdate()->first();
+            $seenAfter = $b->table('orders')->where('custom_order_id', $order->id)->exists();
+            $b->commit();
+        } catch (\Throwable $e) {
+            if ($b->getPdo()->inTransaction()) {
+                $b->rollBack();
+            }
+
+            throw $e;
+        }
 
         $this->assertTrue(
             $seenAfter,

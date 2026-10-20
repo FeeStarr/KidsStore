@@ -402,6 +402,10 @@ class FitTierSchemaTest extends TestCase
         \DB::purge('migration_probe');
 
         try {
+            // The DDL below needs an exclusive metadata lock. MariaDB would wait a
+            // day for it by default, which hangs the suite instead of failing it.
+            \DB::connection('migration_probe')->statement('SET SESSION lock_wait_timeout = 15');
+
             $callback();
         } finally {
             config(['database.default' => $originalDefault]);
