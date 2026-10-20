@@ -62,12 +62,12 @@
                         <a href="{{ route('shop.products.show', $creation->product_id) }}" class="btn btn-primary px-4">
                             <i class="bi bi-bag-check me-1"></i> View &amp; Order
                         </a>
-                        <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-outline-primary px-4">
+                        <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-outline-primary px-4">
                             <i class="bi bi-scissors me-1"></i> Start a Custom Request
                         </a>
                     @elseif ($state === 'out_of_stock')
                         <p class="text-muted small mb-3">This dress is temporarily out of stock — but we can still create one for you.</p>
-                        <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary px-4">
+                        <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-primary px-4">
                             <i class="bi bi-scissors me-1"></i> Request This Creation
                         </a>
                         @if (config('shop.out_of_stock_visibility') !== 'hide')
@@ -77,7 +77,7 @@
                         @endif
                     @else
                         <p class="text-muted small mb-3">This design isn't in stock right now, but we'd love to create it for you.</p>
-                        <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary px-4">
+                        <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-primary px-4">
                             <i class="bi bi-scissors me-1"></i> Request This Creation
                         </a>
                     @endif

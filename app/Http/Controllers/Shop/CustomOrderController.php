@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgeRange;
+use App\Models\CustomCreation;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderColour;
 use App\Models\DeliveryCharge;
@@ -10,6 +12,7 @@ use App\Models\DeliveryLocation;
 use App\Models\PickupStation;
 use App\Models\Product;
 use App\Models\SizeChart;
+use App\Models\SizeChartEntry;
 use App\Notifications\CustomOrderMessageReceived;
 use App\Notifications\NotificationRecipients;
 use App\Services\CustomFileService;
@@ -57,15 +60,25 @@ class CustomOrderController extends Controller
         return view('shop.custom-frock.index', compact('orders', 'filter'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $data = $this->getFormOptions();
 
         // Check for base product selection
         $baseProduct = null;
-        if (request()->has('product_id')) {
-            $baseProduct = Product::findOrFail(request('product_id'));
+        if ($request->has('product_id')) {
+            $baseProduct = Product::findOrFail($request->input('product_id'));
         }
+
+        // The design this request was started from, resolved against the database.
+        // An id that names nothing, or names a design that is no longer shown, simply
+        // yields no selection: a shared link must never dead-end a customer.
+        $creation = $this->resolveCreation($request->input('creation_id'));
+
+        // The age band a design suggests, but only when the form can actually offer
+        // it. A design whose age range matches no band leaves the choice to the
+        // customer rather than forcing something that does not exist.
+        $creationAgeRange = $this->creationAgeRange($creation, $data['sizeChart'] ?? null);
 
         // Restore session data if available (draft or create-similar)
         $saved = Session::get('custom_order_draft', []);
@@ -76,7 +89,53 @@ class CustomOrderController extends Controller
         // resolves back to the order it already created.
         $submissionToken = (string) Str::uuid();
 
-        return view('shop.custom-frock.create', array_merge($data, compact('baseProduct', 'saved', 'fileService', 'submissionToken')));
+        return view('shop.custom-frock.create', array_merge($data, compact(
+            'baseProduct',
+            'creation',
+            'creationAgeRange',
+            'saved',
+            'fileService',
+            'submissionToken'
+        )));
+    }
+
+    /**
+     * The age band a design suggests, when that band is one the form can offer.
+     *
+     * The design's age range is free text written by the tailor, so it is matched
+     * exactly against the bands actually available. A near miss is not corrected by
+     * guesswork: either the band exists, or the customer chooses.
+     */
+    private function creationAgeRange(?CustomCreation $creation, ?SizeChart $sizeChart): ?string
+    {
+        $range = $creation?->age_range;
+
+        if (! $range) {
+            return null;
+        }
+
+        $available = $sizeChart
+            ? collect($sizeChart->fitGroups())->pluck('label')
+            : AgeRange::where('is_active', true)->pluck('name');
+
+        return $available->contains($range) ? $range : null;
+    }
+
+    /**
+     * The design a request is being made from, if the submitted id names one that
+     * may actually be offered.
+     *
+     * The id is never trusted as it arrives: availability is decided by the
+     * database, and the measurement requirement is read from the design rather than
+     * from anything the browser supplied.
+     */
+    private function resolveCreation(mixed $id): ?CustomCreation
+    {
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        return CustomCreation::active()->whereKey((int) $id)->first();
     }
 
     public function createSimilar(CustomOrder $customOrder)
@@ -148,6 +207,8 @@ class CustomOrderController extends Controller
                 // chart. Without one the form falls back to the age range.
                 return (bool) SizeChart::published()->whereKey($request->input('size_chart_id'))->exists();
             })],
+            'selected_chart_fit' => ['nullable', Rule::in(array_merge(SizeChart::FITS, [SizeChartEntry::FIT_UNASSIGNED]))],
+            'creation_id' => ['nullable', 'integer'],
             'measurements' => ['nullable', 'array'],
             'measurements.*.value' => ['nullable', 'numeric', 'min:1', 'max:500'],
             'measurements.*.unit' => ['nullable', 'string', 'max:8'],
@@ -187,15 +248,44 @@ class CustomOrderController extends Controller
         $sizeChart = null;
         $sizingMethod = $data['sizing_method'] ?? null;
         $selectedSize = $data['selected_chart_size'] ?? null;
+        $selectedFit = $data['selected_chart_fit'] ?? null;
+
+        // The standard cut is submitted under its own name so it cannot be confused
+        // with "no fitting chosen yet". It records as no tier at all.
+        if ($selectedFit === SizeChartEntry::FIT_UNASSIGNED) {
+            $selectedFit = null;
+        }
 
         if ($sizeChartId = $data['size_chart_id'] ?? null) {
-            $sizeChart = SizeChart::published()->whereKey($sizeChartId)->first();
+            $sizeChart = SizeChart::published()->with('entries')->whereKey($sizeChartId)->first();
 
             if ($sizeChart) {
                 $sizingMethod = CustomOrder::SIZING_STANDARD;
                 $selectedSize ??= $sizeChart->entries->firstWhere('label', $selectedSize)?->label;
             }
         }
+
+        // The age band and the fitting must name one entry of the published chart
+        // that actually exists. A pair that does not match any entry is rejected
+        // rather than stored, so a tampered combination cannot put a fitting on the
+        // order that the chart never offered at that age.
+        if ($sizeChart && $selectedSize !== null) {
+            $entry = $sizeChart->entries->first(
+                fn ($e) => $e->label === $selectedSize && $e->fit === $selectedFit
+            );
+
+            if (! $entry) {
+                return back()
+                    ->withErrors(['selected_chart_size' => 'That size and fitting are not offered together. Please choose again.'])
+                    ->withInput();
+            }
+        }
+
+        // The design this request was made from, resolved against the database. The
+        // measurement requirement is read from the design itself, never from a
+        // submitted flag, so it cannot be talked out of.
+        $creation = $this->resolveCreation($data['creation_id'] ?? null);
+        $requiresMeasurementConfirmation = (bool) $creation?->requires_measurement_confirmation;
 
         // Only measurements the parent actually supplied are stored. The array is keyed by
         // measurement type (measurements[chest][value]), so the key is the type.
@@ -226,6 +316,9 @@ class CustomOrderController extends Controller
                 'size_chart_id' => $sizeChart?->id,
                 'size_chart_version' => $sizeChart?->version,
                 'selected_chart_size' => $selectedSize,
+                'selected_chart_fit' => $selectedFit,
+                'custom_creation_id' => $creation?->id,
+                'requires_measurement_confirmation' => $requiresMeasurementConfirmation,
                 'return_policy_acknowledged_at' => now(),
                 'delivery_method' => $data['delivery_method'],
                 'pickup_station_id' => $data['pickup_station_id'] ?? null,

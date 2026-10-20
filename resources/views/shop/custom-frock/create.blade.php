@@ -30,12 +30,40 @@
 
                 <input type="hidden" name="base_product_id" value="{{ $baseProduct?->id }}">
                 <input type="hidden" name="submission_token" id="submissionToken" value="{{ $submissionToken }}">
+                {{-- The design this request was started from. The measurement requirement is
+                     read from the design on the server, never from the browser. --}}
+                @if($creation)
+                    <input type="hidden" name="creation_id" value="{{ $creation->id }}">
+                @endif
 
                 {{-- Step 1: Basic Info --}}
                 <div class="form-step" data-step="0">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header"><h5 class="mb-0">Basic Information</h5></div>
                         <div class="card-body">
+                            @if($creation)
+                                {{-- The design this request was started from. Saying so keeps the
+                                     customer on the design they chose, and states plainly that a
+                                     design cut closely will need their measurements confirmed. --}}
+                                <div class="alert alert-info d-flex gap-3 align-items-start">
+                                    @if($creation->image_path)
+                                        <img src="{{ $creation->image_url }}" alt="{{ $creation->title }}"
+                                             class="rounded flex-shrink-0" style="width:64px;height:64px;object-fit:cover">
+                                    @endif
+                                    <div>
+                                        <div class="fw-bold">Requesting: {{ $creation->title }}</div>
+                                        @if($creation->age_range)
+                                            <div class="small">Suggested age range: {{ $creation->age_range }}</div>
+                                        @endif
+                                        @if($creation->requires_measurement_confirmation)
+                                            <div class="small mt-1">
+                                                <i class="bi bi-rulers me-1"></i>This design is cut to fit closely, so we will
+                                                ask you to confirm your child's measurements before we begin.
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="child_name" class="form-label">Child's Name / Nickname <span class="text-danger">*</span></label>
@@ -131,20 +159,54 @@
                                      age range is kept so existing traffic is never blocked. --}}
                                 <div class="col-12">
                                     @if($sizeChart)
+                                        @php
+                                            $chartGroups = $sizeChart->fitGroups();
+                                            // The design may suggest an age band, but only one the
+                                            // chart actually offers. Anything else is left to the
+                                            // customer rather than forced onto them.
+                                            $prefilledBand = $creationAgeRange !== null
+                                                && collect($chartGroups)->pluck('label')->contains($creationAgeRange)
+                                                    ? $creationAgeRange
+                                                    : null;
+                                        @endphp
+
                                         <label class="form-label fw-bold">Sizing <span class="text-danger">*</span></label>
                                         <input type="hidden" name="sizing_method" value="{{ old('sizing_method', \App\Models\CustomOrder::SIZING_STANDARD) }}">
                                         <input type="hidden" name="size_chart_id" value="{{ old('size_chart_id', $sizeChart->id) }}">
 
-                                        <select name="selected_chart_size" class="form-select" required>
-                                            <option value="">Choose a size from the guide...</option>
-                                            @foreach($sizeChart->entries as $entry)
-                                                <option value="{{ $entry->label }}"
-                                                    @selected(old('selected_chart_size', $saved['selected_chart_size'] ?? '') === $entry->label)>
-                                                    {{ $entry->label }}
+                                        <select name="selected_chart_size" class="form-select" required data-frock-age>
+                                            <option value="">Choose an age band...</option>
+                                            @foreach($chartGroups as $group)
+                                                <option value="{{ $group['label'] }}"
+                                                    @selected(old('selected_chart_size', $saved['selected_chart_size'] ?? $prefilledBand ?? '') === $group['label'])>
+                                                    {{ $group['label'] }}
                                                 </option>
                                             @endforeach
                                         </select>
 
+                                        <label class="form-label fw-bold mt-3">Fitting</label>
+                                        <select name="selected_chart_fit" class="form-select" data-frock-fit>
+                                            <option value="">Choose a fitting...</option>
+                                            @foreach($chartGroups as $group)
+                                                <optgroup label="{{ $group['label'] }}">
+                                                    @foreach($group['options'] as $option)
+                                                        @php
+                                                            // The standard cut is submitted as a named
+                                                            // option so it cannot be confused with
+                                                            // "not chosen yet".
+                                                            $value = $option['key'] === \App\Models\SizeChartEntry::FIT_UNASSIGNED
+                                                                ? \App\Models\SizeChartEntry::FIT_UNASSIGNED
+                                                                : $option['key'];
+                                                        @endphp
+                                                        <option value="{{ $value }}"
+                                                            data-band="{{ $group['label'] }}"
+                                                            @selected(old('selected_chart_fit', $saved['selected_chart_fit'] ?? '') === $value)>
+                                                            {{ $option['label'] }}
+                                                        </option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endforeach
+                                        </select>
                                         <small class="form-text text-muted">
                                             Not sure?
                                             <a href="{{ route('shop.size-guide') }}" target="_blank" rel="noopener">Check the {{ $sizeChart->name }} size guide</a>
@@ -171,7 +233,7 @@
                                                     <tbody>
                                                         @foreach($sizeChart->entries as $entry)
                                                             <tr>
-                                                                <th scope="row">{{ $entry->label }}</th>
+                                                                <th scope="row">{{ $entry->combinedLabel() }}</th>
                                                                 @foreach($chartTypes as $type)
                                                                     @php $cell = $entry->measurements->firstWhere('measurement_type', $type); @endphp
                                                                     <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
@@ -194,7 +256,7 @@
                                         <select name="standard_size" class="form-select" required>
                                             <option value="">Select age...</option>
                                             @foreach(\App\Models\AgeRange::where('is_active', true)->orderBy('name')->get() as $age)
-                                                <option value="{{ $age->name }}" {{ old('standard_size', $saved['standard_size'] ?? '') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
+                                                <option value="{{ $age->name }}" {{ old('standard_size', $saved['standard_size'] ?? $creationAgeRange ?? '') === $age->name ? 'selected' : '' }}>{{ $age->name }}</option>
                                             @endforeach
                                         </select>
                                         <small class="form-text text-muted">
@@ -336,6 +398,35 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Narrow the fitting options to the ones actually offered for the chosen age
+    // band. Every option stays in the form, so without scripting the customer can
+    // still see what is on offer; the server then refuses any combination the
+    // chart does not actually contain.
+    const ageSelect = document.querySelector('[data-frock-age]');
+    const fitSelect = document.querySelector('[data-frock-fit]');
+
+    if (ageSelect && fitSelect) {
+        const fitOptions = Array.prototype.slice.call(fitSelect.querySelectorAll('option[data-band]'));
+
+        function narrowFittings() {
+            const band = ageSelect.value;
+
+            fitOptions.forEach(function (option) {
+                const offered = !band || option.getAttribute('data-band') === band;
+                option.disabled = !offered;
+                option.hidden = !offered;
+            });
+
+            const current = fitSelect.options[fitSelect.selectedIndex];
+            if (current && current.disabled) {
+                fitSelect.value = '';
+            }
+        }
+
+        ageSelect.addEventListener('change', narrowFittings);
+        narrowFittings();
+    }
+
     const form = document.getElementById('customFrockForm');
     const steps = document.querySelectorAll('.form-step');
     const prevBtn = document.getElementById('prevBtn');

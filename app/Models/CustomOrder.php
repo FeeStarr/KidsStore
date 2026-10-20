@@ -131,7 +131,8 @@ class CustomOrder extends Model
 
     protected $fillable = [
         'custom_order_number', 'submission_token', 'user_id', 'item_type', 'category', 'status', 'payment_status',
-        'base_product_id', 'sizing_method', 'size_chart_id', 'size_chart_version', 'selected_chart_size', 'selected_chart_fit',
+        'base_product_id', 'custom_creation_id', 'requires_measurement_confirmation',
+        'sizing_method', 'size_chart_id', 'size_chart_version', 'selected_chart_size', 'selected_chart_fit',
         'sizing_snapshot', 'sizing_confirmed_at', 'sizing_policy_acknowledged_at',
         'return_policy_acknowledged_at', 'child_name', 'child_age', 'child_gender',
         'delivery_method', 'pickup_station_id', 'delivery_location_id', 'delivery_address',
@@ -157,6 +158,7 @@ class CustomOrder extends Model
         'quote_valid_until' => 'datetime',
         'estimated_production_days' => 'integer',
         'return_policy_acknowledged' => 'boolean',
+        'requires_measurement_confirmation' => 'boolean',
         'sizing_snapshot' => 'array',
         'sizing_confirmed_at' => 'datetime',
         'sizing_policy_acknowledged_at' => 'datetime',
@@ -193,6 +195,14 @@ class CustomOrder extends Model
     public function baseProduct(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'base_product_id');
+    }
+
+    /**
+     * The design this request was made from, if it was started from one.
+     */
+    public function customCreation(): BelongsTo
+    {
+        return $this->belongsTo(CustomCreation::class, 'custom_creation_id');
     }
 
     public function pickupStation(): BelongsTo

@@ -72,14 +72,14 @@
                             <div class="d-flex flex-column gap-2 mt-auto">
                                 @if ($state === 'available')
                                     <a href="{{ route('shop.products.show', $creation->product_id) }}" class="btn btn-primary btn-sm w-100">View &amp; Order</a>
-                                    <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-outline-primary btn-sm w-100">Start a Custom Request</a>
+                                    <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-outline-primary btn-sm w-100">Start a Custom Request</a>
                                 @elseif ($state === 'out_of_stock')
-                                    <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary btn-sm w-100">Request This Creation</a>
+                                    <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-primary btn-sm w-100">Request This Creation</a>
                                     @if (config('shop.out_of_stock_visibility') !== 'hide')
                                         <a href="{{ route('shop.products.show', $creation->product_id) }}" class="btn btn-outline-secondary btn-sm w-100">View Product</a>
                                     @endif
                                 @else
-                                    <a href="{{ route('shop.custom-frock.create') }}" class="btn btn-primary btn-sm w-100">Request This Creation</a>
+                                    <a href="{{ route('shop.custom-frock.create', ['creation_id' => $creation->id]) }}" class="btn btn-primary btn-sm w-100">Request This Creation</a>
                                 @endif
                             </div>
                         </div>

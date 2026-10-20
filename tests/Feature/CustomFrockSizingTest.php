@@ -114,7 +114,8 @@ class CustomFrockSizingTest extends TestCase
         $this->actingAs($customer, 'web')
             ->get(route('shop.custom-frock.create'))
             ->assertOk()
-            ->assertSee('Choose a size from the guide')
+            ->assertSee('Choose an age band')
+            ->assertSee('Choose a fitting')
             ->assertSee('2-3 years')
             ->assertSee(route('shop.size-guide'));
     }
