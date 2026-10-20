@@ -103,17 +103,30 @@
                             the size, the fitting and the measurements you agreed to, so nothing can change them later.
                         </p>
                         <div class="small">
-                            <div><strong>Basis:</strong>
-                                {{ $customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS
-                                    ? 'Made to your measurements' : 'Standard size' }}
+                            <div><strong>Cut to:</strong>
+                                @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                    Your child's measurements
+                                @elseif ($customOrder->selected_chart_size)
+                                    Standard size {{ $customOrder->selected_chart_size }}
+                                    {{ $customOrder->selected_chart_fit
+                                        ? (\App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit)
+                                        : \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
+                                @else
+                                    Not yet chosen
+                                @endif
                             </div>
                             @if ($customOrder->selected_chart_size)
-                                <div><strong>Size:</strong> {{ $customOrder->selected_chart_size }}</div>
+                                <div><strong>Age band:</strong> {{ $customOrder->selected_chart_size }}</div>
                             @endif
                             @if ($customOrder->selected_chart_fit)
                                 <div><strong>Fitting:</strong> {{ \App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit }}</div>
                             @elseif ($customOrder->selected_chart_size)
                                 <div><strong>Fitting:</strong> {{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}</div>
+                            @endif
+                            @if ($customOrder->productionBasis() !== \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                <div class="text-muted mt-1">
+                                    A standard fitting is a starting point for the cut, not a guarantee of an exact fit.
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -131,12 +144,15 @@
 
                         <div class="row g-3 mb-3">
                             <div class="col-sm-6">
-                                <div class="small text-muted">What we will make it to</div>
+                                <div class="small text-muted">What we will cut it to</div>
                                 <div class="fw-bold">
                                     @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
-                                        Your measurements
+                                        Your child's measurements
                                     @elseif ($customOrder->selected_chart_size)
-                                        Standard size: {{ $customOrder->selected_chart_size }}
+                                        Standard size {{ $customOrder->selected_chart_size }}
+                                        {{ $customOrder->selected_chart_fit
+                                            ? (\App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit)
+                                            : \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
                                     @else
                                         Not yet chosen
                                     @endif
@@ -157,9 +173,30 @@
                             </div>
                         </div>
 
+                        @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-rulers me-1"></i>
+                                We will cut this frock to the measurements you gave us, so those are the figures it is
+                                made to &mdash; not the size on the chart.
+                            </div>
+                        @else
+                            <div class="alert alert-warning small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                A standard fitting gives us a <strong>starting point</strong> to cut from, not a guarantee of an exact fit.
+                                If your child's measurements fall outside the range below, send them to us
+                                and we will cut to your measurements instead.
+                            </div>
+                        @endif
+
                         @if ($sizingFigures->isNotEmpty())
                             <div class="mb-3">
-                                <div class="small fw-semibold mb-1">The measurements for this size</div>
+                                <div class="small fw-semibold mb-1">
+                                    @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                        The size we would otherwise have used
+                                    @else
+                                        The measurements for this size
+                                    @endif
+                                </div>
                                 <table class="table table-sm table-bordered mb-2">
                                     <thead>
                                         <tr>
@@ -198,7 +235,7 @@
 
                         @if ($customOrder->measurements->isNotEmpty())
                             <div class="mb-3">
-                                <div class="small fw-semibold mb-1">We will make it to these measurements</div>
+                                <div class="small fw-semibold mb-1">We will cut it to these measurements</div>
                                 <table class="table table-sm table-bordered mb-0">
                                     <tbody>
                                         @foreach ($customOrder->measurements as $m)
@@ -263,7 +300,13 @@
                                 <input class="form-check-input" type="checkbox" name="sizing_confirmed" value="1"
                                        id="sizingConfirmed" required>
                                 <label class="form-check-label small" for="sizingConfirmed">
-                                    I confirm the sizing for this order, and I understand the frock will be cut to it.
+                                    @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                        I confirm the sizing for this order, and I understand the frock will be cut to
+                                        the measurements I gave you.
+                                    @else
+                                        I confirm the sizing for this order, and I understand the frock will be cut
+                                        from this size as a starting point.
+                                    @endif
                                 </label>
                             </div>
 

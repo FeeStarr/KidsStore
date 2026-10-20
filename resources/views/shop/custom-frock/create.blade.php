@@ -231,14 +231,16 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        @foreach($sizeChart->entries as $entry)
-                                                            <tr>
-                                                                <th scope="row">{{ $entry->combinedLabel() }}</th>
-                                                                @foreach($chartTypes as $type)
-                                                                    @php $cell = $entry->measurements->firstWhere('measurement_type', $type); @endphp
-                                                                    <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
-                                                                @endforeach
-                                                            </tr>
+                                                        @foreach($chartGroups as $group)
+                                                            @foreach($group['options'] as $option)
+                                                                <tr data-frock-row-band="{{ $group['label'] }}">
+                                                                    <th scope="row">{{ $option['entry']->combinedLabel() }}</th>
+                                                                    @foreach($chartTypes as $type)
+                                                                        @php $cell = $option['entry']->measurements->firstWhere('measurement_type', $type); @endphp
+                                                                        <td>{{ $cell && $cell->displayValue() ? $cell->displayValue() : '—' }}</td>
+                                                                    @endforeach
+                                                                </tr>
+                                                            @endforeach
                                                         @endforeach
                                                     </tbody>
                                                 </table>
@@ -395,6 +397,14 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    /* The rows for the other age bands are hidden once an age is chosen. They stay
+       in the page, so without scripting the table still shows every size. */
+    .frock-row-hidden { display: none !important; }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -404,6 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // chart does not actually contain.
     const ageSelect = document.querySelector('[data-frock-age]');
     const fitSelect = document.querySelector('[data-frock-fit]');
+    const measureRows = Array.prototype.slice.call(document.querySelectorAll('[data-frock-row-band]'));
 
     if (ageSelect && fitSelect) {
         const fitOptions = Array.prototype.slice.call(fitSelect.querySelectorAll('option[data-band]'));
@@ -425,6 +436,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         ageSelect.addEventListener('change', narrowFittings);
         narrowFittings();
+    }
+
+    // The measurement table shows the sizes for the age band being chosen, not
+    // every size in the chart. The rows for the other bands stay in the page, so
+    // without scripting the table still shows everything.
+    function narrowMeasurements() {
+        if (! ageSelect) return;
+
+        const band = ageSelect.value;
+
+        measureRows.forEach(function (row) {
+            const sameBand = !band || row.getAttribute('data-frock-row-band') === band;
+            row.classList.toggle('frock-row-hidden', !sameBand);
+        });
+    }
+
+    if (ageSelect) {
+        ageSelect.addEventListener('change', narrowMeasurements);
+        narrowMeasurements();
     }
 
     const form = document.getElementById('customFrockForm');

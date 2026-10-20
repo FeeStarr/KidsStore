@@ -120,6 +120,56 @@ class CustomFrockSizingTest extends TestCase
             ->assertSee(route('shop.size-guide'));
     }
 
+    /**
+     * The measurement table is scoped to the age band being chosen, so the customer
+     * is not comparing their child's size against a different age entirely.
+     *
+     * The rows stay in the page and are hidden by script, so without scripting the
+     * table still shows every size.
+     */
+    public function test_the_measurement_table_is_scoped_to_the_age_band(): void
+    {
+        $customer = $this->customer();
+        $this->seedVocabulary();
+        $this->seedDelivery();
+
+        $chart = SizeChart::create(['name' => 'Girls Frocks', 'default_basis' => 'body']);
+
+        foreach ([['2-3 years', 'small'], ['2-3 years', 'medium'], ['4-5 years', 'small']] as $i => [$label, $fit]) {
+            $entry = SizeChartEntry::create([
+                'size_chart_id' => $chart->id,
+                'label' => $label,
+                'fit' => $fit,
+                'sort_order' => $i + 1,
+            ]);
+
+            SizeChartMeasurement::create([
+                'size_chart_entry_id' => $entry->id,
+                'measurement_type' => 'chest',
+                'basis' => 'body',
+                'min_value' => 54 + $i,
+                'max_value' => 56 + $i,
+            ]);
+        }
+
+        $chart->load('entries.measurements');
+        $chart->publish();
+
+        $html = $this->actingAs($customer, 'web')
+            ->get(route('shop.custom-frock.create'))
+            ->assertOk()
+            ->getContent();
+
+        // Each row carries the age band it belongs to, so the table can be narrowed
+        // to the band being chosen.
+        $this->assertStringContainsString('data-frock-row-band="2-3 years"', $html);
+        $this->assertStringContainsString('data-frock-row-band="4-5 years"', $html);
+
+        // Both fittings of the first band are listed under it.
+        preg_match_all('/data-frock-row-band="2-3 years"/', $html, $matches);
+        $this->assertCount(2, $matches[0]);
+    }
+
     public function test_the_form_falls_back_to_age_range_when_no_chart_is_published(): void
     {
         $customer = $this->customer();

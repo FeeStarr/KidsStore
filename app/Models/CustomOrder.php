@@ -471,6 +471,13 @@ class CustomOrder extends Model
                 'combined_label' => $entry?->combinedLabel(),
             ],
             'standard_measurements' => $standardFigures,
+            // The figures the frock is actually cut from. When the basis is the
+            // customer's own measurements these are the customer's, and the chart
+            // figures are only what was shown to them. When the basis is the
+            // standard size, these are the chart figures for that size and fitting.
+            'production_figures' => $this->productionBasis() === self::SIZING_MEASUREMENTS
+                ? null
+                : $standardFigures,
             'guides' => $this->captureGuideWording($standardFigures),
             'production_measurements' => $this->measurements->map(fn ($m) => [
                 'type' => $m->measurement_type,

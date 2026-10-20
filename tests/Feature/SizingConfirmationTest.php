@@ -740,4 +740,95 @@ class SizingConfirmationTest extends TestCase
             ->assertSee('Sizing confirmed')
             ->assertDontSee('Please confirm the sizing');
     }
+
+    // ── a standard fitting is a starting point, not a guarantee ───────────
+
+    public function test_the_confirmation_says_a_standard_fitting_is_a_starting_point(): void
+    {
+        $this->vocabulary();
+        $chart = $this->chart();
+        $order = $this->order([
+            'size_chart_id' => $chart->id,
+            'selected_chart_size' => '2-3 years',
+            'selected_chart_fit' => 'medium',
+            'requires_measurement_confirmation' => false,
+        ]);
+
+        $this->actingAs(User::find($order->user_id), 'web')
+            ->get(route('shop.custom-frock.show', $order))
+            ->assertOk()
+            ->assertSee('starting point')
+            ->assertSee('not a guarantee of an exact fit')
+            ->assertSee('we will cut to your measurements instead');
+    }
+
+    public function test_the_confirmation_says_the_frock_is_cut_to_the_customers_measurements(): void
+    {
+        $this->vocabulary();
+        $chart = $this->chart();
+        $order = $this->order([
+            'size_chart_id' => $chart->id,
+            'selected_chart_size' => '2-3 years',
+            'sizing_method' => CustomOrder::SIZING_MEASUREMENTS,
+            'requires_measurement_confirmation' => false,
+        ]);
+        $order->measurements()->create([
+            'measurement_type' => 'chest',
+            'measurement_value' => 55,
+            'measurement_unit' => 'cm',
+        ]);
+
+        $this->actingAs(User::find($order->user_id), 'web')
+            ->get(route('shop.custom-frock.show', $order))
+            ->assertOk()
+            // Cut to the measurements, and the starting point wording does not apply.
+            ->assertSee('We will cut it to these measurements')
+            ->assertDontSee('not a guarantee of an exact fit');
+    }
+
+    public function test_the_snapshot_records_the_figures_the_frock_is_cut_from(): void
+    {
+        $this->vocabulary();
+        $chart = $this->chart();
+        $order = $this->order([
+            'size_chart_id' => $chart->id,
+            'selected_chart_size' => '2-3 years',
+            'selected_chart_fit' => 'medium',
+        ]);
+
+        $this->confirm($order)->assertSessionHasNoErrors();
+
+        $snapshot = $order->fresh()->sizing_snapshot;
+
+        // The basis is the standard size, so the chart figures are what we cut from.
+        $this->assertSame(CustomOrder::SIZING_STANDARD, $snapshot['production_basis']);
+        $this->assertCount(1, $snapshot['production_figures']);
+        $this->assertEquals(54, $snapshot['production_figures'][0]['min']);
+    }
+
+    public function test_the_snapshot_does_not_claim_chart_figures_when_measurements_are_the_basis(): void
+    {
+        $this->vocabulary();
+        $chart = $this->chart();
+        $order = $this->order([
+            'size_chart_id' => $chart->id,
+            'selected_chart_size' => '2-3 years',
+            'sizing_method' => CustomOrder::SIZING_MEASUREMENTS,
+        ]);
+        $order->measurements()->create([
+            'measurement_type' => 'chest',
+            'measurement_value' => 55,
+            'measurement_unit' => 'cm',
+        ]);
+
+        $this->confirm($order)->assertSessionHasNoErrors();
+
+        $snapshot = $order->fresh()->sizing_snapshot;
+
+        // The chart figures are only what was shown; the customer's figures are the basis.
+        $this->assertSame(CustomOrder::SIZING_MEASUREMENTS, $snapshot['production_basis']);
+        $this->assertNull($snapshot['production_figures']);
+        $this->assertCount(1, $snapshot['production_measurements']);
+        $this->assertEquals(55.0, $snapshot['production_measurements'][0]['value']);
+    }
 }
