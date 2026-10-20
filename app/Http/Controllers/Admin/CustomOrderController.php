@@ -57,9 +57,9 @@ class CustomOrderController extends Controller
     {
         $customOrder->load([
             'user', 'baseProduct', 'pickupStation',
-            'measurements', 'customizations', 'files',
+            'measurements', 'comparisonMeasurements', 'customizations', 'files',
             'quotes.creator', 'messages.sender', 'messages.file', 'statusHistory.changer',
-            'qcChecks.checker', 'order',
+            'qcChecks.checker', 'order', 'customCreation',
         ]);
 
         $latestQuote = $customOrder->latestQuote();
@@ -145,7 +145,14 @@ class CustomOrderController extends Controller
 
     public function startProduction(CustomOrder $customOrder)
     {
-        $this->customOrderService->startProduction($customOrder, Auth::id());
+        try {
+            $this->customOrderService->startProduction($customOrder, Auth::id());
+        } catch (\App\Exceptions\ProductionGateException $e) {
+            // The service is the authority on whether an order may be produced.
+            // There is no way round this from the admin interface: the missing
+            // evidence has to be resolved with the customer.
+            return back()->with('error', 'This order cannot start production yet. '.implode(' ', $e->blockers()));
+        }
 
         return back()->with('success', 'Production started.');
     }

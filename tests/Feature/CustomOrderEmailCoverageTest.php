@@ -134,9 +134,16 @@ class CustomOrderEmailCoverageTest extends TestCase
     {
         Notification::fake();
         $customer = $this->customer();
-        $order = $this->order($customer, CustomOrder::STATUS_PAID);
+        $order = $this->order($customer, CustomOrder::STATUS_PAID, [
+            'sizing_method' => CustomOrder::SIZING_STANDARD,
+            'selected_chart_size' => '2-3 years',
+        ]);
 
-        app(CustomOrderService::class)->startProduction($order, $this->admin()->id);
+        // Production requires the customer's sizing confirmation, so it happens
+        // before the order can start.
+        app(CustomOrderService::class)->confirmSizing($order, [], false, $customer->id);
+
+        app(CustomOrderService::class)->startProduction($order->fresh(), $this->admin()->id);
 
         $this->assertSame(CustomOrder::STATUS_IN_PRODUCTION, $order->fresh()->status);
         Notification::assertSentTo($customer, CustomOrderInProduction::class);

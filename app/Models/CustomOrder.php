@@ -217,7 +217,21 @@ class CustomOrder extends Model
 
     public function measurements(): HasMany
     {
-        return $this->hasMany(CustomOrderMeasurement::class);
+        // Production measurements only. Every existing view and query keeps
+        // meaning "what the tailor cuts to"; comparison figures have their own
+        // relation so the two can never be mistaken for one another.
+        return $this->hasMany(CustomOrderMeasurement::class)
+            ->where('role', CustomOrderMeasurement::ROLE_PRODUCTION);
+    }
+
+    /**
+     * Figures the parent supplied so they could be set against the standard
+     * measurements. These are evidence for comparison, never a cutting basis.
+     */
+    public function comparisonMeasurements(): HasMany
+    {
+        return $this->hasMany(CustomOrderMeasurement::class)
+            ->where('role', CustomOrderMeasurement::ROLE_COMPARISON);
     }
 
     public function customizations(): HasMany
@@ -315,14 +329,90 @@ class CustomOrder extends Model
     public const SIZING_MEASUREMENTS = 'custom_measurements';
 
     /**
+     * What is still missing before this order can be produced.
+     *
+     * Evaluated in full before anything is written, so a refusal leaves the order
+     * exactly as it was.
+     *
+     * @return array<int, string>
+     */
+    public function productionGateBlockers(): array
+    {
+        $blockers = [];
+
+        if (! $this->sizing_confirmed_at) {
+            $blockers[] = 'The customer has not confirmed the sizing.';
+        }
+
+        if ($this->requires_measurement_confirmation
+            && $this->comparisonMeasurements->isEmpty()) {
+            $blockers[] = 'This design requires the child\'s current measurements for comparison, and none have been supplied.';
+        }
+
+        // The confirmed evidence must still describe the basis the order carries.
+        // If the production measurements or the sizing method changed after the
+        // customer agreed to them, the agreement no longer applies.
+        if ($this->sizing_confirmed_at && ! $this->confirmationStillMatchesBasis()) {
+            $blockers[] = 'The sizing basis changed after it was confirmed, so it must be confirmed again.';
+        }
+
+        if ($this->sizing_method === self::SIZING_MEASUREMENTS && $this->measurements->isEmpty()) {
+            $blockers[] = 'The order says it is made to the customer\'s measurements, but none are recorded.';
+        }
+
+        if ($this->productionBasis() === null) {
+            $blockers[] = 'No sizing basis has been chosen for this order.';
+        }
+
+        return $blockers;
+    }
+
+    /**
+     * Whether the recorded confirmation still describes the sizing basis the order
+     * actually carries.
+     */
+    public function confirmationStillMatchesBasis(): bool
+    {
+        $snapshot = $this->sizing_snapshot;
+
+        if (! is_array($snapshot)) {
+            return false;
+        }
+
+        if (($snapshot['production_basis'] ?? null) !== $this->productionBasis()) {
+            return false;
+        }
+
+        $recorded = collect($snapshot['production_measurements'] ?? [])
+            ->mapWithKeys(fn ($m) => [$m['type'] => (float) $m['value']]);
+
+        $current = $this->measurements->mapWithKeys(fn ($m) => [
+            $m->measurement_type => (float) $m->measurement_value,
+        ]);
+
+        return $recorded->all() == $current->all();
+    }
+
+    /**
      * Captures the sizing evidence exactly as it stood at confirmation.
      *
      * Freezing this is what makes a later sizing dispute resolvable: if the chart is
      * edited or a new version published, this order still describes what the customer
      * actually saw and agreed to.
+     *
+     * A snapshot is written once. Once the order has been confirmed, this method
+     * refuses to touch it, so a later change to a chart, a guide or a design flag
+     * cannot rewrite what was already agreed.
      */
-    public function captureSizingSnapshot(?SizeChart $chart = null): void
+    public function captureSizingSnapshot(?SizeChart $chart = null, ?string $comparisonSource = null, ?int $confirmedBy = null): void
     {
+        // The evidence is written once. A confirmed order keeps the record it was
+        // given, so a later change to a chart, a guide or a design flag cannot
+        // rewrite what was already agreed.
+        if ($this->sizing_snapshot) {
+            return;
+        }
+
         $chart ??= $this->sizeChart;
 
         $entry = $chart?->entries->firstWhere(
@@ -330,33 +420,124 @@ class CustomOrder extends Model
                 && $e->fit === $this->selected_chart_fit
         );
 
-        $this->sizing_snapshot = [
-            'captured_at' => now()->toIso8601String(),
-            'chart_name' => $chart?->name,
-            'chart_version' => $chart?->version ?? $this->size_chart_version,
-            'sizing_method' => $this->sizing_method,
-            'selected_size' => $this->selected_chart_size,
-            // Null means no tier was assigned; recording it as a value would invent
-            // a choice nobody made.
-            'selected_fit' => $this->selected_chart_fit,
-            'selected_fit_label' => $this->selected_chart_fit !== null
-                ? (SizeChart::FIT_LABELS[$this->selected_chart_fit] ?? $this->selected_chart_fit)
-                : null,
-            'submitted_measurements' => $this->measurements->map(fn ($m) => [
-                'type' => $m->measurement_type,
-                'label' => \App\Models\CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
-                    ?? $m->measurement_type,
-                'value' => (float) $m->measurement_value,
-                'unit' => $m->measurement_unit,
-            ])->all(),
-            'chart_figures' => $entry ? $entry->measurements->map(fn ($m) => [
+        $this->sizing_snapshot = $this->buildSizingSnapshot($chart, $entry, $comparisonSource, $confirmedBy);
+    }
+
+    /**
+     * The evidence, assembled.
+     *
+     * The production basis is recorded explicitly rather than inferred, so a
+     * comparison figure can never be mistaken for the figure the frock is cut to.
+     */
+    private function buildSizingSnapshot(?SizeChart $chart, ?SizeChartEntry $entry, ?string $comparisonSource = null, ?int $confirmedBy = null): array
+    {
+        $standardFigures = $entry
+            ? $entry->measurements->map(fn ($m) => [
                 'type' => $m->measurement_type,
                 'basis' => $m->basis,
                 'min' => $m->min_value,
                 'max' => $m->max_value,
                 'unit' => $m->unit,
-            ])->all() : null,
+            ])->all()
+            : null;
+
+        return [
+            'captured_at' => now()->toIso8601String(),
+            'confirmation' => [
+                'confirmed_at' => $this->sizing_confirmed_at?->toIso8601String(),
+                'policy_acknowledged_at' => $this->sizing_policy_acknowledged_at?->toIso8601String(),
+                'confirmed_by_user_id' => $confirmedBy ?? $this->user_id,
+            ],
+            'design' => [
+                'creation_id' => $this->custom_creation_id,
+                'title' => $this->customCreation?->title,
+                'requires_measurement_confirmation' => (bool) $this->requires_measurement_confirmation,
+            ],
+            'chart' => [
+                'id' => $chart?->id ?? $this->size_chart_id,
+                'name' => $chart?->name,
+                'version' => $chart?->version ?? $this->size_chart_version,
+                'default_basis' => $chart?->default_basis,
+            ],
+            'selection' => [
+                'sizing_method' => $this->sizing_method,
+                'age_band' => $this->selected_chart_size,
+                // Null means no tier was assigned; recording it as a value would
+                // invent a choice nobody made.
+                'fit' => $this->selected_chart_fit,
+                'fit_label' => $this->selected_chart_fit !== null
+                    ? (SizeChart::FIT_LABELS[$this->selected_chart_fit] ?? $this->selected_chart_fit)
+                    : null,
+                'combined_label' => $entry?->combinedLabel(),
+            ],
+            'standard_measurements' => $standardFigures,
+            'guides' => $this->captureGuideWording($standardFigures),
+            'production_measurements' => $this->measurements->map(fn ($m) => [
+                'type' => $m->measurement_type,
+                'label' => CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
+                    ?? $m->measurement_type,
+                'value' => (float) $m->measurement_value,
+                'unit' => $m->measurement_unit,
+            ])->all(),
+            'comparison_measurements' => $this->comparisonMeasurements->map(fn ($m) => [
+                'type' => $m->measurement_type,
+                'label' => CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
+                    ?? $m->measurement_type,
+                'value' => (float) $m->measurement_value,
+                'unit' => $m->measurement_unit,
+            ])->all(),
+            // Whether the comparison figures were supplied fresh or were the
+            // customer's own production figures, acknowledged as current. The values
+            // may be identical; their provenance is what matters.
+            'comparison_measurements_source' => $comparisonSource,
+            // What the frock is actually cut to. Never the comparison figures.
+            'production_basis' => $this->productionBasis(),
         ];
+    }
+
+    /**
+     * The wording the customer was shown for each measurement type, with the
+     * instruction text and whether that guide was active at the time.
+     */
+    private function captureGuideWording(?array $standardFigures): array
+    {
+        if (! $standardFigures) {
+            return [];
+        }
+
+        $types = collect($standardFigures)->pluck('type')->unique();
+        $bases = collect($standardFigures)->pluck('basis')->unique();
+
+        return CustomOrderMeasurementGuide::query()
+            ->whereIn('measurement_type', $types)
+            ->whereIn('basis', $bases)
+            ->get()
+            ->map(fn ($g) => [
+                'measurement_type' => $g->measurement_type,
+                'basis' => $g->basis,
+                'name' => $g->name,
+                'description' => $g->description,
+                'is_active' => (bool) $g->is_active,
+            ])->values()->all();
+    }
+
+    /**
+     * What the frock will be cut to.
+     *
+     * A parent's own measurements are the basis. Otherwise the standard size is.
+     * Comparison figures never appear here.
+     */
+    public function productionBasis(): ?string
+    {
+        if ($this->sizing_method === self::SIZING_MEASUREMENTS && $this->measurements->isNotEmpty()) {
+            return self::SIZING_MEASUREMENTS;
+        }
+
+        if ($this->selected_chart_size !== null) {
+            return self::SIZING_STANDARD;
+        }
+
+        return null;
     }
 
     /**

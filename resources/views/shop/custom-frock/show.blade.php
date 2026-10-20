@@ -90,6 +90,191 @@
                 </div>
             @endif
 
+            {{-- Sizing confirmation: what the customer agrees to, and the evidence
+                 that agreement is recorded as. --}}
+            @if ($customOrder->sizing_confirmed_at)
+                <div class="card shadow-sm mb-4 border-success">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-check-circle me-1"></i>Sizing confirmed</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">
+                            Confirmed on {{ $customOrder->sizing_confirmed_at->format('j M Y, g:i a') }}. We have recorded
+                            the size, the fitting and the measurements you agreed to, so nothing can change them later.
+                        </p>
+                        <div class="small">
+                            <div><strong>Basis:</strong>
+                                {{ $customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS
+                                    ? 'Made to your measurements' : 'Standard size' }}
+                            </div>
+                            @if ($customOrder->selected_chart_size)
+                                <div><strong>Size:</strong> {{ $customOrder->selected_chart_size }}</div>
+                            @endif
+                            @if ($customOrder->selected_chart_fit)
+                                <div><strong>Fitting:</strong> {{ \App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit }}</div>
+                            @elseif ($customOrder->selected_chart_size)
+                                <div><strong>Fitting:</strong> {{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}</div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @elseif (! $customOrder->production_started_at && in_array($customOrder->status, ['submitted', 'under_review', 'quote_pending', 'quoted', 'customer_approved', 'payment_pending', 'paid'], true))
+                <div class="card shadow-sm mb-4 border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-rulers me-1"></i>Please confirm the sizing</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">
+                            Before we cut your frock, please check the size below and confirm it. We record your
+                            confirmation along with the measurements you saw, so the size we cut to is the size you agreed to.
+                        </p>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <div class="small text-muted">What we will make it to</div>
+                                <div class="fw-bold">
+                                    @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                        Your measurements
+                                    @elseif ($customOrder->selected_chart_size)
+                                        Standard size: {{ $customOrder->selected_chart_size }}
+                                    @else
+                                        Not yet chosen
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted">Age band and fitting</div>
+                                <div class="fw-bold">
+                                    @if ($customOrder->selected_chart_size)
+                                        {{ $customOrder->selected_chart_size }}
+                                        {{ $customOrder->selected_chart_fit
+                                            ? (\App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit)
+                                            : \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
+                                    @else
+                                        &mdash;
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        @if ($sizingFigures->isNotEmpty())
+                            <div class="mb-3">
+                                <div class="small fw-semibold mb-1">The measurements for this size</div>
+                                <table class="table table-sm table-bordered mb-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Measurement</th>
+                                            <th>Range</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($sizingFigures as $figure)
+                                            <tr>
+                                                <td>{{ $figure['label'] }}</td>
+                                                <td>
+                                                    @if ($figure['min'] !== null && $figure['max'] !== null)
+                                                        {{ $figure['min'] }} &ndash; {{ $figure['max'] }} {{ $figure['unit'] }}
+                                                    @elseif ($figure['min'] !== null)
+                                                        from {{ $figure['min'] }} {{ $figure['unit'] }}
+                                                    @elseif ($figure['max'] !== null)
+                                                        up to {{ $figure['max'] }} {{ $figure['unit'] }}
+                                                    @else
+                                                        &mdash;
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                                @foreach ($sizingFigures as $figure)
+                                    @if ($figure['guide'])
+                                        <div class="small text-muted mb-1">
+                                            <strong>{{ $figure['guide']->name }}:</strong> {{ $figure['guide']->description }}
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if ($customOrder->measurements->isNotEmpty())
+                            <div class="mb-3">
+                                <div class="small fw-semibold mb-1">We will make it to these measurements</div>
+                                <table class="table table-sm table-bordered mb-0">
+                                    <tbody>
+                                        @foreach ($customOrder->measurements as $m)
+                                            <tr>
+                                                <td>{{ ucwords(str_replace('_', ' ', $m->measurement_type)) }}</td>
+                                                <td class="fw-bold">{{ $m->measurement_value }} {{ $m->measurement_unit }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('shop.custom-frock.confirm-sizing', $customOrder) }}">
+                            @csrf
+
+                            @if ($customOrder->requires_measurement_confirmation)
+                                <div class="alert alert-warning small">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    This design is cut to fit closely, so we need your child's <strong>current</strong>
+                                    measurements to check against the size above.
+                                </div>
+
+                                @if ($customOrder->measurements->isNotEmpty())
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="reuse_production_measurements" value="1"
+                                               id="reuseProductionMeasurements">
+                                        <label class="form-check-label small" for="reuseProductionMeasurements">
+                                            The measurements I gave above are my child's current measurements, and you may
+                                            use them to check against the size.
+                                        </label>
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        If they are not current, enter today's measurements below instead.
+                                    </div>
+                                @endif
+
+                                <div class="row g-2 mb-3">
+                                    @foreach ($comparisonFields as $field)
+                                        <div class="col-sm-6">
+                                            <label class="form-label small mb-0" for="cm_{{ $field->name }}">{{ $field->label }}</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" step="0.1" min="1" max="500" id="cm_{{ $field->name }}"
+                                                       class="form-control" name="comparison_measurements[{{ $field->name }}][value]"
+                                                       value="{{ old('comparison_measurements.'.$field->name.'.value') }}">
+                                                <span class="input-group-text">cm</span>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="sizing_policy_acknowledged" value="1"
+                                       id="sizingPolicyAcknowledged" required>
+                                <label class="form-check-label small" for="sizingPolicyAcknowledged">
+                                    I have checked the size and measurements above and they are right for my child.
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="sizing_confirmed" value="1"
+                                       id="sizingConfirmed" required>
+                                <label class="form-check-label small" for="sizingConfirmed">
+                                    I confirm the sizing for this order, and I understand the frock will be cut to it.
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i>Confirm sizing
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
             {{-- Reference Files --}}
             @if ($customOrder->files->isNotEmpty())
                 <div class="card shadow-sm mb-4">

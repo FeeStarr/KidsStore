@@ -179,6 +179,7 @@ Route::post('/custom-frock/{customOrder}/request-changes', [CustomOrderControlle
     Route::post('/custom-frock/{customOrder}/cancel', [CustomOrderController::class, 'cancel'])->name('shop.custom-frock.cancel')->middleware('auth');
     Route::post('/custom-frock/{customOrder}/messages', [CustomOrderController::class, 'storeMessage'])->name('shop.custom-frock.messages')->middleware(['auth', 'throttle:10,1']);
     Route::post('/custom-frock/{customOrder}/confirm-info', [CustomOrderController::class, 'confirmInfo'])->name('shop.custom-frock.confirm-info')->middleware(['auth', 'throttle:10,1']);
+    Route::post('/custom-frock/{customOrder}/confirm-sizing', [CustomOrderController::class, 'confirmSizing'])->name('shop.custom-frock.confirm-sizing')->middleware(['auth', 'throttle:10,1']);
 Route::get('/custom-frock/{customOrder}/files/{file}', [CustomOrderFileController::class, 'show'])->name('shop.custom-frock.file')->middleware('auth');
 
 // Guest Paystack payment - uses order lookup token for guest access

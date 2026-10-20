@@ -393,13 +393,13 @@ class CustomFrockSizingTest extends TestCase
 
         $snapshot = $order->fresh()->sizing_snapshot;
 
-        $this->assertSame('Girls Frocks', $snapshot['chart_name']);
-        $this->assertSame(1, $snapshot['chart_version']);
-        $this->assertSame('2-3 years', $snapshot['selected_size']);
+        $this->assertSame('Girls Frocks', $snapshot['chart']['name']);
+        $this->assertSame(1, $snapshot['chart']['version']);
+        $this->assertSame('2-3 years', $snapshot['selection']['age_band']);
         $this->assertNotNull($snapshot['captured_at']);
-        $this->assertCount(1, $snapshot['chart_figures']);
-        $this->assertSame('chest', $snapshot['chart_figures'][0]['type']);
-        $this->assertSame('body', $snapshot['chart_figures'][0]['basis']);
+        $this->assertCount(1, $snapshot['standard_measurements']);
+        $this->assertSame('chest', $snapshot['standard_measurements'][0]['type']);
+        $this->assertSame('body', $snapshot['standard_measurements'][0]['basis']);
     }
 
     public function test_a_snapshot_survives_the_chart_being_changed(): void
@@ -438,7 +438,7 @@ class CustomFrockSizingTest extends TestCase
         // The snapshot recorded 56; the chart now says 99. Evidence must not move.
         $this->assertSame(
             56.0,
-            (float) $snapshot['chart_figures'][0]['max'],
+            (float) $snapshot['standard_measurements'][0]['max'],
             'Recorded evidence must not be rewritten by later chart edits.'
         );
     }

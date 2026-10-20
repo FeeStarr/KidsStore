@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Exceptions\ProductionGateException;
 use App\Models\CustomOrder;
+use App\Models\CustomOrderMeasurement;
 use App\Models\CustomOrderQcCheck;
 use App\Models\CustomOrderStatusHistory;
 use App\Notifications\CustomOrderCancelled;
@@ -205,11 +207,122 @@ class CustomOrderService
 
     public function startProduction(CustomOrder $order, ?int $userId = null): CustomOrder
     {
+        // Every blocker is evaluated before anything is written, so a refusal leaves
+        // the status, the history and the notifications untouched.
+        $blockers = $order->fresh()->productionGateBlockers();
+
+        if ($blockers !== []) {
+            throw new ProductionGateException($blockers);
+        }
+
         $this->transitionTo($order, CustomOrder::STATUS_PRODUCTION_PENDING, $userId);
         $this->transitionTo($order->fresh(), CustomOrder::STATUS_IN_PRODUCTION, $userId);
         $order->user->notify(new CustomOrderInProduction($order));
 
         return $order->fresh();
+    }
+
+    /**
+     * Records the customer's agreement to the sizing basis, and freezes the evidence
+     * they agreed to.
+     *
+     * The whole thing happens under a row lock, because two confirmations arriving
+     * together must not be able to write two different snapshots: the first one to
+     * take the lock wins, and the second finds the order already confirmed.
+     *
+     * @param  array<string, mixed>  $comparisonMeasurements
+     */
+    public function confirmSizing(
+        CustomOrder $order,
+        array $comparisonMeasurements = [],
+        bool $reuseProductionAsComparison = false,
+        ?int $userId = null
+    ): CustomOrder {
+        return DB::transaction(function () use ($order, $comparisonMeasurements, $reuseProductionAsComparison, $userId) {
+            $locked = CustomOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->sizing_confirmed_at) {
+                throw new RuntimeException('This sizing has already been confirmed and cannot be confirmed again.');
+            }
+
+            if ($locked->production_started_at) {
+                throw new RuntimeException('This order is already in production, so its sizing can no longer be confirmed.');
+            }
+
+            $source = $this->recordComparisonMeasurements(
+                $locked,
+                $comparisonMeasurements,
+                $reuseProductionAsComparison
+            );
+
+            $locked->sizing_confirmed_at = now();
+            $locked->sizing_policy_acknowledged_at = now();
+
+            // The snapshot is written after the confirmation timestamp is set, so it
+            // records the confirmation itself. It refuses to overwrite an existing
+            // one, which keeps the evidence frozen from here on.
+            $locked->captureSizingSnapshot(null, $source, $userId);
+
+            $locked->save();
+
+            return $locked->fresh();
+        });
+    }
+
+    /**
+     * Stores the figures the customer supplied for comparison, and reports where
+     * they came from.
+     *
+     * A customer who already sent their child's measurements for the order does not
+     * get asked for them again: they are asked to confirm the existing figures are
+     * still current, and only then are they copied into the comparison role. The
+     * production figures are left exactly as they are, and the copy is never made
+     * without that acknowledgement.
+     *
+     * @param  array<string, mixed>  $comparisonMeasurements
+     */
+    private function recordComparisonMeasurements(
+        CustomOrder $order,
+        array $comparisonMeasurements,
+        bool $reuseProductionAsComparison
+    ): ?string {
+        $submitted = collect($comparisonMeasurements)
+            ->map(fn ($row, $type) => [
+                'type' => $type,
+                'value' => $row['value'] ?? null,
+                'unit' => $row['unit'] ?? 'cm',
+            ])
+            ->filter(fn ($row) => filled($row['value']))
+            ->values()
+            ->all();
+
+        if ($submitted !== []) {
+            foreach ($submitted as $row) {
+                $order->comparisonMeasurements()->create([
+                    'measurement_type' => $row['type'],
+                    'measurement_value' => $row['value'],
+                    'measurement_unit' => $row['unit'],
+                    'role' => CustomOrderMeasurement::ROLE_COMPARISON,
+                ]);
+            }
+
+            return 'submitted';
+        }
+
+        if ($reuseProductionAsComparison) {
+            foreach ($order->measurements as $measurement) {
+                $order->comparisonMeasurements()->create([
+                    'measurement_type' => $measurement->measurement_type,
+                    'measurement_value' => $measurement->measurement_value,
+                    'measurement_unit' => $measurement->measurement_unit,
+                    'role' => CustomOrderMeasurement::ROLE_COMPARISON,
+                ]);
+            }
+
+            return 'reused_from_production';
+        }
+
+        return null;
     }
 
     public function submitForQc(CustomOrder $order, ?int $userId = null): CustomOrder

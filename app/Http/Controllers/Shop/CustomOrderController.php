@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AgeRange;
 use App\Models\CustomCreation;
 use App\Models\CustomOrder;
+use App\Models\CustomOrderMeasurementField;
+use App\Models\CustomOrderMeasurementGuide;
 use App\Models\CustomOrderColour;
 use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
@@ -363,14 +365,61 @@ class CustomOrderController extends Controller
         abort_unless($customOrder->user_id === Auth::id(), 403);
 
         $customOrder->load([
-            'measurements', 'customizations', 'files', 'quotes',
+            'measurements', 'comparisonMeasurements', 'customizations', 'files', 'quotes',
             'messages.sender', 'messages.file', 'statusHistory.changer',
+            'sizeChart.entries.measurements', 'customCreation',
         ]);
 
         $latestQuote = $customOrder->latestQuote();
         $approvedQuote = $customOrder->approvedQuote();
 
-        return view('shop.custom-frock.show', compact('customOrder', 'latestQuote', 'approvedQuote'));
+        $sizing = $this->sizingConfirmationContext($customOrder);
+
+        return view('shop.custom-frock.show', array_merge(
+            compact('customOrder', 'latestQuote', 'approvedQuote'),
+            $sizing
+        ));
+    }
+
+    /**
+     * Everything the customer needs in front of them before confirming: the size
+     * they chose, the standard figures behind it, and the wording that tells them
+     * how those figures are measured.
+     */
+    private function sizingConfirmationContext(CustomOrder $order): array
+    {
+        $chart = $order->sizeChart;
+
+        $entry = $chart?->entries->firstWhere(
+            fn ($e) => $e->label === $order->selected_chart_size
+                && $e->fit === $order->selected_chart_fit
+        );
+
+        $figures = $entry
+            ? $entry->measurements->map(function ($m) {
+                $guide = CustomOrderMeasurementGuide::query()
+                    ->where('measurement_type', $m->measurement_type)
+                    ->where('basis', $m->basis)
+                    ->first();
+
+                return [
+                    'type' => $m->measurement_type,
+                    'label' => CustomOrderMeasurementField::where('name', $m->measurement_type)->value('label')
+                        ?? ucwords(str_replace('_', ' ', $m->measurement_type)),
+                    'basis' => $m->basis,
+                    'min' => $m->min_value,
+                    'max' => $m->max_value,
+                    'unit' => $m->unit,
+                    'guide' => $guide,
+                ];
+            })->values()
+            : collect();
+
+        return [
+            'sizingEntry' => $entry,
+            'sizingFigures' => $figures,
+            'comparisonFields' => CustomOrderMeasurementField::active()->get(),
+        ];
     }
 
     public function approveQuote(CustomOrder $customOrder)
@@ -504,6 +553,72 @@ class CustomOrderController extends Controller
         );
 
         return back()->with('success', 'Thank you! Your information has been sent to our team.');
+    }
+
+    /**
+     * The customer confirms the sizing basis, and the evidence they agreed to is
+     * frozen at that moment.
+     */
+    public function confirmSizing(Request $request, CustomOrder $customOrder)
+    {
+        abort_unless($customOrder->user_id === Auth::id(), 403);
+
+        if ($customOrder->production_started_at) {
+            return back()->with('error', 'This order is already in production, so its sizing can no longer be confirmed.');
+        }
+
+        if ($customOrder->sizing_confirmed_at) {
+            return back()->with('error', 'You have already confirmed the sizing for this order.');
+        }
+
+        $data = $request->validate([
+            // Affirmative confirmation, not merely present: a crafted request
+            // carrying any other value must not pass.
+            'sizing_confirmed' => ['required', 'accepted'],
+            'sizing_policy_acknowledged' => ['required', 'accepted'],
+            'comparison_measurements' => ['nullable', 'array'],
+            'comparison_measurements.*.value' => ['nullable', 'numeric', 'min:1', 'max:500'],
+            'comparison_measurements.*.unit' => ['nullable', 'string', 'max:8'],
+            // Only offered when the customer already supplied measurements of their
+            // own and confirms those figures are still current. It is optional, but
+            // when it is present it must be affirmative.
+            'reuse_production_measurements' => ['sometimes', 'accepted'],
+        ]);
+
+        $submitted = collect($data['comparison_measurements'] ?? [])
+            ->map(fn ($row, $type) => [
+                'type' => $type,
+                'value' => $row['value'] ?? null,
+                'unit' => $row['unit'] ?? 'cm',
+            ])
+            ->filter(fn ($row) => filled($row['value']))
+            ->values()
+            ->all();
+
+        $reuse = (bool) ($data['reuse_production_measurements'] ?? false);
+
+        // A design that needs the child's current measurements must have them. The
+        // customer's own figures can serve, but only when they say they are current.
+        if ($customOrder->requires_measurement_confirmation
+            && $submitted === []
+            && ! ($reuse && $customOrder->measurements->isNotEmpty())) {
+            return back()
+                ->withErrors(['comparison_measurements' => 'Please tell us your child\'s current measurements so we can check them against the size guide.'])
+                ->withInput();
+        }
+
+        try {
+            $this->customOrderService->confirmSizing(
+                $customOrder,
+                $submitted,
+                $reuse,
+                Auth::id()
+            );
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Thank you. Your sizing is confirmed and we have recorded the details you agreed to.');
     }
 
     private function redirectToOrder(CustomOrder $order, bool $duplicate = false)

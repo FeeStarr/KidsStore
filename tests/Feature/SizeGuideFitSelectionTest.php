@@ -271,7 +271,9 @@ class SizeGuideFitSelectionTest extends TestCase
         $this->get(route('shop.size-guide'))
             ->assertOk()
             ->assertSee('being prepared')
-            ->assertDontSee('cm')
+            // The unit heading is what a chart with figures would add. Asserting on
+            // 'cm' instead would also match the random CSRF token.
+            ->assertDontSee('in centimetres')
             ->assertDontSee('choose an age band');
     }
 

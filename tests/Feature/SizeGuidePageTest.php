@@ -80,7 +80,10 @@ class SizeGuidePageTest extends TestCase
         $this->get(route('shop.size-guide'))
             ->assertOk()
             ->assertSee('being prepared')
-            ->assertDontSee('cm');
+            // The unit heading is what a chart with figures would add. Asserting on
+            // 'cm' instead would also match the random CSRF token, which makes the
+            // test fail now and then for no reason at all.
+            ->assertDontSee('in centimetres');
     }
 
     public function test_draft_charts_are_not_shown_to_customers(): void

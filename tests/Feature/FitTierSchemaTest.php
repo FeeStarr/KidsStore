@@ -242,9 +242,9 @@ class FitTierSchemaTest extends TestCase
 
         $snapshot = $order->fresh()->sizing_snapshot;
 
-        $this->assertSame('medium', $snapshot['selected_fit']);
-        $this->assertSame('Medium fitting', $snapshot['selected_fit_label']);
-        $this->assertNotNull($snapshot['chart_figures']);
+        $this->assertSame('medium', $snapshot['selection']['fit']);
+        $this->assertSame('Medium fitting', $snapshot['selection']['fit_label']);
+        $this->assertNotNull($snapshot['standard_measurements']);
     }
 
     public function test_the_snapshot_leaves_the_fit_null_when_none_was_chosen(): void
@@ -267,8 +267,8 @@ class FitTierSchemaTest extends TestCase
 
         $snapshot = $order->fresh()->sizing_snapshot;
 
-        $this->assertNull($snapshot['selected_fit']);
-        $this->assertNull($snapshot['selected_fit_label']);
+        $this->assertNull($snapshot['selection']['fit']);
+        $this->assertNull($snapshot['selection']['fit_label']);
     }
 
     public function test_customer_measurements_survive_alongside_a_standard_selection(): void
@@ -294,8 +294,8 @@ class FitTierSchemaTest extends TestCase
 
         // A chosen fit and a customer's own measurements are different facts and
         // must both survive; neither may overwrite the other.
-        $this->assertSame('small', $snapshot['selected_fit']);
-        $this->assertSame(55.5, $snapshot['submitted_measurements'][0]['value']);
+        $this->assertSame('small', $snapshot['selection']['fit']);
+        $this->assertEquals(55.5, $snapshot['production_measurements'][0]['value']);
     }
 
     // --------------------------------------------------------- migration reversibility

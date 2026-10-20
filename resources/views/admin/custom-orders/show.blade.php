@@ -175,6 +175,99 @@
             </div>
         @endif
 
+        {{-- Sizing evidence: what the customer agreed to, and what is still missing --}}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><h6 class="mb-0">Sizing Evidence</h6></div>
+            <div class="card-body">
+                @php $gateBlockers = $customOrder->productionGateBlockers(); @endphp
+
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-4">
+                        <div class="small text-muted">Production basis</div>
+                        <div class="fw-bold">
+                            @if ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_MEASUREMENTS)
+                                Customer measurements
+                            @elseif ($customOrder->productionBasis() === \App\Models\CustomOrder::SIZING_STANDARD)
+                                Standard size
+                            @else
+                                <span class="text-danger">Not set</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="small text-muted">Size</div>
+                        <div class="fw-bold">{{ $customOrder->selected_chart_size ?: '—' }}</div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="small text-muted">Fitting</div>
+                        <div class="fw-bold">
+                            @if ($customOrder->selected_chart_fit)
+                                {{ \App\Models\SizeChart::FIT_LABELS[$customOrder->selected_chart_fit] ?? $customOrder->selected_chart_fit }}
+                            @elseif ($customOrder->selected_chart_size)
+                                {{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
+                            @else
+                                —
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                @if ($customOrder->sizing_confirmed_at)
+                    <div class="alert alert-success small mb-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Confirmed by the customer on {{ $customOrder->sizing_confirmed_at->format('j M Y, g:i a') }}.
+                        @if ($customOrder->sizing_policy_acknowledged_at)
+                            Policy acknowledged at the same time.
+                        @endif
+                    </div>
+                @else
+                    <div class="alert alert-warning small mb-2">
+                        <i class="bi bi-hourglass-split me-1"></i>
+                        The customer has not confirmed the sizing yet.
+                    </div>
+                @endif
+
+                @if ($customOrder->requires_measurement_confirmation)
+                    <div class="small mb-2">
+                        <strong>This design requires measurement confirmation.</strong>
+                        @if ($customOrder->comparisonMeasurements->isEmpty())
+                            <span class="text-danger"> No comparison measurements supplied yet.</span>
+                        @else
+                            <span class="text-success"> Comparison measurements supplied.</span>
+                        @endif
+                    </div>
+                @endif
+
+                @if ($gateBlockers !== [])
+                    <div class="alert alert-danger small mb-0">
+                        <strong>Production cannot start yet:</strong>
+                        <ul class="mb-0 mt-1">
+                            @foreach ($gateBlockers as $blocker)
+                                <li>{{ $blocker }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if ($customOrder->comparisonMeasurements->isNotEmpty())
+                    <div class="small mt-3">
+                        <strong>Comparison measurements</strong>
+                        <span class="text-muted">(for checking only &mdash; never the cutting basis)</span>
+                        <table class="table table-sm mb-0 mt-1">
+                            <tbody>
+                                @foreach ($customOrder->comparisonMeasurements as $m)
+                                    <tr>
+                                        <td class="text-muted">{{ ucwords(str_replace('_', ' ', $m->measurement_type)) }}</td>
+                                        <td class="fw-bold">{{ $m->measurement_value }} {{ $m->measurement_unit }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Files --}}
         @if ($customOrder->files->isNotEmpty())
             <div class="card shadow-sm mb-4">
