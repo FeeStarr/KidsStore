@@ -61,40 +61,43 @@ class SizeGuideFitSelectionTest extends TestCase
     }
 
     /**
-     * The fitting buttons offered for one age band, mapped to whether each is
-     * disabled. Read from the rendered markup so the assertion is about what a
-     * customer is actually offered.
+     * The fittings listed for one age band in one chart card, read from the
+     * rendered markup so the assertion is about what a customer is actually shown.
      *
-     * @return array<string, bool>
+     * A chart holding both bases renders a card for each, so the card has to be
+     * picked out before the band is read from it.
+     *
+     * @return array<int, string>
      */
-    private function fitButtonsForBand(string $html, int $band): array
+    private function fittingsForBand(string $html, int $band, int $card = 0): array
     {
-        // Each fitting step block starts with this marker, so splitting on it
-        // isolates one band at a time. The marker does not occur in the script.
-        $parts = explode('data-sg-fit-step data-band="', $html);
-        array_shift($parts);
+        $cards = explode('class="card mb-4" data-size-guide', $html);
+        array_shift($cards);
 
-        $block = $parts[$band] ?? '';
+        $block = $cards[$card] ?? '';
 
-        preg_match_all('/<button\b[^>]*>/s', $block, $buttons);
+        preg_match_all(
+            '/<tr data-sg-row-band="'.$band.'" data-sg-row-fit="([^"]+)"/',
+            $block,
+            $matches
+        );
 
-        $offered = [];
-
-        foreach ($buttons[0] as $button) {
-            if (preg_match('/data-sg-fit-btn-fit="([^"]+)"/', $button, $match)) {
-                $offered[$match[1]] = str_contains($button, 'disabled');
-            }
-        }
-
-        return $offered;
+        return $matches[1];
     }
 
-    private function fittingStepCount(string $html): int
+    /**
+     * The age bands the guide offers, in the order they appear.
+     *
+     * @return array<int, string>
+     */
+    private function ageBands(string $html): array
     {
-        return count(explode('data-sg-fit-step data-band="', $html)) - 1;
+        preg_match_all('/data-sg-age-btn="([^"]+)"/', $html, $matches);
+
+        return $matches[1];
     }
 
-    // ── step one: the age band ─────────────────────────────────────────────
+    // ── the age band ────────────────────────────────────────────────────────
 
     public function test_the_age_bands_offered_are_the_ones_the_chart_has(): void
     {
@@ -106,7 +109,7 @@ class SizeGuideFitSelectionTest extends TestCase
 
         $response = $this->get(route('shop.size-guide'))->assertOk();
 
-        $response->assertSee('choose an age band');
+        $response->assertSee('Choose an age band');
         $response->assertSee('2-3 years');
         $response->assertSee('4-5 years');
     }
@@ -127,39 +130,40 @@ class SizeGuideFitSelectionTest extends TestCase
         $response->assertDontSee('Medium fitting');
     }
 
-    // ── step two: the fitting ──────────────────────────────────────────────
+    // ── the fittings shown for the chosen age ─────────────────────────────
 
-    public function test_only_the_fittings_offered_for_the_selected_band_are_listed(): void
+    public function test_choosing_an_age_band_shows_every_fitting_offered_for_it(): void
     {
         $this->chartWithSizes([
             ['2-3 years', 'small', $this->chest(54, 56)],
+            ['2-3 years', 'medium', $this->chest(56, 58)],
             ['2-3 years', 'large', $this->chest(60, 62)],
             ['4-5 years', 'medium', $this->chest(64, 66)],
-            ['6-7 years', 'medium', $this->chest(68, 70)],
         ]);
 
         $html = $this->get(route('shop.size-guide'))->assertOk()->getContent();
 
-        // The first band offers two fittings, the second only one.
-        $this->assertSame(['small' => false, 'large' => false], $this->fitButtonsForBand($html, 0));
-        $this->assertSame(['medium' => false], $this->fitButtonsForBand($html, 1));
+        // The whole point of choosing an age: every fitting offered at that age
+        // is shown together, not narrowed down to one of them.
+        $this->assertSame(['small', 'medium', 'large'], $this->fittingsForBand($html, 0));
 
-        // The second band must not inherit the first band's fittings.
-        $this->assertArrayNotHasKey('small', $this->fitButtonsForBand($html, 1));
-        $this->assertArrayNotHasKey('large', $this->fitButtonsForBand($html, 1));
+        // A different age band still only shows its own fittings.
+        $this->assertSame(['medium'], $this->fittingsForBand($html, 1));
     }
 
-    public function test_a_band_of_only_standard_cuts_gets_no_fitting_step(): void
+    public function test_the_guide_has_no_fitting_step_of_its_own(): void
     {
         $this->chartWithSizes([
-            ['2-3 years', null, $this->chest(54, 56)],
+            ['2-3 years', 'small', $this->chest(54, 56)],
+            ['2-3 years', 'medium', $this->chest(56, 58)],
         ]);
 
         $response = $this->get(route('shop.size-guide'))->assertOk();
 
-        // No phantom fitting step for a band that has nothing to choose.
-        $this->assertSame(0, $this->fittingStepCount($response->getContent()));
+        // Choosing the age is the whole interaction: there is no second step
+        // that would hide the other fittings again.
         $response->assertDontSee('choose a fitting');
+        $response->assertDontSee('data-sg-fit-btn');
     }
 
     public function test_a_standard_cut_is_identified_as_having_no_tier(): void
@@ -183,7 +187,7 @@ class SizeGuideFitSelectionTest extends TestCase
 
         $response = $this->get(route('shop.size-guide'))->assertOk();
 
-        $response->assertSee('choose a fitting');
+        // Both are offered at that age, so both are shown.
         $response->assertSee('Medium fitting');
         $response->assertSee('Standard (no tier assigned)');
     }
@@ -243,7 +247,7 @@ class SizeGuideFitSelectionTest extends TestCase
         $response->assertDontSee('Body measurements');
     }
 
-    public function test_an_unavailable_fitting_is_shown_but_cannot_be_chosen(): void
+    public function test_a_fitting_without_figures_for_this_basis_is_shown_as_unavailable(): void
     {
         // A chart with both bases: one fitting has body figures, the other does not.
         $this->chartWithSizes([
@@ -253,15 +257,12 @@ class SizeGuideFitSelectionTest extends TestCase
 
         $html = $this->get(route('shop.size-guide'))->assertOk()->getContent();
 
-        // In the body view, the large fitting has no figures and is not selectable.
-        $bodyBand = $this->fitButtonsForBand($html, 0);
+        // Both fittings are offered at that age, so both are listed...
+        $this->assertSame(['small', 'large'], $this->fittingsForBand($html, 0));
 
-        $this->assertArrayHasKey('small', $bodyBand);
-        $this->assertArrayHasKey('large', $bodyBand);
-        $this->assertFalse($bodyBand['small']);
-        $this->assertTrue($bodyBand['large']);
-
-        $this->assertStringContainsString('no body figures yet', $html);
+        // ...but the one with no figures for the basis being shown says so plainly
+        // rather than looking like a complete row of figures.
+        $this->assertStringContainsString('No body figures yet', $html);
     }
 
     // ── the guide still behaves as a guide ─────────────────────────────────
@@ -274,7 +275,7 @@ class SizeGuideFitSelectionTest extends TestCase
             // The unit heading is what a chart with figures would add. Asserting on
             // 'cm' instead would also match the random CSRF token.
             ->assertDontSee('in centimetres')
-            ->assertDontSee('choose an age band');
+            ->assertDontSee('Choose an age band');
     }
 
     public function test_a_draft_chart_is_not_shown(): void

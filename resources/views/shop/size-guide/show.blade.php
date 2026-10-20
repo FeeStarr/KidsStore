@@ -58,8 +58,6 @@
                         $bands[] = [
                             'label' => $group['label'],
                             'options' => $options,
-                            // A band of only standard cuts has no fitting to choose.
-                            'hasTiered' => collect($options)->contains(fn ($o) => $o['tiered']),
                             'anyAvailable' => collect($options)->contains(fn ($o) => $o['available']),
                         ];
                     }
@@ -79,9 +77,11 @@
                     </div>
                     <div class="card-body">
 
-                        {{-- Step one: the age band. --}}
+                        {{-- Choose an age band. Every fitting offered for the chosen
+                             band is then shown together, so the customer can compare
+                             them rather than being narrowed to one. --}}
                         <div class="mb-3 d-none" data-sg-age-step>
-                            <div class="small fw-semibold mb-2">Step 1 &mdash; choose an age band</div>
+                            <div class="small fw-semibold mb-2">Choose an age band</div>
                             <div class="d-flex flex-wrap gap-2" role="group" aria-label="Choose an age band">
                                 @foreach($bands as $bandIndex => $band)
                                     <button type="button"
@@ -94,32 +94,6 @@
                                 @endforeach
                             </div>
                         </div>
-
-                        {{-- Step two: the fitting, and only the ones actually offered. --}}
-                        @foreach($bands as $bandIndex => $band)
-                            @if($band['hasTiered'])
-                                <div class="mb-3 d-none" data-sg-fit-step data-band="{{ $bandIndex }}">
-                                    <div class="small fw-semibold mb-2">Step 2 &mdash; choose a fitting</div>
-                                    <div class="d-flex flex-wrap gap-2" role="group" aria-label="Choose a fitting">
-                                        @foreach($band['options'] as $option)
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary"
-                                                    data-sg-fit-btn-band="{{ $bandIndex }}"
-                                                    data-sg-fit-btn-fit="{{ $option['key'] }}"
-                                                    aria-pressed="false"
-                                                    @disabled(! $option['available'])>
-                                                {{ $option['label'] }}
-                                                @unless($option['available'])
-                                                    <span class="text-muted small">
-                                                        (no {{ $basis === \App\Models\SizeChart::BASIS_BODY ? 'body' : 'garment' }} figures yet)
-                                                    </span>
-                                                @endunless
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
 
                         <div class="table-responsive">
                             <table class="table table-bordered align-middle mb-0">
@@ -140,6 +114,11 @@
                                                     @unless($option['tiered'])
                                                         <span class="badge text-bg-light text-dark ms-1">
                                                             {{ \App\Models\SizeChartEntry::FIT_UNASSIGNED_LABEL }}
+                                                        </span>
+                                                    @endunless
+                                                    @unless($option['available'])
+                                                        <span class="d-block small fw-normal text-muted">
+                                                            No {{ $basis === \App\Models\SizeChart::BASIS_BODY ? 'body' : 'garment' }} figures yet
                                                         </span>
                                                     @endunless
                                                 </th>
@@ -221,33 +200,15 @@
         if (!rows.length) return;
 
         var ageButtons = Array.prototype.slice.call(root.querySelectorAll('[data-sg-age-btn]'));
-        var fitButtons = Array.prototype.slice.call(root.querySelectorAll('[data-sg-fit-btn-band]'));
-        var fitSteps = Array.prototype.slice.call(root.querySelectorAll('[data-sg-fit-step]'));
         var ageStep = root.querySelector('[data-sg-age-step]');
 
-        function rowsOfBand(band) {
-            return rows.filter(function (row) {
-                return row.getAttribute('data-sg-row-band') === String(band);
-            });
-        }
-
-        function showRows(band, fit) {
+        function showRows(band) {
+            // Every fitting offered for the chosen age band is shown together, so
+            // the customer can compare them rather than being narrowed to one.
             rows.forEach(function (row) {
                 var sameBand = row.getAttribute('data-sg-row-band') === String(band);
-                var sameFit = fit === null || row.getAttribute('data-sg-row-fit') === fit;
-                row.classList.toggle('sg-hidden', !(sameBand && sameFit));
+                row.classList.toggle('sg-hidden', !sameBand);
             });
-        }
-
-        function selectFit(band, fit) {
-            fitButtons.forEach(function (button) {
-                var active = button.getAttribute('data-sg-fit-btn-band') === String(band)
-                    && button.getAttribute('data-sg-fit-btn-fit') === fit;
-                button.classList.toggle('active', active);
-                button.setAttribute('aria-pressed', active ? 'true' : 'false');
-            });
-
-            showRows(band, fit);
         }
 
         function selectAge(band) {
@@ -257,37 +218,12 @@
                 button.setAttribute('aria-pressed', active ? 'true' : 'false');
             });
 
-            // Only the fitting step for the chosen band is shown.
-            fitSteps.forEach(function (step) {
-                var match = step.getAttribute('data-sg-fit-step') === String(band);
-                step.classList.toggle('d-none', !match);
-            });
-
-            var options = fitButtons.filter(function (button) {
-                return button.getAttribute('data-sg-fit-btn-band') === String(band) && !button.disabled;
-            });
-
-            if (options.length) {
-                selectFit(band, options[0].getAttribute('data-sg-fit-btn-fit'));
-            } else {
-                // A band of only standard cuts has no fitting to choose, so it shows
-                // its one entry rather than an empty step.
-                selectFit(band, null);
-            }
+            showRows(band);
         }
 
         ageButtons.forEach(function (button) {
             button.addEventListener('click', function () {
                 selectAge(button.getAttribute('data-sg-age-btn'));
-            });
-        });
-
-        fitButtons.forEach(function (button) {
-            button.addEventListener('click', function () {
-                selectFit(
-                    button.getAttribute('data-sg-fit-btn-band'),
-                    button.getAttribute('data-sg-fit-btn-fit')
-                );
             });
         });
 
