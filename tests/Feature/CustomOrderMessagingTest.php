@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\CustomOrderMessageReceived;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -170,6 +171,33 @@ class CustomOrderMessagingTest extends TestCase
         $this->assertSame('message_attachment', $message->file->file_type);
 
         Notification::assertSentTo($customer, CustomOrderMessageReceived::class);
+    }
+
+    /**
+     * The admin panel keeps its own session guard, so an admin request leaves the
+     * default guard - the shop's - holding nobody.
+     *
+     * actingAs($user, 'admin') would hide that, because it also switches the default
+     * guard for the rest of the test. Logging into the guard directly reproduces
+     * production, which is the only way this failure can be caught here.
+     */
+    public function test_an_admin_message_records_the_admin_as_its_sender(): void
+    {
+        Notification::fake();
+
+        $admin = $this->admin();
+        $customer = $this->customer();
+        $order = $this->orderFor($customer);
+
+        Auth::guard('admin')->login($admin);
+
+        $this->post(route('admin.custom-orders.message', $order), [
+            'message' => 'The quote has been revised. Kindly login to review.',
+        ])->assertSessionHas('success');
+
+        $message = $order->messages()->where('sender_type', 'admin')->firstOrFail();
+
+        $this->assertSame($admin->id, $message->sender_id);
     }
 
     public function test_customer_cannot_message_another_users_order(): void

@@ -15,6 +15,20 @@ use Illuminate\Support\Facades\Auth;
 
 class CustomOrderController extends Controller
 {
+    /**
+     * The administrator's id.
+     *
+     * The admin panel has its own session guard, so the default guard is the shop's
+     * and holds nobody in an admin request. Reading Auth::id() here returns null,
+     * which left every message with a null sender and every status change with no
+     * recorded actor. Note that actingAs($user, 'admin') in a test switches the
+     * default guard too, so a test can pass while production does not.
+     */
+    private function adminId(): ?int
+    {
+        return Auth::guard('admin')->id();
+    }
+
     public function __construct(
         private CustomOrderService $customOrderService,
         private CustomQuoteService $quoteService,
@@ -70,7 +84,7 @@ class CustomOrderController extends Controller
 
     public function review(CustomOrder $customOrder)
     {
-        $this->customOrderService->review($customOrder, Auth::id());
+        $this->customOrderService->review($customOrder, $this->adminId());
 
         return back()->with('success', 'Order marked as under review.');
     }
@@ -83,11 +97,11 @@ class CustomOrderController extends Controller
             return back()->with('error', 'This order is no longer waiting for review.');
         }
 
-        $this->customOrderService->requestInfo($customOrder, $request->input('message'), Auth::id());
+        $this->customOrderService->requestInfo($customOrder, $request->input('message'), $this->adminId());
 
         $customOrder->messages()->create([
             'sender_type' => 'admin',
-            'sender_id' => Auth::id(),
+            'sender_id' => $this->adminId(),
             'message' => $request->input('message'),
             'is_customer_visible' => true,
             'created_at' => now(),
@@ -98,7 +112,7 @@ class CustomOrderController extends Controller
 
     public function approveForQuote(CustomOrder $customOrder)
     {
-        $this->customOrderService->approveForQuote($customOrder, Auth::id());
+        $this->customOrderService->approveForQuote($customOrder, $this->adminId());
 
         return back()->with('success', 'Order approved for quotation.');
     }
@@ -106,7 +120,7 @@ class CustomOrderController extends Controller
     public function reject(CustomOrder $customOrder, Request $request)
     {
         $request->validate(['reason' => 'required|string|max:500']);
-        $this->customOrderService->reject($customOrder, $request->input('reason'), Auth::id());
+        $this->customOrderService->reject($customOrder, $request->input('reason'), $this->adminId());
 
         return back()->with('success', 'Order rejected.');
     }
@@ -137,7 +151,7 @@ class CustomOrderController extends Controller
             $data['total'],
             $data['notes'] ?? null,
             $data['valid_days'],
-            Auth::id()
+            $this->adminId()
         );
 
         return back()->with('success', 'Quote created and sent to customer.');
@@ -146,7 +160,7 @@ class CustomOrderController extends Controller
     public function startProduction(CustomOrder $customOrder)
     {
         try {
-            $this->customOrderService->startProduction($customOrder, Auth::id());
+            $this->customOrderService->startProduction($customOrder, $this->adminId());
         } catch (\App\Exceptions\ProductionGateException $e) {
             // The service is the authority on whether an order may be produced.
             // There is no way round this from the admin interface: the missing
@@ -159,14 +173,14 @@ class CustomOrderController extends Controller
 
     public function submitForQc(CustomOrder $customOrder)
     {
-        $this->customOrderService->submitForQc($customOrder, Auth::id());
+        $this->customOrderService->submitForQc($customOrder, $this->adminId());
 
         return back()->with('success', 'Submitted for quality check.');
     }
 
     public function resumeProduction(CustomOrder $customOrder)
     {
-        $this->customOrderService->resumeProduction($customOrder, Auth::id());
+        $this->customOrderService->resumeProduction($customOrder, $this->adminId());
 
         return back()->with('success', 'Production resumed.');
     }
@@ -178,11 +192,11 @@ class CustomOrderController extends Controller
         ]);
 
         if ($data['passed']) {
-            $this->customOrderService->passQc($customOrder, $customOrder->delivery_method, Auth::id());
+            $this->customOrderService->passQc($customOrder, $customOrder->delivery_method, $this->adminId());
 
             return back()->with('success', 'QC passed.');
         } else {
-            $this->customOrderService->failQc($customOrder, Auth::id());
+            $this->customOrderService->failQc($customOrder, $this->adminId());
 
             return back()->with('warning', 'QC failed. Returned to production.');
         }
@@ -200,7 +214,7 @@ class CustomOrderController extends Controller
         $check->update([
             'passed' => $data['passed'],
             'notes' => $data['notes'] ?? null,
-            'checked_by' => Auth::id(),
+            'checked_by' => $this->adminId(),
             'checked_at' => now(),
         ]);
 
@@ -244,9 +258,9 @@ class CustomOrderController extends Controller
     public function markReady(CustomOrder $customOrder)
     {
         if ($customOrder->delivery_method === 'pickup') {
-            $this->customOrderService->markReadyForPickup($customOrder, Auth::id());
+            $this->customOrderService->markReadyForPickup($customOrder, $this->adminId());
         } else {
-            $this->customOrderService->markReadyForDelivery($customOrder, Auth::id());
+            $this->customOrderService->markReadyForDelivery($customOrder, $this->adminId());
         }
 
         return back()->with('success', 'Order marked as ready.');
@@ -254,14 +268,14 @@ class CustomOrderController extends Controller
 
     public function markShipped(CustomOrder $customOrder)
     {
-        $this->customOrderService->markShipped($customOrder, Auth::id());
+        $this->customOrderService->markShipped($customOrder, $this->adminId());
 
         return back()->with('success', 'Order shipped.');
     }
 
     public function complete(CustomOrder $customOrder)
     {
-        $this->customOrderService->complete($customOrder, Auth::id());
+        $this->customOrderService->complete($customOrder, $this->adminId());
 
         return back()->with('success', 'Order completed.');
     }
@@ -278,12 +292,12 @@ class CustomOrderController extends Controller
         $text = trim($request->input('message', ''));
 
         $file = $request->hasFile('attachment')
-            ? $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', Auth::id(), true)
+            ? $this->fileService->upload($customOrder, $request->file('attachment'), 'message_attachment', $this->adminId(), true)
             : null;
 
         $customOrder->messages()->create([
             'sender_type' => 'admin',
-            'sender_id' => Auth::id(),
+            'sender_id' => $this->adminId(),
             'message' => $text,
             'is_customer_visible' => true,
             'custom_order_file_id' => $file?->id,

@@ -272,7 +272,7 @@ class PickupPayoutController extends Controller
 
         $pickupPayout->update([
             'is_reversed' => true,
-            'reversed_by' => Auth::id(),
+            'reversed_by' => Auth::guard('admin')->id(),
             'reversed_at' => now(),
         ]);
 

@@ -155,7 +155,7 @@ class DeliveryAgentService
     {
         try {
             AuditLog::create([
-                'user_id'        => Auth::id(),
+                'user_id'        => Auth::guard('delivery')->id(),
                 'action'         => $action,
                 'auditable_type' => Order::class,
                 'auditable_id'   => $order->id,

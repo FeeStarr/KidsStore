@@ -315,7 +315,7 @@ class OrderController extends Controller
         ]);
 
         AuditLog::create([
-            'user_id'        => Auth::id(),
+            'user_id'        => Auth::guard('admin')->id(),
             'action'         => 'delivery.approved',
             'auditable_type' => Order::class,
             'auditable_id'   => $order->id,
@@ -369,7 +369,7 @@ class OrderController extends Controller
         $order->update($updates);
 
         AuditLog::create([
-            'user_id'        => Auth::id(),
+            'user_id'        => Auth::guard('admin')->id(),
             'action'         => $isRerelease ? 'delivery.re_released' : 'delivery.reassigned',
             'auditable_type' => Order::class,
             'auditable_id'   => $order->id,
