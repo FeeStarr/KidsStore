@@ -564,8 +564,7 @@
                     <div class="card-header text-danger"><h6 class="mb-0">Changed your mind?</h6></div>
                     <div class="card-body">
                         <p class="small text-muted">
-                            You can cancel this request until it has been paid for. Please tell us why &mdash;
-                            it helps us get the sizing right next time. No payment will be taken.
+                            You can cancel this request until it has been paid for. Please tell us why.
                         </p>
                         <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelRequestModal">
                             <i class="bi bi-x-circle me-1"></i>Cancel this request
