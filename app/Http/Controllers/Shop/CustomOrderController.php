@@ -23,7 +23,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -485,9 +484,14 @@ class CustomOrderController extends Controller
             'created_at' => now(),
         ]);
 
-        // Notify admins
+        // Notify admins. The message is already saved, so a mail failure must not
+        // turn it into an error page and a duplicate.
         $admins = NotificationRecipients::adminUsers();
-        Notification::send($admins, new CustomOrderMessageReceived($customOrder, $message));
+        $this->customOrderService->sendToRecipientsSafely(
+            $customOrder,
+            $admins,
+            new CustomOrderMessageReceived($customOrder, $message)
+        );
 
         return back()->with('success', 'Your feedback has been sent. We will revise the quote.');
     }
@@ -540,7 +544,10 @@ class CustomOrderController extends Controller
             'created_at' => now(),
         ]);
 
-        Notification::send(
+        // The message is saved. A mail failure about it must not turn a sent message
+        // into an error page.
+        $this->customOrderService->sendToRecipientsSafely(
+            $customOrder,
             NotificationRecipients::adminUsers(),
             new CustomOrderMessageReceived($customOrder, $text !== '' ? $text : 'Sent an attachment')
         );
@@ -558,7 +565,8 @@ class CustomOrderController extends Controller
 
         $this->customOrderService->transitionTo($customOrder, CustomOrder::STATUS_UNDER_REVIEW, Auth::id());
 
-        Notification::send(
+        $this->customOrderService->sendToRecipientsSafely(
+            $customOrder,
             NotificationRecipients::adminUsers(),
             new CustomOrderMessageReceived($customOrder, 'The customer has provided the requested information.')
         );

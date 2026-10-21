@@ -142,6 +142,56 @@ class CustomOrderMessagingTest extends TestCase
         Notification::assertSentTo($admin, CustomOrderMessageReceived::class);
     }
 
+    /**
+     * A mail failure must not turn a sent message into an error page.
+     *
+     * The message is saved before the email is attempted, so an SMTP failure left
+     * the admin looking at "Something Went Wrong" for a message that had in fact
+     * gone through. The only sensible thing to do about that is to send it again.
+     */
+    public function test_a_failed_email_does_not_break_a_sent_admin_message(): void
+    {
+        Notification::shouldReceive('send')->andThrow(new \RuntimeException('Connection could not be established'));
+        Notification::shouldReceive('sendNow')->andThrow(new \RuntimeException('Connection could not be established'));
+
+        $admin = $this->admin();
+        $customer = $this->customer();
+        $order = $this->orderFor($customer);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.custom-orders.message', $order), [
+                'message' => 'Yes, bow added to the design.',
+            ])
+            ->assertSessionHas('success');
+
+        $message = $order->messages()->where('sender_type', 'admin')->firstOrFail();
+
+        $this->assertSame('Yes, bow added to the design.', $message->message);
+    }
+
+    /**
+     * The same for the customer replying: the message stands even if the
+     * notification to the team does not go out.
+     */
+    public function test_a_failed_email_does_not_break_a_sent_customer_message(): void
+    {
+        Notification::shouldReceive('send')->andThrow(new \RuntimeException('Connection could not be established'));
+        Notification::shouldReceive('sendNow')->andThrow(new \RuntimeException('Connection could not be established'));
+
+        $customer = $this->customer();
+        $order = $this->orderFor($customer);
+
+        $this->actingAs($customer, 'web')
+            ->post(route('shop.custom-frock.messages', $order), [
+                'message' => 'Can you add a bow?',
+            ])
+            ->assertSessionHas('success');
+
+        $message = $order->messages()->where('sender_type', 'customer')->firstOrFail();
+
+        $this->assertSame('Can you add a bow?', $message->message);
+    }
+
     public function test_admin_can_reply_with_attachment(): void
     {
         Storage::fake('custom_orders');

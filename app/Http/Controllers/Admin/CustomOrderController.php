@@ -323,7 +323,13 @@ class CustomOrderController extends Controller
             'created_at' => now(),
         ]);
 
-        $customOrder->user->notify(new CustomOrderMessageReceived($customOrder, $text !== '' ? $text : 'Sent an attachment'));
+        // The message is saved. Whether the email about it goes out is a separate
+        // matter, and must not turn a sent message into an error page - the admin
+        // would only send it again.
+        $this->customOrderService->sendSafely(
+            $customOrder,
+            new CustomOrderMessageReceived($customOrder, $text !== '' ? $text : 'Sent an attachment')
+        );
 
         return back()->with('success', 'Message sent.');
     }

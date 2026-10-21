@@ -105,11 +105,11 @@ class CustomOrderService
         $order->update(['submitted_at' => now()]);
 
         // Notify customer
-        $order->user->notify(new CustomOrderReceived($order));
+        $this->sendSafely($order, new CustomOrderReceived($order));
 
         // Notify admins
         $admins = NotificationRecipients::adminUsers();
-        Notification::send($admins, new CustomOrderReceived($order));
+        $this->sendToRecipientsSafely($order, $admins, new CustomOrderReceived($order));
 
         return $order->fresh();
     }
@@ -117,7 +117,7 @@ class CustomOrderService
     public function review(CustomOrder $order, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_UNDER_REVIEW, $userId);
-        $order->user->notify(new CustomOrderReviewed($order));
+        $this->sendSafely($order, new CustomOrderReviewed($order));
 
         return $order->fresh();
     }
@@ -125,7 +125,7 @@ class CustomOrderService
     public function requestInfo(CustomOrder $order, string $message, ?int $userId = null): CustomOrder
     {
         $this->transitionTo($order, CustomOrder::STATUS_NEEDS_INFORMATION, $userId);
-        $order->user->notify(new CustomOrderInfoRequested($order, $message));
+        $this->sendSafely($order, new CustomOrderInfoRequested($order, $message));
 
         return $order->fresh();
     }
@@ -203,10 +203,10 @@ class CustomOrderService
 
         // Notifications go out after the state has changed, so a mail failure cannot
         // undo the cancellation.
-        $order->user->notify(new CustomOrderCancelled($order, $reason));
+        $this->sendSafely($order, new CustomOrderCancelled($order, $reason));
 
         $admins = NotificationRecipients::adminUsers();
-        Notification::send($admins, new CustomOrderCancelled($order, $reason));
+        $this->sendToRecipientsSafely($order, $admins, new CustomOrderCancelled($order, $reason));
 
         return $order->fresh();
     }
@@ -268,7 +268,7 @@ class CustomOrderService
 
         $this->transitionTo($order, CustomOrder::STATUS_PRODUCTION_PENDING, $userId);
         $this->transitionTo($order->fresh(), CustomOrder::STATUS_IN_PRODUCTION, $userId);
-        $order->user->notify(new CustomOrderInProduction($order));
+        $this->sendSafely($order, new CustomOrderInProduction($order));
 
         return $order->fresh();
     }
@@ -399,7 +399,7 @@ class CustomOrderService
             : CustomOrder::STATUS_READY_FOR_DELIVERY;
 
         $this->transitionTo($order, $targetStatus, $userId);
-        $order->user->notify(new CustomOrderReady($order));
+        $this->sendSafely($order, new CustomOrderReady($order));
 
         return $order->fresh();
     }
@@ -462,8 +462,11 @@ class CustomOrderService
      * Dispatch a customer notification without letting a mail failure (SMTP timeout,
      * bad credentials) break the admin action that triggered it. The status change
      * has already been committed at this point and must stand on its own.
+     *
+     * A message that was saved, a quote that was sent, a cancellation that was
+     * recorded - none of those stop being true because the email did not go out.
      */
-    private function sendSafely(CustomOrder $order, $notification): void
+    public function sendSafely(CustomOrder $order, $notification): void
     {
         try {
             $order->user->notify($notification);
@@ -473,6 +476,23 @@ class CustomOrderService
                 'order' => $order->custom_order_number,
                 'notification' => class_basename($notification),
                 'email' => $order->user?->email,
+            ]);
+        }
+    }
+
+    /**
+     * The same, for a group of recipients such as the admin team.
+     */
+    public function sendToRecipientsSafely(CustomOrder $order, $recipients, $notification): void
+    {
+        try {
+            Notification::send($recipients, $notification);
+        } catch (\Throwable $e) {
+            Log::error('Custom order notification failed', [
+                'error' => $e->getMessage(),
+                'order' => $order->custom_order_number,
+                'notification' => class_basename($notification),
+                'recipients' => $recipients->count(),
             ]);
         }
     }
