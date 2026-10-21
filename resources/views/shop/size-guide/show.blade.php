@@ -1,15 +1,29 @@
-@extends('layouts.shop', ['title' => 'Size Guide & How to Measure'])
+@extends('layouts.shop', ['title' => 'Custom Request Sizes & How to Measure'])
 @section('content')
 <div class="container py-4">
 
-    <h1 class="h3 mb-2">Size Guide &amp; How to Measure</h1>
+    <h1 class="h3 mb-2">Custom Request Sizes &amp; How to Measure</h1>
     <p class="text-muted mb-4">
-        A little check goes a long way. Measuring before you order helps us make a frock that fits comfortably first time.
+        A little check goes a long way. Measuring before you request helps us make a frock that fits comfortably first time.
     </p>
 
+    {{-- These sizes describe frocks we make to order. The ready-made items in the
+         shop carry their own sizes, and a customer reading this page should not
+         think otherwise. --}}
+    <div class="alert alert-info d-flex gap-3 align-items-start mb-4">
+        <i class="bi bi-info-circle fs-4"></i>
+        <div>
+            <div class="fw-bold">These sizes are for custom requests.</div>
+            <div class="small">
+                They apply to frocks we make to order for you, and to nothing else. The
+                ready-made items in the shop carry their own sizes, shown on each product page.
+            </div>
+        </div>
+    </div>
+
     @if($charts->isEmpty())
-        <div class="alert alert-info">
-            Our size guide is being prepared and will be available here shortly.
+        <div class="alert alert-secondary">
+            Our custom request sizes are being prepared and will be available here shortly.
         </div>
     @else
 

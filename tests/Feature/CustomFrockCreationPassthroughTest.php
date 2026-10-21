@@ -115,14 +115,15 @@ class CustomFrockCreationPassthroughTest extends TestCase
         $html = $this->get(route('shop.custom-creations.index'))->assertOk()->getContent();
 
         // Find the anchors that lead into the request form, and check the ones
-        // that are a call to action for a design. The navigation link is not one
-        // of them: it names no design, and must stay that way.
+        // that are a call to action for a design. The navigation links are not one
+        // of them: they name no design, and must stay that way.
         preg_match_all('/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/s', $html, $matches, PREG_SET_ORDER);
 
         $callsToAction = array_filter($matches, function ($match) {
             $text = trim(preg_replace('/<[^>]+>/', ' ', $match[2]));
 
-            return str_contains($text, 'Custom Request') || str_contains($text, 'Request This Creation');
+            return str_contains($text, 'Start a Custom Request')
+                || str_contains($text, 'Request This Creation');
         });
 
         $this->assertNotEmpty($callsToAction, 'the gallery must offer a way to request a design');

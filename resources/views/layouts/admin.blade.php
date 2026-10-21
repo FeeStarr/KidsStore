@@ -106,7 +106,7 @@
 
 @php($customActive = str_starts_with($r ?? '', 'admin.custom-orders') || str_starts_with($r ?? '', 'admin.size-charts'))
 <a href="#menu-custom" data-bs-toggle="collapse" role="button" aria-expanded="{{ $customActive ? 'true' : 'false' }}" class="{{ $customActive ? 'active' : '' }}">
-    <i class="bi bi-stars"></i> Custom Frocks <i class="bi bi-chevron-down chevron"></i>
+    <i class="bi bi-stars"></i> Custom Requests <i class="bi bi-chevron-down chevron"></i>
 </a>
 <div class="collapse {{ $customActive ? 'show' : '' }}" id="menu-custom">
     <a href="{{ route('admin.custom-orders.index') }}" class="sub {{ str_starts_with($r ?? '', 'admin.custom-orders') ? 'active':'' }}">

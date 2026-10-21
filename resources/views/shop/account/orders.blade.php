@@ -33,7 +33,7 @@
             You haven't placed any orders yet.
             @if(\App\Models\CustomOrder::where('user_id', auth()->id())->exists())
                 <br>
-                <a href="{{ route('shop.custom-frock.index') }}" class="link-primary">Your custom frocks are in My Custom Frocks</a>.
+                <a href="{{ route('shop.custom-frock.index') }}" class="link-primary">Your custom requests are in My Custom Requests</a>.
             @endif
         </td></tr>
     @endforelse

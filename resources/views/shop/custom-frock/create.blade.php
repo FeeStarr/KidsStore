@@ -1,13 +1,13 @@
 ﻿@extends('layouts.shop')
 
-@section('title', 'Custom Frock Request')
+@section('title', 'Custom Request')
 
 @section('content')
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <h1 class="h3 mb-2">Create a Custom Frock</h1>
-            <p class="text-muted mb-4">Upload a design you love and we'll create a custom frock for your little one.</p>
+            <h1 class="h3 mb-2">Create a Custom Request</h1>
+            <p class="text-muted mb-4">Upload a design you love and we'll create a frock for your little one, made to order.</p>
 
             {{-- Step indicator --}}
             <div class="d-flex justify-content-between mb-4" id="stepIndicator">
@@ -589,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function buildSummary() {
         const fd = new FormData(form);
-        let html = '<h6 class="fw-bold text-primary mb-3">CUSTOM FROCK REQUEST</h6>';
+        let html = '<h6 class="fw-bold text-primary mb-3">CUSTOM REQUEST</h6>';
         html += '<table class="table table-sm">';
         const fields = {
             "Child's Name": fd.get('child_name') || '-',

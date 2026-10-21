@@ -243,7 +243,7 @@
                     <li><a class="dropdown-item {{ request()->routeIs('shop.contact') ? 'active' : '' }}" href="{{ route('shop.contact') }}">Contact</a></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.order.*') ? 'active' : '' }}" href="{{ route('shop.order.lookup') }}"><i class="bi bi-box-seam me-1"></i>Track Order</a></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.help') ? 'active' : '' }}" href="{{ route('shop.help') }}"><i class="bi bi-question-circle me-1"></i>Help &amp; Guide</a></li>
-                    <li><a class="dropdown-item {{ request()->routeIs('shop.size-guide') ? 'active' : '' }}" href="{{ route('shop.size-guide') }}"><i class="bi bi-rulers me-1"></i>Size Guide</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.size-guide') ? 'active' : '' }}" href="{{ route('shop.size-guide') }}"><i class="bi bi-rulers me-1"></i>Custom Request Sizes</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.create') ? 'active' : '' }}" href="{{ route('shop.custom-frock.create') }}"><i class="bi bi-scissors me-1"></i>Custom Frocks</a></li>
                 </ul>
@@ -273,7 +273,7 @@
                         @endif
                         <li><a class="dropdown-item {{ request()->routeIs('shop.account.profile') ? 'active' : '' }}" href="{{ route('shop.account.profile') }}">My Profile</a></li>
                         <li><a class="dropdown-item {{ request()->routeIs('shop.account.orders.*') ? 'active' : '' }}" href="{{ route('shop.account.orders.index') }}">My Orders</a></li>
-                        <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.index') ? 'active' : '' }}" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Frocks</a></li>
+                        <li><a class="dropdown-item {{ request()->routeIs('shop.custom-frock.index') ? 'active' : '' }}" href="{{ route('shop.custom-frock.index') }}"><i class="bi bi-scissors me-1"></i>My Custom Requests</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('shop.logout') }}" method="post">@csrf
@@ -320,7 +320,7 @@
             <div class="d-flex gap-3">
                 <a href="{{ route('shop.help') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.help') ? 'active' : '' }}">Help &amp; Guide</a>
                 <a href="{{ route('shop.contact') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.contact') ? 'active' : '' }}">Contact Us</a>
-                <a href="{{ route('shop.size-guide') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.size-guide') ? 'active' : '' }}">Size Guide</a>
+                <a href="{{ route('shop.size-guide') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.size-guide') ? 'active' : '' }}">Custom Request Sizes</a>
 <a href="{{ route('shop.return-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.return-policy') ? 'active' : '' }}">Return Policy</a>
                 <a href="{{ route('shop.privacy-policy') }}" class="text-decoration-none text-white-50 {{ request()->routeIs('shop.privacy-policy') ? 'active' : '' }}">Privacy Policy</a>
                 <a href="/cookie-policy" class="text-decoration-none text-white-50 {{ request()->is('cookie-policy') ? 'active' : '' }}" onclick="try{localStorage.removeItem('kidsflairr_cookies_accepted')}catch(e){};">Cookie Policy</a>
