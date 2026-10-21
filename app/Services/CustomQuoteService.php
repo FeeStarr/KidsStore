@@ -15,12 +15,22 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
-class CustomQuoteService
-{
-    public function __construct(
-        private CustomOrderService $customOrderService,
-        private CustomPaymentService $paymentService,
-    ) {}
+  class CustomQuoteService
+  {
+      /**
+       * Why the customer could not be emailed about their quote, if they could not.
+       *
+       * The quote is created either way, but the admin has to be told that the
+       * customer was not reached, rather than being told they were. A quote
+       * waiting for approval that the customer never knew about is a request that
+       * simply stops.
+       */
+      public ?string $customerNotificationError = null;
+
+      public function __construct(
+          private CustomOrderService $customOrderService,
+          private CustomPaymentService $paymentService,
+      ) {}
 
     public function create(
         CustomOrder $order,
@@ -75,9 +85,13 @@ class CustomQuoteService
         // Sent outside the transaction on purpose. Inside it, any mail failure (SMTP
         // timeout, bad credentials) propagated and rolled the whole quote back, so a
         // flaky mail server could silently discard the admin's work.
+        $this->customerNotificationError = null;
+
         try {
             $order->user->notify(new CustomQuoteReady($order, $quote));
         } catch (\Throwable $e) {
+            $this->customerNotificationError = $e->getMessage();
+
             Log::error('CustomQuoteReady notification failed', [
                 'error' => $e->getMessage(),
                 'order' => $order->custom_order_number,

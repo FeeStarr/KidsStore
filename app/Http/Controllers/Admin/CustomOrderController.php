@@ -151,8 +151,18 @@ class CustomOrderController extends Controller
             $data['total'],
             $data['notes'] ?? null,
             $data['valid_days'],
-            $this->adminId()
+            Auth::id()
         );
+
+        // A quote is waiting for the customer to approve it. If the email did not
+        // go out, the admin has to know that, or the request just stops.
+        if ($this->quoteService->customerNotificationError) {
+            return back()->with(
+                'error',
+                'The quote was created, but the customer could not be emailed. '
+                .'Please check their address, or send the quote to them yourself.'
+            );
+        }
 
         return back()->with('success', 'Quote created and sent to customer.');
     }

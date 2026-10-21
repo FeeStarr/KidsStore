@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\CustomOrder;
+use App\Notifications\Concerns\CopiesTheTeam;
 use App\Services\CustomOrderThumbnailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,6 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class CustomOrderReceived extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -54,7 +56,7 @@ class CustomOrderReceived extends Notification
             ]);
         }
 
-        return $message;
+        return $this->copyTheTeamOnto($message, $notifiable);
     }
 
     private function isInternal(object $notifiable): bool

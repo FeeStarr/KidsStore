@@ -3,12 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\CustomOrder;
+use App\Notifications\Concerns\CopiesTheTeam;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomOrderRejected extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -35,5 +37,9 @@ class CustomOrderRejected extends Notification
 
         return $mail->action('View Details', route('shop.custom-frock.show', $this->customOrder))
             ->line('You are welcome to submit a new request, and our support team is happy to help with any questions.');
+
+        // The customer has a copy of what was promised; so does the team.
+        return $this->copyTheTeamOnto($message, $notifiable);
+
     }
 }

@@ -3,12 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\CustomOrder;
+use App\Notifications\Concerns\CopiesTheTeam;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomOrderCompleted extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -22,13 +24,17 @@ class CustomOrderCompleted extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Your Custom Order Has Been Delivered')
-            ->greeting('Hello ' . $notifiable->name . '!')
+            ->greeting('Hello '.$notifiable->name.'!')
             ->line('Your custom frock has been delivered!')
-            ->line('Reference: ' . $this->customOrder->custom_order_number)
+            ->line('Reference: '.$this->customOrder->custom_order_number)
             ->line('We hope you love your new frock!')
             ->action('Leave a Review', route('shop.custom-frock.show', $this->customOrder))
             ->line('Thank you for choosing KidsFlairr. We look forward to serving you again!');
+
+        // The customer has a copy of what was promised; so does the team.
+        return $this->copyTheTeamOnto($message, $notifiable);
+
     }
 }

@@ -3,13 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\CustomOrder;
-use App\Models\User;
+use App\Notifications\Concerns\CopiesTheTeam;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomOrderCancelled extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -28,21 +29,25 @@ class CustomOrderCancelled extends Notification
 
         $mail = (new MailMessage)
             ->subject('Custom Order Cancelled')
-            ->greeting('Hello ' . $notifiable->name . '!')
+            ->greeting('Hello '.$notifiable->name.'!')
             ->line('A custom frock order has been cancelled.')
-            ->line('Reference: ' . $this->customOrder->custom_order_number);
+            ->line('Reference: '.$this->customOrder->custom_order_number);
 
         if ($this->reason) {
-            $mail->line('Reason: ' . $this->reason);
+            $mail->line('Reason: '.$this->reason);
         }
 
         if ($isAdmin) {
             $mail->action('View Order', route('admin.custom-orders.show', $this->customOrder));
         } else {
             $mail->action('View Details', route('shop.custom-frock.show', $this->customOrder))
-                 ->line('If you have any questions, please contact our support team.');
+                ->line('If you have any questions, please contact our support team.');
         }
 
         return $mail;
+
+        // The customer has a copy of what was promised; so does the team.
+        return $this->copyTheTeamOnto($message, $notifiable);
+
     }
 }

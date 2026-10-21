@@ -3,12 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\CustomOrder;
+use App\Notifications\Concerns\CopiesTheTeam;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomOrderInfoRequested extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -25,16 +27,20 @@ class CustomOrderInfoRequested extends Notification
     {
         $mail = (new MailMessage)
             ->subject('More Information Needed for Your Custom Request')
-            ->greeting('Hello ' . $notifiable->name . '!')
+            ->greeting('Hello '.$notifiable->name.'!')
             ->line('We need a bit more information to proceed with your custom frock request.')
-            ->line('Reference: ' . $this->customOrder->custom_order_number);
+            ->line('Reference: '.$this->customOrder->custom_order_number);
 
         if ($this->message) {
-            $mail->line('Message from our team: ' . $this->message);
+            $mail->line('Message from our team: '.$this->message);
         }
 
         return $mail
             ->action('View & Respond', route('shop.custom-frock.show', $this->customOrder))
             ->line('Please respond as soon as possible so we can continue working on your order.');
+
+        // The customer has a copy of what was promised; so does the team.
+        return $this->copyTheTeamOnto($message, $notifiable);
+
     }
 }

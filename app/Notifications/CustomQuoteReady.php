@@ -4,12 +4,14 @@ namespace App\Notifications;
 
 use App\Models\CustomOrder;
 use App\Models\CustomOrderQuote;
+use App\Notifications\Concerns\CopiesTheTeam;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomQuoteReady extends Notification
 {
+    use CopiesTheTeam;
     use Queueable;
 
     public function __construct(
@@ -33,7 +35,7 @@ class CustomQuoteReady extends Notification
                 : 'This quote is valid until '.$this->quote->valid_until->format('j M Y, g:i a').'.')
             : 'Please review and respond promptly.';
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Your Custom Request Quote is Ready!')
             ->greeting('Hello '.$notifiable->name.'!')
             ->line('Great news! We\'ve prepared a quote for your custom frock.')
@@ -42,5 +44,9 @@ class CustomQuoteReady extends Notification
             ->line($validity)
             ->action('View & Approve Quote', route('shop.custom-frock.show', $this->customOrder))
             ->line('Please review the breakdown and approve to proceed with production.');
+
+        // The customer has a copy of what was promised; so does the team.
+        return $this->copyTheTeamOnto($message, $notifiable);
+
     }
 }
