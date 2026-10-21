@@ -492,13 +492,25 @@ class CustomOrderController extends Controller
         return back()->with('success', 'Your feedback has been sent. We will revise the quote.');
     }
 
-    public function cancel(CustomOrder $customOrder)
+    public function cancel(CustomOrder $customOrder, Request $request)
     {
         abort_unless($customOrder->user_id === Auth::id(), 403);
 
-        $this->customOrderService->cancel($customOrder);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
 
-        return back()->with('success', 'Your custom order has been cancelled.');
+        try {
+            $this->customOrderService->cancelAsCustomer(
+                $customOrder,
+                trim($data['reason']),
+                Auth::id()
+            );
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Your custom frock request has been cancelled.');
     }
 
     public function storeMessage(CustomOrder $customOrder, Request $request)

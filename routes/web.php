@@ -295,6 +295,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('custom-orders/{customOrder}/approve-for-quote', [App\Http\Controllers\Admin\CustomOrderController::class, 'approveForQuote'])->name('custom-orders.approve-for-quote')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/reject', [App\Http\Controllers\Admin\CustomOrderController::class, 'reject'])->name('custom-orders.reject')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/quote', [App\Http\Controllers\Admin\CustomOrderController::class, 'storeQuote'])->name('custom-orders.quote')->middleware('permission:manage_orders');
+        Route::post('custom-orders/{customOrder}/cancel', [\App\Http\Controllers\Admin\CustomOrderController::class, 'cancel'])->name('custom-orders.cancel')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/start-production', [App\Http\Controllers\Admin\CustomOrderController::class, 'startProduction'])->name('custom-orders.start-production')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/submit-for-qc', [App\Http\Controllers\Admin\CustomOrderController::class, 'submitForQc'])->name('custom-orders.submit-for-qc')->middleware('permission:manage_orders');
         Route::post('custom-orders/{customOrder}/resume-production', [App\Http\Controllers\Admin\CustomOrderController::class, 'resumeProduction'])->name('custom-orders.resume-production')->middleware('permission:manage_orders');

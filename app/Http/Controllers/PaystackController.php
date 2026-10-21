@@ -87,12 +87,12 @@ class PaystackController extends Controller
                 $order->refresh();
 
                 if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
-                    return redirect()->route('shop.account.orders.show', $order)
+                    return redirect()->to($this->destinationAfterPayment($order))
                         ->with('success', 'Payment confirmed. Thank you!');
                 }
 
                 if ($order->payment_status === 'under_review') {
-                    return redirect()->route('shop.account.orders.show', $order)
+                    return redirect()->to($this->destinationAfterPayment($order))
                         ->with('info', 'Payment received and is under review.');
                 }
             }
@@ -101,13 +101,29 @@ class PaystackController extends Controller
         // Check once more - webhook may have arrived while we were redirecting
         $order->refresh();
         if ($order->payment_status === 'paid' || $order->status === 'confirmed') {
-            return redirect()->route('shop.account.orders.show', $order)
+            return redirect()->to($this->destinationAfterPayment($order))
                 ->with('success', 'Payment confirmed. Thank you!');
         }
 
-        return redirect()->route('shop.account.orders.show', $order)
+        return redirect()->to($this->destinationAfterPayment($order))
             ->with('info', 'Your payment is being verified. This usually takes a few seconds.')
             ->with('verifying_payment', true);
+    }
+
+    /**
+     * Where the customer goes once a payment has been made.
+     *
+     * A custom frock is not a shop order, and its request is where its status,
+     * timeline and sizing live. Sending the customer to the order page after paying
+     * would pull them out of the one place their frock is shown.
+     */
+    private function destinationAfterPayment(Order $order): string
+    {
+        if ($order->custom_order_id !== null && $order->customOrder) {
+            return route('shop.custom-frock.show', $order->customOrder);
+        }
+
+        return route('shop.account.orders.show', $order);
     }
 
     // ── Customer: query status ────────────────────────────────────────────────

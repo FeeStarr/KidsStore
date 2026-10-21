@@ -546,6 +546,12 @@
                                 <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-primary w-100">
                                     <i class="bi bi-credit-card me-1"></i>Pay now
                                 </a>
+                            @elseif ($linkedOrder->status === \App\Models\Order::STATUS_DELIVERED)
+                                {{-- A delivered frock can be returned or refunded. The request
+                                     lives with the order, so the action is there too. --}}
+                                <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Request a return or refund
+                                </a>
                             @endif
                         @endif
                     </div>
@@ -553,13 +559,42 @@
             @endif
 
             {{-- Actions --}}
-            @if (in_array($customOrder->status, ['draft']))
-                <div class="card shadow-sm mb-4">
+            @if ($customOrder->isCancellableByCustomer())
+                <div class="card shadow-sm mb-4 border-danger">
+                    <div class="card-header text-danger"><h6 class="mb-0">Changed your mind?</h6></div>
                     <div class="card-body">
-                        <form method="POST" action="{{ route('shop.custom-frock.cancel', $customOrder) }}" onsubmit="return confirm('Cancel this request? No payment will be taken.')">
-                            @csrf
-                            <button type="submit" class="btn btn-outline-danger w-100">Cancel Order</button>
-                        </form>
+                        <p class="small text-muted">
+                            You can cancel this request until it has been paid for. Please tell us why &mdash;
+                            it helps us get the sizing right next time. No payment will be taken.
+                        </p>
+                        <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelRequestModal">
+                            <i class="bi bi-x-circle me-1"></i>Cancel this request
+                        </button>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="cancelRequestModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ route('shop.custom-frock.cancel', $customOrder) }}">
+                                @csrf
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Cancel this request</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label class="form-label" for="cancelReason">Why are you cancelling?</label>
+                                    <textarea name="reason" id="cancelReason" class="form-control" rows="3"
+                                              required maxlength="500"
+                                              placeholder="e.g. The size does not suit her any more"></textarea>
+                                    <small class="text-muted">A sentence is plenty. It helps us do better next time.</small>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep my request</button>
+                                    <button type="submit" class="btn btn-danger">Cancel request</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             @endif

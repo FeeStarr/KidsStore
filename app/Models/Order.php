@@ -65,6 +65,7 @@ class Order extends Model
         'pickup_station_fee_total',
         'ordered_at', 'pending_confirmation_at', 'pending_payment_at',
         'confirmed_at', 'processing_at', 'shipped_at', 'ready_for_pickup_at', 'delivered_at', 'picked_up_at', 'cancelled_at',
+        'cancellation_reason',
         'expired_at', 'pickup_window_expired_at',
     ];
 

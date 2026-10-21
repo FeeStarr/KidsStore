@@ -13,7 +13,8 @@ class CustomOrderCancelled extends Notification
     use Queueable;
 
     public function __construct(
-        public CustomOrder $customOrder
+        public CustomOrder $customOrder,
+        public ?string $reason = null
     ) {}
 
     public function via(object $notifiable): array
@@ -30,6 +31,10 @@ class CustomOrderCancelled extends Notification
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('A custom frock order has been cancelled.')
             ->line('Reference: ' . $this->customOrder->custom_order_number);
+
+        if ($this->reason) {
+            $mail->line('Reason: ' . $this->reason);
+        }
 
         if ($isAdmin) {
             $mail->action('View Order', route('admin.custom-orders.show', $this->customOrder));

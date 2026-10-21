@@ -95,6 +95,14 @@
                 <button class="btn btn-dark"><i class="bi bi-check2-all me-1"></i> Complete</button>
             </form>
         @endif
+
+        {{-- Cancelling a request cancels the order that pays for it, so the two
+             can never drift apart. --}}
+        @if ($customOrder->isCancellableByAdmin())
+            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelRequestModal">
+                <i class="bi bi-x-circle me-1"></i> Cancel Request
+            </button>
+        @endif
     </div>
 </div>
 
@@ -499,7 +507,36 @@
 </div>
 
 {{-- Quote Modal --}}
-<div class="modal fade" id="quoteModal" tabindex="-1">
+  <div class="modal fade" id="cancelRequestModal" tabindex="-1">
+      <div class="modal-dialog">
+          <div class="modal-content">
+              <form method="POST" action="{{ route('admin.custom-orders.cancel', $customOrder) }}">
+                  @csrf
+                  <div class="modal-header">
+                      <h5 class="modal-title">Cancel this request</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                      <p class="small text-muted">
+                          This cancels the request and the order that pays for it. If the order
+                          has been paid for, a refund request is raised for review.
+                      </p>
+                      <label class="form-label" for="adminCancelReason">Reason for cancelling</label>
+                      <textarea name="reason" id="adminCancelReason" class="form-control" rows="3"
+                                required maxlength="500"
+                                placeholder="e.g. Customer asked us to start again in a new size"></textarea>
+                      <small class="text-muted">The customer sees this, so keep it something you would say to them.</small>
+                  </div>
+                  <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep it open</button>
+                      <button type="submit" class="btn btn-danger">Cancel request</button>
+                  </div>
+              </form>
+          </div>
+      </div>
+  </div>
+
+  <div class="modal fade" id="quoteModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form method="POST" action="{{ route('admin.custom-orders.quote', $customOrder) }}">

@@ -118,7 +118,9 @@ class CustomQuoteApprovalTest extends TestCase
 
         $this->actingAs($customer, 'web')
             ->from(route('shop.custom-frock.show', $order))
-            ->post(route('shop.custom-frock.cancel', $order))
+            ->post(route('shop.custom-frock.cancel', $order), [
+                'reason' => 'The size does not suit her any more.',
+            ])
             ->assertRedirect(route('shop.custom-frock.show', $order))
             ->assertSessionHas('success');
 

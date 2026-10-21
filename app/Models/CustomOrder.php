@@ -38,23 +38,82 @@ class CustomOrder extends Model
 
     const VALID_TRANSITIONS = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED],
-        self::STATUS_SUBMITTED => [self::STATUS_UNDER_REVIEW, self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTED, self::STATUS_REJECTED],
-        self::STATUS_UNDER_REVIEW => [self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTE_PENDING, self::STATUS_REJECTED],
+        self::STATUS_SUBMITTED => [self::STATUS_UNDER_REVIEW, self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTED, self::STATUS_REJECTED, self::STATUS_CANCELLED],
+        self::STATUS_UNDER_REVIEW => [self::STATUS_NEEDS_INFORMATION, self::STATUS_QUOTE_PENDING, self::STATUS_REJECTED, self::STATUS_CANCELLED],
         self::STATUS_NEEDS_INFORMATION => [self::STATUS_UNDER_REVIEW, self::STATUS_CANCELLED],
-        self::STATUS_QUOTE_PENDING => [self::STATUS_QUOTED],
+        self::STATUS_QUOTE_PENDING => [self::STATUS_QUOTED, self::STATUS_CANCELLED],
         self::STATUS_QUOTED => [self::STATUS_CUSTOMER_APPROVED, self::STATUS_NEEDS_REVISION, self::STATUS_QUOTE_EXPIRED, self::STATUS_CANCELLED],
-        self::STATUS_NEEDS_REVISION => [self::STATUS_QUOTE_PENDING, self::STATUS_QUOTED],
-        self::STATUS_CUSTOMER_APPROVED => [self::STATUS_PAYMENT_PENDING],
+        self::STATUS_NEEDS_REVISION => [self::STATUS_QUOTE_PENDING, self::STATUS_QUOTED, self::STATUS_CANCELLED],
+        self::STATUS_CUSTOMER_APPROVED => [self::STATUS_PAYMENT_PENDING, self::STATUS_CANCELLED],
         self::STATUS_PAYMENT_PENDING => [self::STATUS_PAID, self::STATUS_CANCELLED],
-        self::STATUS_PAID => [self::STATUS_PRODUCTION_PENDING],
-        self::STATUS_PRODUCTION_PENDING => [self::STATUS_IN_PRODUCTION],
-        self::STATUS_IN_PRODUCTION => [self::STATUS_QUALITY_CHECK],
-        self::STATUS_QUALITY_CHECK => [self::STATUS_READY_FOR_DELIVERY, self::STATUS_READY_FOR_PICKUP, self::STATUS_REWORK_REQUIRED],
-        self::STATUS_REWORK_REQUIRED => [self::STATUS_IN_PRODUCTION],
-        self::STATUS_READY_FOR_DELIVERY => [self::STATUS_SHIPPED],
+        self::STATUS_PAID => [self::STATUS_PRODUCTION_PENDING, self::STATUS_CANCELLED],
+        self::STATUS_PRODUCTION_PENDING => [self::STATUS_IN_PRODUCTION, self::STATUS_CANCELLED],
+        self::STATUS_IN_PRODUCTION => [self::STATUS_QUALITY_CHECK, self::STATUS_CANCELLED],
+        self::STATUS_QUALITY_CHECK => [self::STATUS_READY_FOR_DELIVERY, self::STATUS_READY_FOR_PICKUP, self::STATUS_REWORK_REQUIRED, self::STATUS_CANCELLED],
+        self::STATUS_REWORK_REQUIRED => [self::STATUS_IN_PRODUCTION, self::STATUS_CANCELLED],
+        self::STATUS_READY_FOR_DELIVERY => [self::STATUS_SHIPPED, self::STATUS_CANCELLED],
         self::STATUS_SHIPPED => [self::STATUS_COMPLETED],
-        self::STATUS_READY_FOR_PICKUP => [self::STATUS_COMPLETED],
+        self::STATUS_READY_FOR_PICKUP => [self::STATUS_COMPLETED, self::STATUS_CANCELLED],
     ];
+
+    /**
+     * The statuses a customer may cancel from.
+     *
+     * A customer can walk away at any point before they have paid. Once they have
+     * paid it is not a cancellation any more, it is a refund, and that is a separate
+     * request the customer raises rather than a decision the system makes.
+     */
+    const CUSTOMER_CANCELLABLE_STATUSES = [
+        self::STATUS_SUBMITTED,
+        self::STATUS_UNDER_REVIEW,
+        self::STATUS_NEEDS_INFORMATION,
+        self::STATUS_QUOTE_PENDING,
+        self::STATUS_QUOTED,
+        self::STATUS_NEEDS_REVISION,
+        self::STATUS_CUSTOMER_APPROVED,
+        self::STATUS_PAYMENT_PENDING,
+    ];
+
+    /**
+     * The statuses an administrator may cancel from.
+     *
+     * Wider than the customer's, because an administrator can scrap a frock that has
+     * been paid for or is part way through being made. Past shipping a frock is
+     * returned rather than cancelled, so that is not on the list.
+     */
+    const ADMIN_CANCELLABLE_STATUSES = [
+        self::STATUS_SUBMITTED,
+        self::STATUS_UNDER_REVIEW,
+        self::STATUS_NEEDS_INFORMATION,
+        self::STATUS_QUOTE_PENDING,
+        self::STATUS_QUOTED,
+        self::STATUS_NEEDS_REVISION,
+        self::STATUS_CUSTOMER_APPROVED,
+        self::STATUS_PAYMENT_PENDING,
+        self::STATUS_PAID,
+        self::STATUS_PRODUCTION_PENDING,
+        self::STATUS_IN_PRODUCTION,
+        self::STATUS_QUALITY_CHECK,
+        self::STATUS_REWORK_REQUIRED,
+        self::STATUS_READY_FOR_DELIVERY,
+        self::STATUS_READY_FOR_PICKUP,
+    ];
+
+    /**
+     * Whether a customer may cancel this request right now.
+     */
+    public function isCancellableByCustomer(): bool
+    {
+        return in_array($this->status, self::CUSTOMER_CANCELLABLE_STATUSES, true);
+    }
+
+    /**
+     * Whether an administrator may cancel this request right now.
+     */
+    public function isCancellableByAdmin(): bool
+    {
+        return in_array($this->status, self::ADMIN_CANCELLABLE_STATUSES, true);
+    }
 
     /**
      * Statuses the record only reaches after the customer approves a quote and a

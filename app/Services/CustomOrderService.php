@@ -146,16 +146,67 @@ class CustomOrderService
         return $order->fresh();
     }
 
-    public function cancel(CustomOrder $order): CustomOrder
+    /**
+     * A customer cancels their own request.
+     *
+     * Only before payment: after that the money is involved and the route is a
+     * refund request, not a cancellation.
+     */
+    public function cancelAsCustomer(CustomOrder $order, string $reason, ?int $userId = null): CustomOrder
     {
-        $this->transitionTo($order, CustomOrder::STATUS_CANCELLED);
+        if (! $order->isCancellableByCustomer()) {
+            throw new RuntimeException(
+                'This request can no longer be cancelled. Once a frock has been paid for, '
+                .'please raise a refund request instead.'
+            );
+        }
 
-        // Notify customer
-        $order->user->notify(new CustomOrderCancelled($order));
+        return $this->performCancel($order, $reason, $userId);
+    }
 
-        // Notify admins
+    /**
+     * An administrator cancels a request.
+     *
+     * Wider than the customer's, because an administrator can scrap a frock that is
+     * paid for or part way through being made.
+     */
+    public function cancelAsAdmin(CustomOrder $order, string $reason, ?int $userId = null): CustomOrder
+    {
+        if (! $order->isCancellableByAdmin()) {
+            throw new RuntimeException(
+                'This request can no longer be cancelled. A frock that has already shipped is returned, not cancelled.'
+            );
+        }
+
+        return $this->performCancel($order, $reason, $userId);
+    }
+
+    /**
+     * Cancels the request and the order that pays for it, together.
+     *
+     * The two records are one purchase. If they are allowed to drift apart, a
+     * customer is left with a request that says "payment pending" and an invoice
+     * that can no longer be paid.
+     */
+    private function performCancel(CustomOrder $order, string $reason, ?int $userId = null): CustomOrder
+    {
+        // The payable order goes first, so it can never be paid after the request
+        // is gone. A paid order raises a refund request, which is how the money comes
+        // back.
+        $linked = $order->order;
+
+        if ($linked) {
+            app(OrderService::class)->cancelOrderOnly($linked, $reason);
+        }
+
+        $this->transitionTo($order, CustomOrder::STATUS_CANCELLED, $userId, $reason);
+
+        // Notifications go out after the state has changed, so a mail failure cannot
+        // undo the cancellation.
+        $order->user->notify(new CustomOrderCancelled($order, $reason));
+
         $admins = NotificationRecipients::adminUsers();
-        Notification::send($admins, new CustomOrderCancelled($order));
+        Notification::send($admins, new CustomOrderCancelled($order, $reason));
 
         return $order->fresh();
     }

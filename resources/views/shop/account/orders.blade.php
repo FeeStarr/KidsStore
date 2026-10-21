@@ -9,19 +9,7 @@
     @forelse($orders as $o)
         <tr>
             <td>{{ $loop->iteration }}</td>
-            <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a>
-                @if($o->custom_order_id)
-                    @if($o->customOrder)
-                        <a href="{{ route('shop.custom-frock.show', $o->customOrder) }}"
-                           class="badge text-bg-info ms-1"
-                           title="This is the payment record for your custom frock {{ $o->customOrder->custom_order_number }}">
-                            Custom frock {{ $o->customOrder->custom_order_number }}
-                        </a>
-                    @else
-                        <span class="badge text-bg-info ms-1">Custom frock</span>
-                    @endif
-                @endif
-            </td>
+            <td><a href="{{ route('shop.account.orders.show', $o) }}">{{ $o->reference }}</a></td>
             <td>{{ $o->order_date?->format('M d, Y g:i A') ?? '-' }}</td>
             <td><span class="badge {{ match($o->status) {
                 'delivered' => 'text-bg-success',
@@ -41,7 +29,13 @@
             </td>
         </tr>
     @empty
-        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-center text-muted py-4">You haven't placed any orders yet.</td></tr>
+        <tr><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-center text-muted py-4">
+            You haven't placed any orders yet.
+            @if(\App\Models\CustomOrder::where('user_id', auth()->id())->exists())
+                <br>
+                <a href="{{ route('shop.custom-frock.index') }}" class="link-primary">Your custom frocks are in My Custom Frocks</a>.
+            @endif
+        </td></tr>
     @endforelse
     </tbody>
 </table>

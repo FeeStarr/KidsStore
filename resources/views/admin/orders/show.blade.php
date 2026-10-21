@@ -72,14 +72,29 @@
 
         {{-- cancel (any non-terminal state) --}}
         @if(! in_array($s, ['delivered', 'cancelled']))
-            <form action="{{ route('admin.orders.cancel', $order) }}" method="post"
-                  data-confirm="This will cancel the order{{ in_array($s, ['processing','shipping to station','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
-                  data-confirm-title="Cancel Order?" data-confirm-yes="Yes, cancel">
-                @csrf
-                <button class="btn btn-outline-danger">
-                    <i class="bi bi-x-circle me-1"></i>Cancel
-                </button>
-            </form>
+            @if($order->custom_order_id)
+                {{-- A custom frock's request is cancelled together with its order, so
+                     the reason belongs on both. It is asked for here rather than
+                     assumed, because the customer sees it. --}}
+                <form action="{{ route('admin.orders.cancel', $order) }}" method="post" class="w-100 mt-2">
+                    @csrf
+                    <input type="text" name="reason" class="form-control form-control-sm mb-1"
+                           placeholder="Reason for cancelling" aria-label="Reason for cancelling"
+                           required maxlength="500">
+                    <button class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-circle me-1"></i>Cancel order and request
+                    </button>
+                </form>
+            @else
+                <form action="{{ route('admin.orders.cancel', $order) }}" method="post"
+                      data-confirm="This will cancel the order{{ in_array($s, ['processing','shipping to station','out for delivery','ready for pick up']) ? ' and restore inventory' : '' }}."
+                      data-confirm-title="Cancel Order?" data-confirm-yes="Yes, cancel">
+                    @csrf
+                    <button class="btn btn-outline-danger">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                    </button>
+                </form>
+            @endif
         @endif
     </div>
 </div>

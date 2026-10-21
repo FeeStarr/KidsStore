@@ -16,8 +16,12 @@ class AccountController extends Controller
 {
     public function orders(): View
     {
+        // A custom frock is not a shop order. It has its own list, its own timeline
+        // and its own cancellation, and showing its payment record here as well
+        // meant the same purchase appeared twice with two different statuses.
         $orders = Order::with(['items.product', 'customOrder'])
             ->where('customer_id', Auth::id())
+            ->whereNull('custom_order_id')
             ->latest()
             ->limit(500)
             ->get();

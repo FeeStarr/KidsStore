@@ -107,9 +107,23 @@ class OrderController extends Controller
         return back()->with('success', 'Order marked as delivered.');
     }
 
-    public function cancel(Order $order): RedirectResponse
+    public function cancel(Order $order, Request $request): RedirectResponse
     {
-        $this->orders->cancel($order);
+        // A custom frock's order is cancelled together with its request, so the reason
+        // belongs on both. A plain shop order has no request to record it against.
+        $isCustom = $order->custom_order_id !== null;
+
+        $data = $request->validate([
+            'reason' => [$isCustom ? 'required' : 'nullable', 'string', 'max:500'],
+        ]);
+
+        $reason = isset($data['reason']) ? trim($data['reason']) : null;
+
+        try {
+            $this->orders->cancel($order, $reason, Auth::guard('admin')->id());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', 'Order cancelled. If paid, a refund request was queued for review.');
     }

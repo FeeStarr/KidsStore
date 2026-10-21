@@ -143,7 +143,20 @@ class CustomOrderPaymentEligibilityTest extends TestCase
         $this->assertSame('expired', $linkedRegular->fresh()->status);
     }
 
-    public function test_my_orders_shows_pay_now_button_and_custom_badge(): void
+    public function test_a_custom_frock_is_not_listed_in_my_orders(): void
+    {
+        Notification::fake();
+        $customer = $this->customer();
+        $custom = $this->customOrderFor($customer, CustomOrder::STATUS_CUSTOMER_APPROVED);
+        $linked = $this->linkedCustomOrder($custom);
+
+        $this->actingAs($customer, 'web')
+            ->get(route('shop.account.orders.index'))
+            ->assertOk()
+            ->assertDontSee($linked->reference);
+    }
+
+    public function test_a_custom_frock_shows_pay_now_on_its_own_page(): void
     {
         Notification::fake();
         $customer = $this->customer();
@@ -151,10 +164,9 @@ class CustomOrderPaymentEligibilityTest extends TestCase
         $this->linkedCustomOrder($custom);
 
         $this->actingAs($customer, 'web')
-            ->get(route('shop.account.orders.index'))
+            ->get(route('shop.custom-frock.show', $custom))
             ->assertOk()
-            ->assertSee('Pay Now')
-            ->assertSee('Custom frock', false);
+            ->assertSee('Pay now');
     }
 
     public function test_my_orders_hides_pay_now_for_paid_orders(): void
@@ -168,7 +180,7 @@ class CustomOrderPaymentEligibilityTest extends TestCase
         ]);
 
         $this->actingAs($customer, 'web')
-            ->get(route('shop.account.orders.index'))
+            ->get(route('shop.custom-frock.show', $custom))
             ->assertOk()
             ->assertDontSee('>Pay Now<', false);
     }

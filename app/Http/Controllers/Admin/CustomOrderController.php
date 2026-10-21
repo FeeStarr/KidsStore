@@ -157,6 +157,25 @@ class CustomOrderController extends Controller
         return back()->with('success', 'Quote created and sent to customer.');
     }
 
+    public function cancel(CustomOrder $customOrder, Request $request)
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $this->customOrderService->cancelAsAdmin(
+                $customOrder,
+                trim($data['reason']),
+                Auth::guard('admin')->id()
+            );
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Request cancelled.');
+    }
+
     public function startProduction(CustomOrder $customOrder)
     {
         try {

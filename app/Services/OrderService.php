@@ -251,10 +251,54 @@ class OrderService
     /**
      * Cancel an order. If inventory was decreased, restore it.
      * For paid orders, creates a refund_required request transactionally.
+     *
+     * A custom frock's request and the order that pays for it are one purchase, so
+     * cancelling one has to cancel the other. The request decides whether a
+     * cancellation is allowed at all, and the order follows it.
      */
-    public function cancel(Order $order): Order
+    public function cancel(Order $order, ?string $reason = null, ?int $userId = null): Order
     {
-        $result = DB::transaction(function () use ($order) {
+        $customOrder = $order->customOrder;
+
+        if ($customOrder
+            && $customOrder->status !== \App\Models\CustomOrder::STATUS_CANCELLED
+            && ! $customOrder->isCancellableByAdmin()) {
+            // Cancelling the order alone would leave a request still saying "payment
+            // pending", and a frock the tailor could start making for an order nobody
+            // is going to pay for.
+            throw new RuntimeException(
+                'This order belongs to a custom frock that can no longer be cancelled. '
+                .'A frock that has already shipped is returned, not cancelled.'
+            );
+        }
+
+        $result = $this->cancelOrderOnly($order, $reason);
+
+        // Keep the request in step with the order it pays for.
+        if ($customOrder && $customOrder->status !== \App\Models\CustomOrder::STATUS_CANCELLED) {
+            app(CustomOrderService::class)->cancelAsAdmin(
+                $customOrder,
+                $reason ?: 'Cancelled from the order record.',
+                $userId
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Cancels the order itself, without reaching back to the custom request.
+     *
+     * The request is handled by the caller, so cancelling from either side lands in
+     * the same place and neither half is done twice.
+     */
+    public function cancelOrderOnly(Order $order, ?string $reason = null): Order
+    {
+        if ($order->status === 'cancelled') {
+            return $order->fresh();
+        }
+
+        $result = DB::transaction(function () use ($order, $reason) {
             $prev = $order->status;
 
             if (! in_array($order->status, ['cancelled', 'expired'], true)) {
@@ -266,7 +310,11 @@ class OrderService
                 $this->releaseDealUsage($order);
                 $this->coupons->releaseForOrder($order);
             }
-            $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            $order->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
             $this->syncDeliveryStatusOnCancel($order);
             $fresh = $order->fresh();
 

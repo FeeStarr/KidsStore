@@ -137,10 +137,11 @@ class CustomOrderLifecycleLabelTest extends TestCase
     }
 
     /**
-     * Both records stay, but the My Orders entry must name the CF- reference so the
-     * customer can see they are one purchase rather than two.
+     * A custom frock keeps its own list. It is not a shop order, and showing its
+     * payment record in My Orders as well meant the same purchase appeared twice
+     * with two different statuses.
      */
-    public function test_my_orders_entry_names_the_custom_request_it_belongs_to(): void
+    public function test_a_custom_frock_does_not_appear_in_my_orders(): void
     {
         $customer = $this->customer();
         $order = $this->order($customer, CustomOrder::STATUS_PAYMENT_PENDING);
@@ -148,8 +149,20 @@ class CustomOrderLifecycleLabelTest extends TestCase
 
         $response = $this->actingAs($customer, 'web')->get(route('shop.account.orders.index'));
         $response->assertOk();
-        $response->assertSee('Custom frock '.$order->custom_order_number);
-        $response->assertSee($linked->reference);
+        $response->assertDontSee($linked->reference);
+        $response->assertDontSee('Custom frock '.$order->custom_order_number);
+    }
+
+    public function test_a_custom_frock_still_appears_in_my_custom_frocks(): void
+    {
+        $customer = $this->customer();
+        $order = $this->order($customer, CustomOrder::STATUS_PAYMENT_PENDING);
+        app(CustomPaymentService::class)->createLinkedOrder($order);
+
+        $this->actingAs($customer, 'web')
+            ->get(route('shop.custom-frock.index'))
+            ->assertOk()
+            ->assertSee($order->custom_order_number);
     }
 
     public function test_admin_order_note_links_back_to_the_custom_request(): void
