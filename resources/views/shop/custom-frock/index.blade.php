@@ -76,10 +76,6 @@
                                     <i class="bi bi-exclamation-triangle me-1"></i>
                                     Approval needs confirming. Please contact us and we'll sort it out.
                                 </p>
-                            @elseif ($order->hasPayableOrder())
-                                <p class="small text-muted mb-2">
-                                    Order reference: <a href="{{ route('shop.account.orders.show', $order->order) }}">{{ $order->order->reference }}</a>
-                                </p>
                             @endif
                             @if ($order->child_name)
                                 <p class="text-muted small mb-2">

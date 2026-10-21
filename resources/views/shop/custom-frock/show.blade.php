@@ -1,4 +1,4 @@
-﻿@extends('layouts.shop')
+@extends('layouts.shop')
 
 @section('title', $customOrder->lifecycle_label . ' ' . $customOrder->custom_order_number)
 
@@ -538,10 +538,9 @@
                                 will sort it out for you.
                             </div>
                         @elseif ($linkedOrder)
-                            <p class="small text-muted mt-3 mb-1">
-                                Payment is handled on order
-                                <a href="{{ route('shop.account.orders.show', $linkedOrder) }}">{{ $linkedOrder->reference }}</a>.
-                            </p>
+                            {{-- The linked order is a billing record, not something the
+                                 customer needs to look at. Everything they care about
+                                 is on this page. --}}
                             @if ($linkedOrder->isPayNowEligible())
                                 <a href="{{ route('shop.account.orders.show', $linkedOrder) }}" class="btn btn-primary w-100">
                                     <i class="bi bi-credit-card me-1"></i>Pay now

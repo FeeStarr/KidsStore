@@ -120,7 +120,7 @@ class CustomOrderLifecycleLabelTest extends TestCase
         );
     }
 
-    public function test_customer_index_lists_requests_and_shows_the_linked_order_reference(): void
+    public function test_customer_index_lists_requests_without_the_linked_order_reference(): void
     {
         Notification::fake();
         $customer = $this->customer();
@@ -133,7 +133,29 @@ class CustomOrderLifecycleLabelTest extends TestCase
         $response->assertOk();
         $response->assertSee('Custom Request '.$request->custom_order_number);
         $response->assertSee('Custom Order '.$approved->custom_order_number);
-        $response->assertSee($linked->reference);
+
+        // The linked order is a billing record. Everything the customer needs is
+        // on the request itself, so the order reference is not put in front of them.
+        $response->assertDontSee($linked->reference);
+    }
+
+    /**
+     * The request page carries the whole story - the quote, the sizing, the delivery
+     * and the payment - so the linked order's reference is not put in front of the
+     * customer there either.
+     */
+    public function test_the_request_page_does_not_show_the_linked_order_reference(): void
+    {
+        Notification::fake();
+        $customer = $this->customer();
+
+        $order = $this->order($customer, CustomOrder::STATUS_PAYMENT_PENDING);
+        $linked = app(CustomPaymentService::class)->createLinkedOrder($order);
+
+        $this->actingAs($customer, 'web')
+            ->get(route('shop.custom-frock.show', $order))
+            ->assertOk()
+            ->assertDontSee($linked->reference);
     }
 
     /**
