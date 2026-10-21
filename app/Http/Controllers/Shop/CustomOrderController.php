@@ -8,7 +8,6 @@ use App\Models\CustomCreation;
 use App\Models\CustomOrder;
 use App\Models\CustomOrderMeasurementField;
 use App\Models\CustomOrderMeasurementGuide;
-use App\Models\CustomOrderColour;
 use App\Models\DeliveryCharge;
 use App\Models\DeliveryLocation;
 use App\Models\PickupStation;
@@ -676,7 +675,6 @@ class CustomOrderController extends Controller
             ->values();
 
         return [
-            'colours' => CustomOrderColour::active()->get(),
             'pickupStations' => PickupStation::where('is_active', true)->where('is_available', true)->orderBy('name')->get(),
             'deliveryLocations' => DeliveryLocation::where('is_active', true)->orderBy('name')->get(),
             'deliveryCharges' => $deliveryLocationsWithAgent,

@@ -315,18 +315,8 @@
                                 {{-- Primary colour --}}
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Primary Colour <span class="text-danger">*</span></label>
-                                    @if($colours->count())
-                                    <div class="d-flex flex-wrap gap-2 mb-2">
-                                        @foreach ($colours as $colour)
-                                            <div class="colour-swatch"
-                                                 style="width:32px;height:32px;border-radius:50%;background:{{ $colour->hex ?? '#ccc' }};border:2px solid #dee2e6;cursor:pointer;"
-                                                 data-colour="{{ $colour->name }}" title="{{ $colour->name }}">
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                    @endif
                                     <input type="text" name="primary_colour" id="primary_colour" class="form-control form-control-sm" value="{{ old('primary_colour', $saved['primary_colour'] ?? '') }}" placeholder="e.g. Pink, Red, Blue" maxlength="128" required>
-                                    <small class="text-muted">Pick a swatch or type a colour name.</small>
+                                    <small class="text-muted">Type the colour you would like.</small>
                                 </div>
 
                                 {{-- Secondary colour --}}
@@ -341,17 +331,11 @@
                                     <input type="text" name="accent_colour" class="form-control" placeholder="e.g. Gold" value="{{ old('accent_colour', $saved['accent_colour'] ?? '') }}" maxlength="128">
                                 </div>
 
-                                {{-- Colour description --}}
-                                <div class="col-12">
-                                    <label class="form-label">Colour Description (optional)</label>
-                                    <input type="text" name="custom_colour_description" class="form-control" placeholder="Describe your preferred colours..." value="{{ old('custom_colour_description', $saved['custom_colour_description'] ?? '') }}" maxlength="500">
-                                </div>
-
                                 {{-- Colour reference images --}}
                                 <div class="col-12">
                                     <label class="form-label">Colour Reference Images (optional)</label>
                                     <input type="file" name="colour_files[]" class="form-control" multiple accept="image/jpeg,image/png,image/webp">
-                                    <small class="text-muted">Upload images showing your desired colour palette.</small>
+                                    <small class="text-muted">Upload images showing the colours you have in mind.</small>
                                 </div>
                             </div>
                         </div>
@@ -597,25 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
     locationSelect.addEventListener('change', updateDeliveryAvailability);
     updateDeliveryAvailability();
 
-    // Colour swatches
-    document.querySelectorAll('.colour-swatch').forEach(swatch => {
-        swatch.addEventListener('click', function() {
-            document.querySelectorAll('.colour-swatch').forEach(s => s.style.borderColor = '#dee2e6');
-            this.style.borderColor = '#0d6efd';
-            document.getElementById('primary_colour').value = this.dataset.colour;
-            updateNextState();
-        });
-    });
-
-    const colourInput = document.getElementById('primary_colour');
-    if (colourInput) {
-        colourInput.addEventListener('input', function() {
-            document.querySelectorAll('.colour-swatch').forEach(s => {
-                s.style.borderColor = s.dataset.colour === this.value ? '#0d6efd' : '#dee2e6';
-            });
-        });
-    }
-
     function escapeHtml(str) {
         const div = document.createElement('div');
         div.textContent = str || '';
@@ -634,7 +599,6 @@ document.addEventListener('DOMContentLoaded', function() {
             "Primary Colour": fd.get('primary_colour') || '-',
             "Secondary Colour": fd.get('secondary_colour') || '-',
             "Accent Colour": fd.get('accent_colour') || '-',
-            "Colour Description": fd.get('custom_colour_description') || '-',
             "Delivery": fd.get('delivery_method') === 'pickup' ? 'Pickup Station' : 'Home Delivery',
         };
         if (fd.get('customer_notes')) fields['Notes'] = fd.get('customer_notes');

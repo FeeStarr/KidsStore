@@ -170,6 +170,28 @@ class CustomFrockSizingTest extends TestCase
         $this->assertCount(2, $matches[0]);
     }
 
+    public function test_the_form_has_no_colour_palette_or_colour_description(): void
+    {
+        $customer = $this->customer();
+        $this->seedVocabulary();
+        $this->seedDelivery();
+
+        $this->actingAs($customer, 'web')
+            ->get(route('shop.custom-frock.create'))
+            ->assertOk()
+            // The swatch palette is gone: the customer simply types the colour.
+            ->assertDontSee('colour-swatch')
+            ->assertDontSee('Pick a swatch')
+            // And so is the free-text description.
+            ->assertDontSee('Colour Description')
+            ->assertDontSee('custom_colour_description')
+            // The colour fields themselves remain.
+            ->assertSee('name="primary_colour"', false)
+            ->assertSee('name="secondary_colour"', false)
+            ->assertSee('name="accent_colour"', false)
+            ->assertSee('name="colour_files[]"', false);
+    }
+
     public function test_the_form_falls_back_to_age_range_when_no_chart_is_published(): void
     {
         $customer = $this->customer();
